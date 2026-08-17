@@ -87,11 +87,16 @@ Run kernel commands from the target workspace with the repository-relative entry
 node skills/pinmind/scripts/pinmind.mjs route --file request.json
 node skills/pinmind/scripts/pinmind.mjs init --run <run-id> --brief brief.md
 node skills/pinmind/scripts/pinmind.mjs state reconcile --dry-run
+node skills/pinmind/scripts/pinmind.mjs state recover --apply --expected-sha256 <transition-sha256> [--expected-lock-sha256 <dead-local-lock-sha256>]
+node skills/pinmind/scripts/pinmind.mjs baseline capture --run <run-id> --file baseline.json -- <command> [args...]
 node skills/pinmind/scripts/pinmind.mjs contract freeze --run <run-id> --file contract.json
 node skills/pinmind/scripts/pinmind.mjs evidence capture --run <run-id> --file evidence.json -- <command> [args...]
-node skills/pinmind/scripts/pinmind.mjs final verify --run <run-id>
+node skills/pinmind/scripts/pinmind.mjs final check --run <run-id>
+node skills/pinmind/scripts/pinmind.mjs finalize --run <run-id>
 node skills/pinmind/scripts/pinmind.mjs report --run <run-id> --format md
 ```
+
+New runs require an explicit baseline receipt before contract freeze. `final check` is the pure read-only gate; `finalize` is the preferred explicit completion command. The legacy `final verify` spelling remains a deprecated finalizing alias so existing automation does not silently change behavior.
 
 See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and safety behavior.
 

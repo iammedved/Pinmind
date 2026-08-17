@@ -30,6 +30,7 @@ const CAPTURE_TIMEOUT_MS = 30000;
 const CAPTURE_TIMEOUT_MIN_MS = 50;
 const CAPTURE_TIMEOUT_MAX_MS = 300000;
 const CAPTURE_TERMINATION_GRACE_MS = 250;
+const TRANSITION_OPERATIONS = new Set(['init', 'freeze', 'amend', 'evidence', 'finalize']);
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonicalJson = (value) => JSON.stringify(sortValue(value));
@@ -103,18 +104,53 @@ async function readJson(file, label = 'JSON file') {
   try { return JSON.parse(await readFile(file, 'utf8')); }
   catch (error) { throw new KernelError(`${label} is unreadable or invalid JSON: ${file}`, 'INVALID_JSON', [error.message]); }
 }
+async function syncDirectory(directory) {
+  let handle;
+  try {
+    handle = await open(directory, 'r');
+    await handle.sync();
+  } catch (error) {
+    if (process.platform !== 'win32' || !['EISDIR', 'EPERM', 'EINVAL', 'ENOTSUP'].includes(error.code)) throw error;
+  } finally { await handle?.close(); }
+}
+async function ensureDirectoryDurable(directory) {
+  const before = await existingEntry(directory, 'write parent');
+  if (before) {
+    if (before.isSymbolicLink() || !before.isDirectory()) throw unsafeStatePath('write parent', 'Expected a physical directory.');
+    return;
+  }
+  const parent = path.dirname(directory);
+  if (parent !== directory) await ensureDirectoryDurable(parent);
+  try { await mkdir(directory); }
+  catch (error) { if (error.code !== 'EEXIST') throw error; }
+  await syncDirectory(parent);
+}
+async function ensureParentDirectory(file) { await ensureDirectoryDurable(path.dirname(file)); }
 async function writeJsonAtomic(file, value) {
-  await mkdir(path.dirname(file), { recursive: true });
+  await ensureParentDirectory(file);
   const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  try { await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); await rename(temporary, file); }
+  let handle;
+  try {
+    handle = await open(temporary, 'wx', 0o600);
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, 'utf8'); await handle.sync(); await handle.close(); handle = null;
+    await rename(temporary, file); await syncDirectory(path.dirname(file));
+  }
   catch (error) { try { await unlink(temporary); } catch {} throw error; }
+  finally { await handle?.close(); }
 }
 async function writeTextAtomic(file, value) {
-  await mkdir(path.dirname(file), { recursive: true });
+  await ensureParentDirectory(file);
   const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  try { await writeFile(temporary, value, 'utf8'); await rename(temporary, file); }
+  let handle;
+  try {
+    handle = await open(temporary, 'wx', 0o600);
+    await handle.writeFile(value, 'utf8'); await handle.sync(); await handle.close(); handle = null;
+    await rename(temporary, file); await syncDirectory(path.dirname(file));
+  }
   catch (error) { try { await unlink(temporary); } catch {} throw error; }
+  finally { await handle?.close(); }
 }
+async function unlinkDurable(file) { await unlink(file); await syncDirectory(path.dirname(file)); }
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export function layout(cwd, runId) {
@@ -122,7 +158,7 @@ export function layout(cwd, runId) {
   const root = path.resolve(cwd, '.pinmind');
   const runs = path.join(root, 'runs');
   const run = path.join(runs, safe);
-  return { root, runs, run, lock: path.join(root, 'writer.lock'), active: path.join(root, 'active.json'), brief: path.join(run, 'brief.md'), state: path.join(run, 'state.json'), evidence: path.join(run, 'evidence.json'), usage: path.join(run, 'usage.json'), final: path.join(run, 'final.md'), execution: path.join(run, 'execution.json'), contracts: path.join(run, 'contracts'), amendments: path.join(run, 'amendments') };
+  return { root, runs, run, lock: path.join(root, 'writer.lock'), transition: path.join(root, 'transition.json'), active: path.join(root, 'active.json'), brief: path.join(run, 'brief.md'), state: path.join(run, 'state.json'), baseline: path.join(run, 'baseline.json'), evidence: path.join(run, 'evidence.json'), usage: path.join(run, 'usage.json'), final: path.join(run, 'final.md'), execution: path.join(run, 'execution.json'), contracts: path.join(run, 'contracts'), amendments: path.join(run, 'amendments') };
 }
 
 function unsafeStatePath(label, detail = '') {
@@ -166,6 +202,7 @@ async function verifiedStateRoot(cwd, { create = false } = {}) {
   if (exists) {
     await verifyStateEntry(path.join(root, 'active.json'), root, 'file', 'active pointer');
     await verifyStateEntry(path.join(root, 'writer.lock'), root, 'file', 'writer lock');
+    await verifyStateEntry(path.join(root, 'transition.json'), root, 'file', 'transition journal');
   }
   return { workspace, root, exists };
 }
@@ -178,7 +215,7 @@ async function verifiedLayout(cwd, runId, { createRoot = false } = {}) {
   if (!(await verifyStateEntry(files.run, files.root, 'directory', 'run directory'))) return files;
   await verifyStateEntry(files.contracts, files.run, 'directory', 'contracts directory');
   await verifyStateEntry(files.amendments, files.run, 'directory', 'amendments directory');
-  for (const [label, file] of Object.entries({ brief: files.brief, state: files.state, evidence: files.evidence, usage: files.usage, final: files.final, execution: files.execution })) {
+  for (const [label, file] of Object.entries({ brief: files.brief, state: files.state, baseline: files.baseline, evidence: files.evidence, usage: files.usage, final: files.final, execution: files.execution })) {
     await verifyStateEntry(file, files.run, 'file', `${label} file`);
   }
   return files;
@@ -240,6 +277,172 @@ async function withWorkspaceLock(cwd, operation, action) {
   finally { await releaseWorkspaceLock(lock); }
 }
 
+function transitionHash(transition) { return hashWithout(transition, 'transitionSha256'); }
+function jsonText(value) { return `${JSON.stringify(value, null, 2)}\n`; }
+function transitionTargetAllowed(operation, runId, relative) {
+  const run = `.pinmind/runs/${runId}`;
+  const exact = {
+    init: new Set([`${run}/brief.md`, `${run}/state.json`, `${run}/evidence.json`, `${run}/usage.json`, '.pinmind/active.json']),
+    freeze: new Set([`${run}/contracts/contract-v001.json`, `${run}/state.json`]),
+    evidence: new Set([`${run}/evidence.json`]),
+    finalize: new Set([`${run}/usage.json`, `${run}/final.md`, `${run}/state.json`, '.pinmind/active.json']),
+  };
+  if (exact[operation]?.has(relative)) return true;
+  if (operation !== 'amend') return false;
+  return relative === `${run}/evidence.json` || relative === `${run}/state.json`
+    || (relative.startsWith(`${run}/contracts/`) && /^contract-v\d{3,}\.json$/.test(relative.slice(`${run}/contracts/`.length)))
+    || (relative.startsWith(`${run}/amendments/`) && /^amendment-v\d{3,}\.json$/.test(relative.slice(`${run}/amendments/`.length)));
+}
+async function verifyPhysicalParentChain(workspace, target) {
+  const relative = path.relative(workspace, path.dirname(target));
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new KernelError('Transition target parent escapes the workspace.', 'TRANSITION_CONFLICT');
+  let current = workspace;
+  for (const segment of relative.split(path.sep).filter(Boolean)) {
+    current = path.join(current, segment); const entry = await existingEntry(current, 'transition target parent');
+    if (!entry) return;
+    if (entry.isSymbolicLink() || !entry.isDirectory()) throw new KernelError('Transition target parent must be a physical directory.', 'TRANSITION_CONFLICT', [path.relative(workspace, current).replace(/\\/g, '/')]);
+  }
+}
+async function transitionTargetState(workspace, action) {
+  const absolute = path.resolve(workspace, action.path); const relative = path.relative(workspace, absolute);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new KernelError('Transition target escapes the workspace.', 'TRANSITION_CONFLICT');
+  await verifyPhysicalParentChain(workspace, absolute);
+  const entry = await existingEntry(absolute, 'transition target');
+  if (entry && (entry.isSymbolicLink() || !entry.isFile())) throw new KernelError('Transition target must be a physical file.', 'TRANSITION_CONFLICT', [action.path]);
+  const content = entry ? await readFile(absolute, 'utf8') : null; const currentSha256 = content === null ? null : sha256(content);
+  const matchesBefore = currentSha256 === action.beforeSha256; const matchesAfter = currentSha256 === action.afterSha256;
+  return { absolute, currentSha256, matchesBefore, matchesAfter };
+}
+function validateTransitionShape(transition) {
+  const errors = [];
+  if (!transition || transition.format !== FORMAT || typeof transition.transitionId !== 'string') errors.push('invalid transition header');
+  if (!TRANSITION_OPERATIONS.has(transition?.operation)) errors.push('invalid transition operation');
+  try { safeRunId(transition?.runId); } catch { errors.push('invalid transition run id'); }
+  if (!Array.isArray(transition?.actions) || transition.actions.length === 0) errors.push('transition actions are required');
+  const seen = new Set();
+  for (const action of transition?.actions || []) {
+    if (!action || typeof action.path !== 'string' || seen.has(action.path)) errors.push('transition target paths must be unique strings');
+    seen.add(action?.path);
+    if (!transitionTargetAllowed(transition.operation, transition.runId, action.path)) errors.push(`transition target is not allowed: ${action?.path}`);
+    if (action.beforeSha256 !== null && !/^[a-f0-9]{64}$/.test(action.beforeSha256 || '')) errors.push(`invalid before hash: ${action?.path}`);
+    if (action.afterSha256 !== null && !/^[a-f0-9]{64}$/.test(action.afterSha256 || '')) errors.push(`invalid after hash: ${action?.path}`);
+    if (action.afterContent !== null && typeof action.afterContent !== 'string') errors.push(`invalid post-image: ${action?.path}`);
+    if ((action.afterContent === null ? null : sha256(action.afterContent)) !== action.afterSha256) errors.push(`post-image hash mismatch: ${action?.path}`);
+  }
+  if (typeof transition?.transitionSha256 !== 'string' || transitionHash(transition) !== transition.transitionSha256) errors.push('transition hash mismatch');
+  return errors;
+}
+async function inspectPendingTransition(cwd) {
+  const stateRoot = await verifiedStateRoot(cwd); const file = path.join(stateRoot.root, 'transition.json');
+  if (!stateRoot.exists || !(await exists(file))) return null;
+  let transition;
+  try { transition = await readJson(file, 'Transition journal'); }
+  catch (error) { return { classification: 'transition-conflict', issues: [error.code || 'INVALID_JSON'], transition: null, summary: null }; }
+  const errors = validateTransitionShape(transition);
+  if (errors.length) return { classification: 'transition-conflict', issues: errors, transition, summary: { transitionId: transition.transitionId ?? null, operation: transition.operation ?? null, runId: transition.runId ?? null, transitionSha256: transition.transitionSha256 ?? null } };
+  const states = [];
+  try { for (const action of transition.actions) states.push(await transitionTargetState(stateRoot.workspace, action)); }
+  catch (error) { return { classification: 'transition-conflict', issues: [error.message], transition, summary: { transitionId: transition.transitionId, operation: transition.operation, runId: transition.runId, transitionSha256: transition.transitionSha256 } }; }
+  const conflicts = transition.actions.filter((action, index) => !states[index].matchesBefore && !states[index].matchesAfter).map((action) => action.path);
+  return {
+    classification: conflicts.length ? 'transition-conflict' : 'transition-recovery-required',
+    issues: conflicts.map((target) => `unexpected target hash: ${target}`), transition,
+    summary: { transitionId: transition.transitionId, operation: transition.operation, runId: transition.runId, transitionSha256: transition.transitionSha256, applied: states.filter((state) => state.matchesAfter).length, total: states.length },
+  };
+}
+async function inspectWriterLockForRecovery(cwd) {
+  const stateRoot = await verifiedStateRoot(cwd); const lockFile = path.join(stateRoot.root, 'writer.lock');
+  if (!stateRoot.exists || !(await exists(lockFile))) return { status: 'absent', lockSha256: null };
+  const raw = await readFile(lockFile, 'utf8'); const lockSha256 = sha256(raw); let lock;
+  try { lock = JSON.parse(raw); }
+  catch { return { status: 'invalid', lockSha256 }; }
+  if (lock?.format !== FORMAT || typeof lock.ownerId !== 'string' || !Number.isInteger(lock.pid) || lock.pid < 1 || typeof lock.hostname !== 'string' || typeof lock.operation !== 'string') return { status: 'invalid', lockSha256 };
+  const summary = { status: 'held', lockSha256, ownerId: lock.ownerId, pid: lock.pid, hostname: lock.hostname, operation: lock.operation };
+  if (lock.hostname !== hostname()) return { ...summary, status: 'foreign' };
+  try { process.kill(lock.pid, 0); return summary; }
+  catch (error) {
+    if (error.code === 'ESRCH') return { ...summary, status: 'stale-local' };
+    return summary;
+  }
+}
+function transitionMatchesLock(transition, lock) {
+  const expected = {
+    init: [`init:${transition.runId}`], freeze: [`freeze-contract:${transition.runId}`], amend: [`amend-contract:${transition.runId}`],
+    evidence: [`record-evidence:${transition.runId}`, `capture-evidence:${transition.runId}`], finalize: [`finalize:${transition.runId}`],
+  };
+  return (expected[transition.operation] || []).includes(lock.operation);
+}
+async function recoverExactStaleLock(cwd, pending, expectedLockSha256) {
+  if (typeof expectedLockSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(expectedLockSha256)) throw new KernelError('An exact expected writer-lock hash is required.', 'EXPECTED_LOCK_HASH_REQUIRED');
+  const lock = await inspectWriterLockForRecovery(cwd);
+  if (lock.lockSha256 !== expectedLockSha256) throw new KernelError('The writer lock changed after inspection.', 'LOCK_HASH_MISMATCH');
+  if (lock.status !== 'stale-local') throw new KernelError('Only an explicitly matched dead local writer lock can be recovered.', 'LOCK_NOT_RECOVERABLE', [lock.status]);
+  if (!transitionMatchesLock(pending.transition, lock)) throw new KernelError('The stale writer lock does not own the prepared transition.', 'LOCK_TRANSITION_MISMATCH');
+  const stateRoot = await verifiedStateRoot(cwd); const lockFile = path.join(stateRoot.root, 'writer.lock');
+  if (sha256(await readFile(lockFile, 'utf8')) !== expectedLockSha256) throw new KernelError('The writer lock changed before removal.', 'LOCK_HASH_MISMATCH');
+  await unlinkDurable(lockFile); return lock;
+}
+async function buildTransition(cwd, operation, runId, changes) {
+  const stateRoot = await verifiedStateRoot(cwd, { create: true }); const actions = [];
+  for (const change of changes) {
+    const absolute = path.resolve(change.file); const relative = path.relative(stateRoot.workspace, absolute).replace(/\\/g, '/');
+    if (!transitionTargetAllowed(operation, runId, relative)) throw new KernelError('Transition target is outside the operation allowlist.', 'TRANSITION_TARGET_FORBIDDEN', [relative]);
+    const current = await existingEntry(absolute, 'transition target');
+    if (current && (current.isSymbolicLink() || !current.isFile())) throw new KernelError('Transition target must be a physical file.', 'TRANSITION_CONFLICT', [relative]);
+    const beforeContent = current ? await readFile(absolute, 'utf8') : null; const afterContent = change.content;
+    actions.push({ path: relative, beforeSha256: beforeContent === null ? null : sha256(beforeContent), afterSha256: afterContent === null ? null : sha256(afterContent), afterContent });
+  }
+  const now = new Date().toISOString();
+  const transition = { format: FORMAT, transitionId: randomUUID(), operation, runId, createdAt: now, actions };
+  transition.transitionSha256 = transitionHash(transition); return { stateRoot, transition };
+}
+async function maybeInjectTransitionFault(options, step) {
+  if (typeof options?.onTransitionStep === 'function') await options.onTransitionStep(step);
+  if (options?.faultAfterStep === step) throw new KernelError(`Injected transition interruption after step ${step}.`, 'INJECTED_TRANSITION_CRASH', [step]);
+}
+async function applyTransitionActions(workspace, transition, options = {}) {
+  for (let index = 0; index < transition.actions.length; index += 1) {
+    const action = transition.actions[index]; const state = await transitionTargetState(workspace, action);
+    if (!state.matchesAfter) {
+      if (!state.matchesBefore) throw new KernelError('A transition target changed outside its prepared before/after states.', 'TRANSITION_CONFLICT', [action.path]);
+      if (action.afterContent === null) await unlinkDurable(state.absolute); else await writeTextAtomic(state.absolute, action.afterContent);
+    }
+    await maybeInjectTransitionFault(options, index + 1);
+  }
+}
+async function executeTransition(cwd, operation, runId, changes, options = {}) {
+  const pending = await inspectPendingTransition(cwd);
+  if (pending) throw new KernelError('A prepared transition requires explicit recovery before another mutation.', 'TRANSITION_RECOVERY_REQUIRED', [pending.summary || pending.issues]);
+  const { stateRoot, transition } = await buildTransition(cwd, operation, runId, changes);
+  const journal = path.join(stateRoot.root, 'transition.json'); await writeJsonAtomic(journal, transition); await maybeInjectTransitionFault(options, 0);
+  await applyTransitionActions(stateRoot.workspace, transition, options);
+  for (const action of transition.actions) if (!(await transitionTargetState(stateRoot.workspace, action)).matchesAfter) throw new KernelError('Transition post-image verification failed.', 'TRANSITION_CONFLICT', [action.path]);
+  await unlinkDurable(journal);
+  return { transitionId: transition.transitionId, transitionSha256: transition.transitionSha256 };
+}
+
+export async function recoverTransition(cwd, expectedTransitionSha256, options = {}) {
+  if (typeof expectedTransitionSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(expectedTransitionSha256)) throw new KernelError('An exact expected transition hash is required.', 'EXPECTED_TRANSITION_HASH_REQUIRED');
+  const preflight = await inspectPendingTransition(cwd);
+  if (preflight?.classification === 'transition-recovery-required' && preflight.transition.transitionSha256 !== expectedTransitionSha256) throw new KernelError('The prepared transition hash changed.', 'TRANSITION_HASH_MISMATCH');
+  if (options.expectedLockSha256 !== undefined) {
+    if (!preflight || preflight.classification !== 'transition-recovery-required') throw new KernelError('No recoverable prepared transition owns the stale lock.', 'TRANSITION_CONFLICT', preflight?.issues || []);
+    await recoverExactStaleLock(cwd, preflight, options.expectedLockSha256);
+  }
+  return withWorkspaceLock(cwd, 'recover-transition', async () => {
+    const pending = await inspectPendingTransition(cwd);
+    if (!pending) throw new KernelError('No prepared transition exists.', 'NO_PENDING_TRANSITION');
+    if (pending.classification !== 'transition-recovery-required') throw new KernelError('The prepared transition conflicts with current state.', 'TRANSITION_CONFLICT', pending.issues);
+    if (pending.transition.transitionSha256 !== expectedTransitionSha256) throw new KernelError('The prepared transition hash changed.', 'TRANSITION_HASH_MISMATCH');
+    const stateRoot = await verifiedStateRoot(cwd); await applyTransitionActions(stateRoot.workspace, pending.transition);
+    for (const action of pending.transition.actions) if (!(await transitionTargetState(stateRoot.workspace, action)).matchesAfter) throw new KernelError('Transition recovery post-image verification failed.', 'TRANSITION_CONFLICT', [action.path]);
+    await unlinkDurable(path.join(stateRoot.root, 'transition.json'));
+    const reconciliation = await reconcileActiveRuns(cwd);
+    if (!reconciliation.ok) throw new KernelError('Transition applied but active-run reconciliation is not valid.', 'ACTIVE_RUN_INCONSISTENT', [reconciliation]);
+    return { recovered: true, transitionId: pending.transition.transitionId, operation: pending.transition.operation, runId: pending.transition.runId, reconciliation };
+  });
+}
+
 function stateHash(state) { return hashWithout(state, 'stateSha256'); }
 function setStateHash(state) { state.stateSha256 = stateHash(state); return state; }
 
@@ -255,7 +458,7 @@ export async function loadState(cwd, runId) {
 async function saveState(files, state) { state.updatedAt = new Date().toISOString(); await writeJsonAtomic(files.state, setStateHash(state)); }
 function requireActiveRun(state, runId) { if (state.status !== 'active') throw new KernelError(`Run ${runId} is complete.`, 'RUN_COMPLETE'); }
 
-function reconciliationResult(classification, pointerRunId, activeRunIds, runIds, issues = []) {
+function reconciliationResult(classification, pointerRunId, activeRunIds, runIds, issues = [], pendingTransition = null) {
   const ok = classification === 'clean-idle' || classification === 'canonical-active';
   const nextSafeSteps = {
     'clean-idle': 'No recovery action is required.',
@@ -267,13 +470,22 @@ function reconciliationResult(classification, pointerRunId, activeRunIds, runIds
     'pointer-diverged': 'Inspect the pointer and active run states; ownership is inconsistent.',
     'pointer-invalid': 'Inspect the invalid active pointer without replacing it automatically.',
     'run-corrupt': 'Inspect the listed managed run entries; reconciliation cannot trust corrupted state.',
+    'transition-recovery-required': 'Run explicit hash-bound state recovery; this diagnostic did not apply post-images or replay task work.',
+    'transition-conflict': 'Inspect the transition and target hashes; do not overwrite or delete the journal automatically.',
   };
-  return { ok, classification, pointerRunId, activeRunIds, managedRunCount: runIds.length, issues, nextSafeStep: nextSafeSteps[classification] };
+  return { ok, classification, pointerRunId, activeRunIds, managedRunCount: runIds.length, issues, pendingTransition, nextSafeStep: nextSafeSteps[classification] };
 }
 
 export async function reconcileActiveRuns(cwd) {
   const stateRoot = await verifiedStateRoot(cwd);
   if (!stateRoot.exists) return reconciliationResult('clean-idle', null, [], []);
+  const pending = await inspectPendingTransition(cwd);
+  if (pending) {
+    const result = reconciliationResult(pending.classification, null, [], [], pending.issues, pending.summary);
+    result.writerLock = await inspectWriterLockForRecovery(cwd);
+    if (result.writerLock.status === 'stale-local' && pending.classification === 'transition-recovery-required') result.nextSafeStep = 'Use explicit state recovery with both the printed transition hash and dead local writer-lock hash; no task work will be replayed.';
+    return result;
+  }
   const runsPath = path.join(stateRoot.root, 'runs');
   const hasRuns = await verifyStateEntry(runsPath, stateRoot.root, 'directory', 'runs directory');
   const runIds = []; const activeRunIds = []; const issues = [];
@@ -393,7 +605,7 @@ export async function verifyRun(cwd, runId) {
   return { files, state };
 }
 
-async function initRunUnlocked(cwd, runId, briefText) {
+async function initRunUnlocked(cwd, runId, briefText, options = {}) {
   const files = await verifiedLayout(cwd, runId, { createRoot: true });
   if (await exists(files.run)) throw new KernelError(`Run already exists: ${runId}`, 'RUN_EXISTS');
   const reconciliation = await reconcileActiveRuns(cwd);
@@ -401,19 +613,22 @@ async function initRunUnlocked(cwd, runId, briefText) {
   if (reconciliation.classification !== 'clean-idle') throw new KernelError('The active-run state is inconsistent and must be reconciled before initialization.', 'ACTIVE_RUN_INCONSISTENT', [reconciliation.classification, ...reconciliation.activeRunIds]);
   if (typeof briefText !== 'string' || !briefText.trim()) throw new KernelError('briefText is required.', 'INVALID_BRIEF');
   const brief = redact(briefText);
-  await mkdir(files.contracts, { recursive: true });
-  await writeTextAtomic(files.brief, brief);
   const now = new Date().toISOString();
-  const state = setStateHash({ format: FORMAT, runId, status: 'active', phase: 'understand', briefSha256: sha256(brief), contractHashes: {}, currentContractVersion: null, createdAt: now, updatedAt: now });
-  await writeJsonAtomic(files.state, state);
-  await writeEvidence(files, { format: FORMAT, entries: [] });
-  await writeUsage(files, unavailableUsage(now));
-  await writeJsonAtomic(files.active, { format: FORMAT, runId, updatedAt: now });
+  const state = setStateHash({ format: FORMAT, runId, status: 'active', phase: 'understand', baselineRequired: true, briefSha256: sha256(brief), contractHashes: {}, currentContractVersion: null, createdAt: now, updatedAt: now });
+  const evidence = { format: FORMAT, entries: [] }; evidence.storeSha256 = evidenceStoreHash(evidence);
+  const usage = unavailableUsage(now); usage.usageSha256 = usageHash(usage);
+  await executeTransition(cwd, 'init', runId, [
+    { file: files.brief, content: brief },
+    { file: files.state, content: jsonText(state) },
+    { file: files.evidence, content: jsonText(evidence) },
+    { file: files.usage, content: jsonText(usage) },
+    { file: files.active, content: jsonText({ format: FORMAT, runId, updatedAt: now }) },
+  ], options);
   return { runId, briefSha256: state.briefSha256 };
 }
 
-export async function initRun(cwd, runId, briefText) {
-  return withWorkspaceLock(cwd, `init:${safeRunId(runId)}`, () => initRunUnlocked(cwd, runId, briefText));
+export async function initRun(cwd, runId, briefText, options = {}) {
+  return withWorkspaceLock(cwd, `init:${safeRunId(runId)}`, () => initRunUnlocked(cwd, runId, briefText, options));
 }
 
 async function currentContract(files, state) {
@@ -461,9 +676,13 @@ function invalidationTargets(previous, changes) {
   return targets;
 }
 
-async function freezeContractUnlocked(cwd, runId, candidate) {
+async function freezeContractUnlocked(cwd, runId, candidate, options = {}) {
   const { files, state } = await verifyRun(cwd, runId);
   await requireCanonicalActiveRun(cwd, state, runId);
+  if (state.baselineRequired === true) {
+    if (!(await exists(files.baseline))) throw new KernelError('Record an explicit baseline before freezing a new run.', 'BASELINE_REQUIRED');
+    await loadBaseline(files);
+  }
   const expectedVersion = (state.currentContractVersion || 0) + 1;
   if (state.currentContractVersion) throw new KernelError('A frozen contract already exists; use contract amend.', 'AMEND_REQUIRED');
   const validation = validateContract(candidate, { expectedVersion });
@@ -474,17 +693,16 @@ async function freezeContractUnlocked(cwd, runId, candidate) {
   contract.source = { briefPath: 'brief.md', briefSha256: state.briefSha256 };
   contract.contractSha256 = hashWithout(contract, 'contractSha256');
   const output = path.join(files.contracts, 'contract-v001.json');
-  await writeJsonAtomic(output, contract);
-  state.currentContractVersion = 1; state.contractHashes['1'] = contract.contractSha256; state.phase = 'execute';
-  await saveState(files, state);
+  const nextState = structuredClone(state); nextState.currentContractVersion = 1; nextState.contractHashes['1'] = contract.contractSha256; nextState.phase = 'execute'; nextState.updatedAt = new Date().toISOString(); setStateHash(nextState);
+  await executeTransition(cwd, 'freeze', runId, [{ file: output, content: jsonText(contract) }, { file: files.state, content: jsonText(nextState) }], options);
   return { version: 1, contractSha256: contract.contractSha256, path: output };
 }
 
-export async function freezeContract(cwd, runId, candidate) {
-  return withWorkspaceLock(cwd, `freeze-contract:${safeRunId(runId)}`, () => freezeContractUnlocked(cwd, runId, candidate));
+export async function freezeContract(cwd, runId, candidate, options = {}) {
+  return withWorkspaceLock(cwd, `freeze-contract:${safeRunId(runId)}`, () => freezeContractUnlocked(cwd, runId, candidate, options));
 }
 
-async function amendContractUnlocked(cwd, runId, candidate, reason, affected, authority) {
+async function amendContractUnlocked(cwd, runId, candidate, reason, affected, authority, options = {}) {
   const { files, state } = await verifyRun(cwd, runId);
   await requireCanonicalActiveRun(cwd, state, runId);
   const previous = await currentContract(files, state);
@@ -503,22 +721,26 @@ async function amendContractUnlocked(cwd, runId, candidate, reason, affected, au
   }
   contract.status = 'frozen'; contract.source = { briefPath: 'brief.md', briefSha256: state.briefSha256 }; contract.amends = previous.version;
   contract.contractSha256 = hashWithout(contract, 'contractSha256');
-  await writeJsonAtomic(path.join(files.contracts, `contract-v${String(version).padStart(3, '0')}.json`), contract);
   const evidence = await loadEvidence(files);
   const now = new Date().toISOString();
   const targets = invalidationTargets(previous, changes);
   for (const entry of evidence.entries || []) if (entry.contractVersion === previous.version && (targets === null || (entry.covers || []).some((id) => targets.has(id)))) {
     entry.status = 'invalidated'; entry.invalidatedAt = now; entry.invalidatedBy = `contract-v${version}`;
   }
-  await writeEvidence(files, evidence);
-  await writeJsonAtomic(path.join(files.amendments, `amendment-v${String(version).padStart(3, '0')}.json`), { format: FORMAT, fromVersion: previous.version, toVersion: version, reason: redact(reason), authority: redact(authority), affected: [...suppliedTokens], changes, createdAt: now });
-  state.currentContractVersion = version; state.contractHashes[String(version)] = contract.contractSha256; state.phase = 'execute';
-  await saveState(files, state);
+  evidence.storeSha256 = evidenceStoreHash(evidence);
+  const amendment = { format: FORMAT, fromVersion: previous.version, toVersion: version, reason: redact(reason), authority: redact(authority), affected: [...suppliedTokens], changes, createdAt: now };
+  const nextState = structuredClone(state); nextState.currentContractVersion = version; nextState.contractHashes[String(version)] = contract.contractSha256; nextState.phase = 'execute'; nextState.updatedAt = now; setStateHash(nextState);
+  await executeTransition(cwd, 'amend', runId, [
+    { file: path.join(files.contracts, `contract-v${String(version).padStart(3, '0')}.json`), content: jsonText(contract) },
+    { file: files.evidence, content: jsonText(evidence) },
+    { file: path.join(files.amendments, `amendment-v${String(version).padStart(3, '0')}.json`), content: jsonText(amendment) },
+    { file: files.state, content: jsonText(nextState) },
+  ], options);
   return { version, changes: [...actualTokens], invalidatedEvidence: (evidence.entries || []).filter((entry) => entry.status === 'invalidated' && entry.invalidatedBy === `contract-v${version}`).map((entry) => entry.evidenceId) };
 }
 
-export async function amendContract(cwd, runId, candidate, reason, affected, authority) {
-  return withWorkspaceLock(cwd, `amend-contract:${safeRunId(runId)}`, () => amendContractUnlocked(cwd, runId, candidate, reason, affected, authority));
+export async function amendContract(cwd, runId, candidate, reason, affected, authority, options = {}) {
+  return withWorkspaceLock(cwd, `amend-contract:${safeRunId(runId)}`, () => amendContractUnlocked(cwd, runId, candidate, reason, affected, authority, options));
 }
 
 function allTargetIds(contract) { return new Set([...ids(contract.acceptanceCriteria), ...ids(contract.invariants), ...ids(contract.preservation)]); }
@@ -641,7 +863,7 @@ function evidenceEntryErrors(entry, contract, version) {
   return errors;
 }
 
-async function recordEvidenceUnlocked(cwd, runId, record, { allowCaptured = false, expectedSnapshot } = {}) {
+async function recordEvidenceUnlocked(cwd, runId, record, { allowCaptured = false, expectedSnapshot, transitionOptions = {} } = {}) {
   const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state);
   await requireCanonicalActiveRun(cwd, state, runId);
   if (expectedSnapshot && (state.stateSha256 !== expectedSnapshot.stateSha256 || state.currentContractVersion !== expectedSnapshot.contractVersion || contract.contractSha256 !== expectedSnapshot.contractSha256)) {
@@ -655,11 +877,12 @@ async function recordEvidenceUnlocked(cwd, runId, record, { allowCaptured = fals
   // Evidence is historical: a new version may intentionally reuse EV-001.
   evidence.entries = (evidence.entries || []).filter((item) => item.evidenceId !== entry.evidenceId || item.contractVersion !== entry.contractVersion);
   evidence.entries.push(entry);
-  await writeEvidence(files, evidence); return entry;
+  evidence.storeSha256 = evidenceStoreHash(evidence);
+  await executeTransition(cwd, 'evidence', runId, [{ file: files.evidence, content: jsonText(evidence) }], transitionOptions); return entry;
 }
 
-export async function recordEvidence(cwd, runId, record) {
-  return withWorkspaceLock(cwd, `record-evidence:${safeRunId(runId)}`, () => recordEvidenceUnlocked(cwd, runId, record));
+export async function recordEvidence(cwd, runId, record, options = {}) {
+  return withWorkspaceLock(cwd, `record-evidence:${safeRunId(runId)}`, () => recordEvidenceUnlocked(cwd, runId, record, { transitionOptions: options }));
 }
 
 function captureOutput(stream, limit = 65536) {
@@ -674,7 +897,7 @@ function captureOutput(stream, limit = 65536) {
     if (remaining > 0) { const kept = value.subarray(0, remaining); chunks.push(kept); storedBytes += kept.length; }
     if (value.length > remaining) truncated = true;
   });
-  stream.once('end', () => settle(false)); stream.once('close', () => settle(true)); stream.once('error', () => settle(true));
+  stream.once('end', () => settle(false)); stream.once('close', () => { if (stream.readableEnded) settle(false); }); stream.once('error', () => settle(true));
   return { promise, force: () => { settle(true); stream.destroy(); } };
 }
 
@@ -708,6 +931,74 @@ async function artifactHashes(cwd, entry, { required = true } = {}) {
     if (!required && error.code === 'CAPTURE_ARTIFACT_MISSING') return {};
     throw error;
   }
+}
+
+function declaredFreshnessPaths(value, fallback = []) {
+  const input = value === undefined ? fallback : value;
+  if (!Array.isArray(input) || input.length > 64) throw new KernelError('freshnessPaths must contain at most 64 relative file paths.', 'INVALID_FRESHNESS_SCOPE');
+  const paths = [...new Set(input.map((item) => safeRelativePath(item, 'freshness path')))];
+  if (paths.length !== input.length) throw new KernelError('freshnessPaths must be unique.', 'INVALID_FRESHNESS_SCOPE');
+  return paths;
+}
+async function gitHeadForFingerprint(cwd) {
+  return new Promise((resolve) => {
+    let output = ''; let settled = false;
+    const child = spawn('git', ['-C', cwd, 'rev-parse', 'HEAD'], { shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
+    const timer = setTimeout(() => { child.kill(); finish(null); }, 2000);
+    child.stdout.on('data', (chunk) => { if (output.length < 256) output += chunk.toString('utf8'); });
+    child.once('error', () => { clearTimeout(timer); finish(null); });
+    child.once('close', (code) => { clearTimeout(timer); const head = output.trim(); finish(code === 0 && /^[a-f0-9]{40,64}$/i.test(head) ? head.toLowerCase() : null); });
+  });
+}
+async function workspaceFingerprint(cwd, requestedPaths) {
+  const paths = declaredFreshnessPaths(requestedPaths);
+  if (paths.length === 0) return { kind: 'unavailable', status: 'unavailable', reason: 'No bounded freshness paths were declared.', paths: [] };
+  const entries = [];
+  for (const relative of paths) {
+    try {
+      const lexical = path.resolve(cwd, relative); const lexicalEntry = await existingEntry(lexical, 'freshness path');
+      if (lexicalEntry?.isSymbolicLink()) throw new KernelError('freshness path must be a physical regular file.', 'INVALID_FRESHNESS_SCOPE', [relative]);
+      const file = await resolveContainedExisting(cwd, relative, 'freshness path', 'file');
+      entries.push({ path: file.relative, sha256: sha256(await readFile(file.absolute)) });
+    } catch (error) {
+      if (error.code !== 'CAPTURE_ARTIFACT_MISSING') throw error;
+      return { kind: 'unavailable', status: 'unavailable', reason: `Declared freshness path is missing: ${relative}`, paths };
+    }
+  }
+  const gitHead = await gitHeadForFingerprint(cwd); const fingerprintSha256 = sha256(canonicalJson({ entries }));
+  return { kind: gitHead ? 'git-paths-v1' : 'artifacts-v1', status: 'current', gitHead, paths, entries, fingerprintSha256 };
+}
+async function assessWorkspaceFingerprint(cwd, fingerprint) {
+  if (!fingerprint || fingerprint.status !== 'current' || !Array.isArray(fingerprint.paths) || typeof fingerprint.fingerprintSha256 !== 'string') return { status: 'unavailable', reason: fingerprint?.reason || 'No trustworthy workspace fingerprint was captured.' };
+  const current = await workspaceFingerprint(cwd, fingerprint.paths);
+  if (current.status !== 'current') return { status: 'unavailable', reason: current.reason };
+  return current.fingerprintSha256 === fingerprint.fingerprintSha256
+    ? { status: 'current' }
+    : { status: 'stale', reason: 'One or more declared freshness paths changed after capture.' };
+}
+
+function baselineHash(receipt) { return hashWithout(receipt, 'baselineSha256'); }
+async function loadBaseline(files) {
+  if (!(await exists(files.baseline))) return { format: FORMAT, status: 'unavailable', reason: 'Legacy run has no baseline receipt.', legacy: true };
+  const receipt = await readJson(files.baseline, 'Baseline receipt');
+  if (receipt.format !== FORMAT || !['green', 'pre-existing-failure', 'unavailable'].includes(receipt.status) || typeof receipt.baselineSha256 !== 'string' || baselineHash(receipt) !== receipt.baselineSha256) throw new KernelError('Baseline receipt is corrupt.', 'CORRUPT_BASELINE');
+  return receipt;
+}
+async function baselinePreflight(cwd, runId) {
+  const { files, state } = await verifyRun(cwd, runId); await requireCanonicalActiveRun(cwd, state, runId);
+  if (await exists(files.baseline)) throw new KernelError('A baseline receipt already exists.', 'BASELINE_EXISTS');
+  if (state.currentContractVersion !== null || state.phase !== 'understand') throw new KernelError('Baseline must be recorded before the contract is frozen.', 'BASELINE_TOO_LATE');
+  const evidence = await loadEvidence(files);
+  if ((evidence.entries || []).length > 0) throw new KernelError('Baseline must be recorded before evidence capture.', 'BASELINE_TOO_LATE');
+  return { files, state };
+}
+export async function recordUnavailableBaseline(cwd, runId, reason) {
+  if (!nonEmptyText(reason)) throw new KernelError('Unavailable baseline requires a reason.', 'INVALID_BASELINE');
+  return withWorkspaceLock(cwd, `record-baseline:${safeRunId(runId)}`, async () => {
+    const { files } = await baselinePreflight(cwd, runId); const receipt = { format: FORMAT, status: 'unavailable', reason: redact(reason), capturedAt: new Date().toISOString(), provenance: { kind: 'manual-attestation' } };
+    receipt.baselineSha256 = baselineHash(receipt); await writeJsonAtomic(files.baseline, receipt); return receipt;
+  });
 }
 
 function capturePolicy(options = {}) {
@@ -785,16 +1076,9 @@ async function settleCapturedOutput(capture, waitMs = 750) {
   if (result !== timed) return result; capture.force(); return capture.promise;
 }
 
-export async function captureEvidence(cwd, runId, template, argv, requestedCwd = '.', options = {}) {
-  if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string' && item.length > 0)) throw new KernelError('evidence capture requires a command after --.', 'MISSING_COMMAND');
-  const policy = capturePolicy(options); const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state);
-  await requireCanonicalActiveRun(cwd, state, runId);
-  const expectedSnapshot = { stateSha256: state.stateSha256, contractVersion: state.currentContractVersion, contractSha256: contract.contractSha256 };
-  const intendedCwd = await resolveContainedExisting(cwd, requestedCwd, 'capture cwd', 'directory'); const relativeCwd = intendedCwd.relative;
-  if (nonEmptyText(template?.artifact)) {
-    try { await resolveContainedExisting(cwd, template.artifact, 'artifact', 'file'); }
-    catch (error) { if (error.code !== 'CAPTURE_ARTIFACT_MISSING') throw error; }
-  }
+async function runCapturedCommand(argv, intendedCwd, options = {}, missingMessage = 'capture requires a command after --.') {
+  if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string' && item.length > 0)) throw new KernelError(missingMessage, 'MISSING_COMMAND');
+  const policy = capturePolicy(options);
   const child = spawn(argv[0], argv.slice(1), { cwd: intendedCwd.absolute, detached: process.platform !== 'win32', shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   const stdoutCapture = captureOutput(child.stdout); const stderrCapture = captureOutput(child.stderr); let closed = false; let timer;
   const closePromise = new Promise((resolve, reject) => {
@@ -813,16 +1097,53 @@ export async function captureEvidence(cwd, runId, template, argv, requestedCwd =
       else result = closedResult;
     }
   } finally { if (timer) clearTimeout(timer); }
-  const stdout = await settleCapturedOutput(stdoutCapture); const stderr = await settleCapturedOutput(stderrCapture);
-  const sanitizedArgv = redactArgv(argv);
-  const entry = redactValue(structuredClone(template)); entry.command = sanitizedArgv.join(' '); entry.status = !timedOut && result.exitCode === 0 ? 'pass' : 'fail';
-  entry.observed = timedOut ? `Capture timed out after ${policy.timeoutMs} ms. ${termination.observation}` : `Captured exit code ${result.exitCode}.`;
-  entry.provenance = {
-    kind: 'captured-command', argv: sanitizedArgv, cwd: relativeCwd, exitCode: result.exitCode, signal: result.signal, timedOut, timeoutMs: policy.timeoutMs, termination,
-    stdout: stdout.value, stderr: stderr.value, stdoutTruncated: stdout.truncated, stderrTruncated: stderr.truncated, outputIncomplete: stdout.incomplete || stderr.incomplete,
-    capturedAt: new Date().toISOString(), artifactHashes: await artifactHashes(cwd, entry, { required: entry.status === 'pass' }),
+  const stdout = await settleCapturedOutput(stdoutCapture); const stderr = await settleCapturedOutput(stderrCapture); const sanitizedArgv = redactArgv(argv);
+  return {
+    success: !timedOut && result.exitCode === 0,
+    observed: timedOut ? `Capture timed out after ${policy.timeoutMs} ms. ${termination.observation}` : `Captured exit code ${result.exitCode}.`,
+    provenance: {
+      kind: 'captured-command', argv: sanitizedArgv, cwd: intendedCwd.relative, exitCode: result.exitCode, signal: result.signal, timedOut, timeoutMs: policy.timeoutMs, termination,
+      stdout: stdout.value, stderr: stderr.value, stdoutTruncated: stdout.truncated, stderrTruncated: stderr.truncated, outputIncomplete: stdout.incomplete || stderr.incomplete,
+      capturedAt: new Date().toISOString(),
+    },
   };
-  return withWorkspaceLock(cwd, `capture-evidence:${safeRunId(runId)}`, () => recordEvidenceUnlocked(cwd, runId, entry, { allowCaptured: true, expectedSnapshot }));
+}
+
+export async function captureBaseline(cwd, runId, template, argv, requestedCwd = '.', options = {}) {
+  const initial = await baselinePreflight(cwd, runId); const expectedStateSha256 = initial.state.stateSha256;
+  const intendedCwd = await resolveContainedExisting(cwd, requestedCwd, 'baseline cwd', 'directory');
+  const captured = await runCapturedCommand(argv, intendedCwd, options, 'baseline capture requires a command after --.');
+  const paths = declaredFreshnessPaths(template?.freshnessPaths, []); const fingerprint = await workspaceFingerprint(cwd, paths);
+  return withWorkspaceLock(cwd, `capture-baseline:${safeRunId(runId)}`, async () => {
+    const { files, state } = await baselinePreflight(cwd, runId);
+    if (state.stateSha256 !== expectedStateSha256) throw new KernelError('The run changed while the baseline was being captured.', 'STALE_CAPTURE');
+    const receipt = {
+      format: FORMAT,
+      status: captured.provenance.timedOut || captured.provenance.exitCode === null ? 'unavailable' : captured.success ? 'green' : 'pre-existing-failure',
+      observed: captured.observed,
+      capturedAt: captured.provenance.capturedAt,
+      provenance: captured.provenance,
+      workspaceFingerprint: fingerprint,
+    };
+    if (receipt.status === 'unavailable') receipt.reason = captured.observed;
+    receipt.baselineSha256 = baselineHash(receipt); await writeJsonAtomic(files.baseline, receipt); return receipt;
+  });
+}
+
+export async function captureEvidence(cwd, runId, template, argv, requestedCwd = '.', options = {}) {
+  const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state);
+  await requireCanonicalActiveRun(cwd, state, runId);
+  const expectedSnapshot = { stateSha256: state.stateSha256, contractVersion: state.currentContractVersion, contractSha256: contract.contractSha256 };
+  const intendedCwd = await resolveContainedExisting(cwd, requestedCwd, 'capture cwd', 'directory'); const relativeCwd = intendedCwd.relative;
+  if (nonEmptyText(template?.artifact)) {
+    try { await resolveContainedExisting(cwd, template.artifact, 'artifact', 'file'); }
+    catch (error) { if (error.code !== 'CAPTURE_ARTIFACT_MISSING') throw error; }
+  }
+  const captured = await runCapturedCommand(argv, { ...intendedCwd, relative: relativeCwd }, options, 'evidence capture requires a command after --.');
+  const entry = redactValue(structuredClone(template)); const freshnessPaths = declaredFreshnessPaths(entry.freshnessPaths, nonEmptyText(entry.artifact) ? [entry.artifact] : []); delete entry.freshnessPaths;
+  entry.command = captured.provenance.argv.join(' '); entry.status = captured.success ? 'pass' : 'fail'; entry.observed = captured.observed;
+  entry.provenance = { ...captured.provenance, artifactHashes: await artifactHashes(cwd, entry, { required: entry.status === 'pass' }), workspaceFingerprint: await workspaceFingerprint(cwd, freshnessPaths) };
+  return withWorkspaceLock(cwd, `capture-evidence:${safeRunId(runId)}`, () => recordEvidenceUnlocked(cwd, runId, entry, { allowCaptured: true, expectedSnapshot, transitionOptions: options }));
 }
 
 export async function validateEvidence(cwd, runId) {
@@ -1049,30 +1370,36 @@ export async function reportRun(cwd, runId, format = 'json') {
   const evidence = await loadEvidence(files); const currentEntries = (evidence.entries || []).filter((entry) => entry.contractVersion === state.currentContractVersion);
   const statuses = ['pass', 'fail', 'uncertain', 'pending-review', 'not-applicable'];
   const counts = Object.fromEntries(statuses.map((status) => [status, currentEntries.filter((entry) => entry.status === status).length]));
-  const receipt = await usageForReport(files, state.createdAt);
-  const summary = { format: FORMAT, runId, status: state.status, phase: state.phase, contract: contract ? { contractId: contract.contractId, version: state.currentContractVersion } : null, evidence: { total: currentEntries.length, counts }, tokenUsage: publicUsage(receipt), updatedAt: state.updatedAt };
+  const receipt = await usageForReport(files, state.createdAt); const baseline = await loadBaseline(files);
+  const summary = { format: FORMAT, runId, status: state.status, phase: state.phase, contract: contract ? { contractId: contract.contractId, version: state.currentContractVersion } : null, baseline: { status: baseline.status, observed: baseline.observed ?? null, reason: baseline.reason ?? null, capturedAt: baseline.capturedAt ?? null }, evidence: { total: currentEntries.length, counts }, tokenUsage: publicUsage(receipt), updatedAt: state.updatedAt };
   if (format === 'json') return summary;
   if (format !== 'md' && format !== 'markdown') throw new KernelError('Report format must be json or md.', 'INVALID_REPORT_FORMAT');
   const contractLine = contract ? `${contract.contractId} v${state.currentContractVersion}` : 'not frozen';
-  return `# Pinmind run report\n\n- Run: ${runId}\n- Status: ${state.status}\n- Phase: ${state.phase}\n- Contract: ${contractLine}\n- Evidence: ${counts.pass}/${currentEntries.length} passing\n\n${renderTokenUsage(receipt)}\n`;
+  return `# Pinmind run report\n\n- Run: ${runId}\n- Status: ${state.status}\n- Phase: ${state.phase}\n- Contract: ${contractLine}\n- Baseline: ${baseline.status}\n- Evidence: ${counts.pass}/${currentEntries.length} passing\n\n${renderTokenUsage(receipt)}\n`;
 }
 
 async function trustworthyPassingEvidence(cwd, entry, criticalTargets = new Set()) {
-  if (entry.status !== 'pass') return false;
-  if (entry.provenance?.kind === 'manual-attestation') return !(entry.covers || []).some((id) => criticalTargets.has(id)) && nonEmptyText(entry.procedure) && !nonEmptyText(entry.command);
-  if (entry.provenance?.kind !== 'captured-command') return false;
+  if (entry.status !== 'pass') return { trustworthy: false, freshness: 'unavailable' };
+  if (entry.provenance?.kind === 'manual-attestation') return { trustworthy: !(entry.covers || []).some((id) => criticalTargets.has(id)) && nonEmptyText(entry.procedure) && !nonEmptyText(entry.command), freshness: 'unavailable' };
+  if (entry.provenance?.kind !== 'captured-command') return { trustworthy: false, freshness: 'unavailable' };
   const captured = entry.provenance;
-  if (captured.exitCode !== 0 || !Array.isArray(captured.argv) || captured.argv.length === 0 || !nonEmptyText(captured.capturedAt)) return false;
+  if (captured.exitCode !== 0 || !Array.isArray(captured.argv) || captured.argv.length === 0 || !nonEmptyText(captured.capturedAt)) return { trustworthy: false, freshness: 'unavailable' };
+  let artifactCurrent = false;
   if (nonEmptyText(entry.artifact)) {
     const relative = safeRelativePath(entry.artifact, 'artifact'); const expected = captured.artifactHashes?.[relative];
-    if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) return false;
-    try { const artifact = await resolveContainedExisting(cwd, relative, 'artifact', 'file'); if (sha256(await readFile(artifact.absolute)) !== expected) return false; } catch { return false; }
+    if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) return { trustworthy: false, freshness: 'unavailable' };
+    try { const artifact = await resolveContainedExisting(cwd, relative, 'artifact', 'file'); if (sha256(await readFile(artifact.absolute)) !== expected) return { trustworthy: false, freshness: 'stale' }; artifactCurrent = true; } catch { return { trustworthy: false, freshness: 'stale' }; }
   }
-  return nonEmptyText(entry.artifact) || nonEmptyText(entry.reference);
+  if (!nonEmptyText(entry.artifact) && !nonEmptyText(entry.reference)) return { trustworthy: false, freshness: 'unavailable' };
+  const workspace = await assessWorkspaceFingerprint(cwd, captured.workspaceFingerprint);
+  if (workspace.status === 'stale') return { trustworthy: true, freshness: 'stale', reason: workspace.reason };
+  if (workspace.status === 'current' || artifactCurrent) return { trustworthy: true, freshness: 'current' };
+  return { trustworthy: true, freshness: 'unavailable', reason: workspace.reason };
 }
 
 async function finalVerifyUnlocked(cwd, runId) {
   const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state); const evidenceResult = await validateEvidence(cwd, runId); const errors = [...evidenceResult.errors];
+  if (state.baselineRequired === true && !(await exists(files.baseline))) errors.push('Run requires an explicit baseline receipt.');
   const entries = evidenceResult.entries;
   const contractTargets = [...(contract.acceptanceCriteria || []), ...(contract.invariants || []), ...(contract.preservation || [])];
   const targetsById = new Map(contractTargets.map((item) => [item.id, item]));
@@ -1084,25 +1411,32 @@ async function finalVerifyUnlocked(cwd, runId) {
     for (const target of targets) requiredTargets.add(target);
   }
   for (const target of requiredTargets) {
-    for (const evidenceId of targetsById.get(target)?.evidence || []) {
+    const targetDefinition = targetsById.get(target); const requiresFreshness = targetDefinition?.freshnessRequired === true;
+    for (const evidenceId of targetDefinition?.evidence || []) {
       const matches = entries.filter((entry) => entry.contractVersion === state.currentContractVersion && entry.evidenceId === evidenceId && (entry.covers || []).includes(target));
-      if (!(await Promise.all(matches.map((entry) => trustworthyPassingEvidence(cwd, entry, criticalTargets)))).some(Boolean)) errors.push(`${target} lacks trustworthy passing evidence for planned ${evidenceId}.`);
+      const assessments = await Promise.all(matches.map((entry) => trustworthyPassingEvidence(cwd, entry, criticalTargets)));
+      if (!assessments.some((item) => item.trustworthy && (!requiresFreshness || item.freshness === 'current'))) {
+        const freshness = assessments.find((item) => item.trustworthy)?.freshness;
+        errors.push(freshness && requiresFreshness ? `${target} has ${freshness} freshness for planned ${evidenceId}.` : `${target} lacks trustworthy passing evidence for planned ${evidenceId}.`);
+      }
     }
   }
   if (await exists(files.execution)) {
     const execution = await readJson(files.execution, 'Execution view'); const executionResult = validateExecution(execution, contract); errors.push(...executionResult.errors);
   }
-  return { ok: errors.length === 0, runId, contractVersion: state.currentContractVersion, errors };
+  const baseline = await loadBaseline(files);
+  return { ok: errors.length === 0, verdict: errors.length === 0 ? 'pass' : 'fail', runId, contractVersion: state.currentContractVersion, baseline: { status: baseline.status, observed: baseline.observed ?? null, reason: baseline.reason ?? null }, errors };
 }
 
 export async function finalVerify(cwd, runId) { return finalVerifyUnlocked(cwd, runId); }
 
-async function finalizeRunUnlocked(cwd, runId, verification) {
+async function finalizeRunUnlocked(cwd, runId, verification, options = {}) {
   if (!verification?.ok) throw new KernelError('Cannot finalize a failed verification.', 'FINAL_GATE_FAILED', verification?.errors || []);
   verification = await finalVerifyUnlocked(cwd, runId);
   if (!verification.ok) throw new KernelError('Final verification changed before commit.', 'FINAL_GATE_FAILED', verification.errors);
   const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state); const evidence = await loadEvidence(files);
   await requireCanonicalActiveRun(cwd, state, runId);
+  const baseline = await loadBaseline(files);
   const currentEntries = evidence.entries.filter((entry) => entry.contractVersion === state.currentContractVersion);
   const passed = currentEntries.filter((entry) => entry.status === 'pass').length;
   const statuses = ['pass', 'fail', 'uncertain', 'pending-review', 'not-applicable'];
@@ -1112,18 +1446,20 @@ async function finalizeRunUnlocked(cwd, runId, verification) {
   const captured = currentEntries.filter((entry) => entry.provenance?.kind === 'captured-command').map((entry) => entry.evidenceId).join(', ') || 'none';
   const completionBasis = manual === 'none' ? 'machine-captured evidence' : 'mixed machine-captured and manual/unreplayed evidence';
   let receipt;
-  if (await exists(files.usage)) receipt = await loadUsage(files);
-  else receipt = await writeUsage(files, unavailableUsage(new Date().toISOString(), 'Authoritative token usage was not recorded for this run.'));
-  const report = `# Pinmind final report\n\n- Run: ${runId}\n- Contract: ${contract.contractId} v${state.currentContractVersion}\n- Evidence: ${passed}/${currentEntries.length} passing\n\n## Evidence status counts\n${counts}\n\n## Current evidence requiring attention\n${attention}\n\n## Evidence provenance\n- machine-captured: ${captured}\n- manual/unreplayed: ${manual}\n\n${renderTokenUsage(receipt)}\n\n- MUST evidence coverage: satisfied\n- Completion basis: ${completionBasis}\n- Replay note: stored commands were verified for captured provenance and artifact integrity, but were not replayed during finalization\n`;
-  await writeTextAtomic(files.final, report);
-  state.phase = 'finalize'; state.status = 'complete'; await saveState(files, state);
-  const latest = await readJson(files.active, 'Active run pointer');
-  if (latest.runId === runId) await unlink(files.active);
+  const needsUsage = !(await exists(files.usage));
+  if (!needsUsage) receipt = await loadUsage(files);
+  else { receipt = unavailableUsage(new Date().toISOString(), 'Authoritative token usage was not recorded for this run.'); receipt.usageSha256 = usageHash(receipt); }
+  const report = `# Pinmind final report\n\n- Run: ${runId}\n- Contract: ${contract.contractId} v${state.currentContractVersion}\n- Baseline: ${baseline.status}\n- Evidence: ${passed}/${currentEntries.length} passing\n\n## Evidence status counts\n${counts}\n\n## Current evidence requiring attention\n${attention}\n\n## Evidence provenance\n- machine-captured: ${captured}\n- manual/unreplayed: ${manual}\n\n${renderTokenUsage(receipt)}\n\n- MUST evidence coverage: satisfied\n- Completion basis: ${completionBasis}\n- Replay note: stored commands were verified for captured provenance and artifact integrity, but were not replayed during finalization\n`;
+  const nextState = structuredClone(state); nextState.phase = 'finalize'; nextState.status = 'complete'; nextState.updatedAt = new Date().toISOString(); setStateHash(nextState);
+  const changes = [];
+  if (needsUsage) changes.push({ file: files.usage, content: jsonText(receipt) });
+  changes.push({ file: files.final, content: report }, { file: files.state, content: jsonText(nextState) }, { file: files.active, content: null });
+  await executeTransition(cwd, 'finalize', runId, changes, options);
   return { ...verification, finalized: true, finalPath: files.final, tokenUsage: publicUsage(receipt) };
 }
 
-export async function finalizeRun(cwd, runId, verification) {
-  return withWorkspaceLock(cwd, `finalize:${safeRunId(runId)}`, () => finalizeRunUnlocked(cwd, runId, verification));
+export async function finalizeRun(cwd, runId, verification, options = {}) {
+  return withWorkspaceLock(cwd, `finalize:${safeRunId(runId)}`, () => finalizeRunUnlocked(cwd, runId, verification, options));
 }
 
 export async function readInputJson(file) { return readJson(path.resolve(file)); }

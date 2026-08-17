@@ -26,7 +26,7 @@ The audit changed the order of work because it found current correctness defects
 - several read-only explanation, audit, and investigation phrases fell through to `software-change` or produced a false authority conflict;
 - `state resume` reports a stored phase but does not replay, reconcile, or restart a failed task;
 - loss or divergence of `active.json` can leave more than one state file marked `active`, and an explicitly named orphan can still appear resumable;
-- `final verify` currently combines checking with finalization, making a seemingly observational command mutate run state.
+- The published baseline's `final verify` combines checking with finalization. P1 preserves that compatibility alias, adds pure `final check`, and also exposes explicit `finalize` for clearer new automation.
 
 The writer lock, per-file atomic writes, hash validation, evidence/version gates, and fail-closed stale-lock behavior remain useful containment. They are not crash recovery. The roadmap must close the reproduced safety and single-active-run defects before optimizing token receipts or automatic model choice.
 
@@ -51,11 +51,12 @@ This order deliberately values correctness over sophistication. No initiative be
 
 P0 is release-blocking. P1 establishes trustworthy state and evidence. P2 remains optional and may never ship if its measured benefit does not exceed its maintenance and token cost. Architectural option review remains a proportional controller rule, not a product subsystem.
 
-### Current source status — not yet a release
+### Current implementation status
 
-- **P0 routing containment is implemented in the current working tree:** 21 sanitized regression cases now cover the reproduced production/destructive/credential/deploy-to-live, explanation/audit/investigation/spike precedence, act-versus-explain, explanatory action mentions, literal route-name, no-change, and real problem-search wording. The complete deterministic route corpus contains 98 cases and is green.
-- **P0 single-active containment is implemented in the current working tree:** `state reconcile --dry-run` classifies canonical, idle, orphan, split-brain, divergent-pointer, invalid-pointer, missing-run, and corrupt-run states without repair. Initialization, resume, active mutation, command capture, and finalization fail closed unless one pointer names the sole verified active run.
-- These statements describe source evidence only. They do not mark a published release or installed-host activation, and they do not close P1 journal recovery. Pinmind still does not replay or automatically recover an interrupted real-world task.
+- **P0 is published on `main` at `e7cdbc6`:** 21 sanitized routing regressions extend the 98-case deterministic corpus, and canonical-active containment blocks orphan, split-brain, divergent-pointer, invalid-pointer, missing-run, and corrupt-run states. This repository fact does not by itself prove an installed-host or ChatGPT activation.
+- **P1 crash-journal recovery is implemented:** the five bounded lifecycle mutations prepare one integrity-checked redo record; read-only reconcile diagnoses it, and explicit hash-bound recovery applies only allowlisted local Pinmind post-images. The suite covers at least 100 interruptions per transition plus a real `SIGKILL`/stale-lock restart.
+- **P1 baseline, bounded freshness, and pure final check are implemented:** new runs require an explicit green, pre-existing-failure, or unavailable baseline receipt before freeze; required evidence may bind to at most 64 declared files; `final check` is read-only, while explicit `finalize` and the backward-compatible `final verify` alias finalize the run.
+- These P1 seams restore and verify Pinmind's local state only. They never replay external commands or effects and do not claim host-process or real-world task restoration.
 
 ## P0. Routing safety and read-only intent regressions
 
@@ -121,7 +122,7 @@ Pinmind stores command provenance, but `final verify` intentionally does not rep
 
 - Before mutation in a `software-change` route, record `baseline: green | pre-existing-failure | unavailable` from the narrowest affordable project check.
 - Preserve a pre-existing failure verbatim and never attribute it to the new change.
-- Attach a Git revision/diff fingerprint, or a bounded declared-artifact fingerprint outside Git, to each completion-critical verification snapshot.
+- Attach a bounded fingerprint of at most 64 declared relevant files to each completion-critical verification snapshot, inside or outside Git. Record Git HEAD as diagnostic metadata only: unrelated commits must not stale evidence when every declared relevant file is byte-identical.
 - Before completion, compare that snapshot with the current relevant state. A later relevant mutation marks the evidence stale until the planned check is captured again.
 - When no trustworthy fingerprint is possible, state that freshness is manual or unavailable; do not silently pass.
 - Split the API into `final check`, which only computes and reports `pass | fail | uncertain`, and `finalize`, which acquires the writer lock, rechecks the same gate, writes terminal artifacts, marks the run complete, and clears the active pointer.

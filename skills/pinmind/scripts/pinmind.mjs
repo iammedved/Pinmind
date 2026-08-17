@@ -2,8 +2,8 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, reconcileActiveRuns,
-  recordEvidence, recordUsage, reportRun, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
+  KernelError, amendContract, captureBaseline, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, reconcileActiveRuns, recoverTransition,
+  recordEvidence, recordUnavailableBaseline, recordUsage, reportRun, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from './lib/core.mjs';
 
 function parse(argv) {
@@ -17,7 +17,7 @@ function parse(argv) {
 }
 function requireFlag(flags, name) { if (typeof flags[name] !== 'string') throw new KernelError(`--${name} is required.`, 'MISSING_ARGUMENT'); return flags[name]; }
 function print(value) { process.stdout.write(typeof value === 'string' ? `${value.replace(/\n?$/, '\n')}` : `${JSON.stringify(value, null, 2)}\n`); }
-const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|usage record|report|state show|state resume|state reconcile --dry-run|final verify';
+const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|baseline capture --run RUN --file TEMPLATE [--cwd RELATIVE] -- COMMAND [ARGS...]|baseline unavailable --run RUN --file RECEIPT|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|usage record|report|state show|state resume|state reconcile --dry-run|state recover --apply --expected-sha256 HASH [--expected-lock-sha256 HASH]|final check|final verify|finalize';
 function requirePassing(result, code, message) { if (!result.ok) throw new KernelError(message, code, result.errors); return result; }
 
 export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
@@ -33,8 +33,14 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     if (!result.ok) throw new KernelError('The active-run state is inconsistent.', 'ACTIVE_RUN_INCONSISTENT', [result]);
     return result;
   }
+  if (group === 'state' && action === 'recover') {
+    if (flags.apply !== true) throw new KernelError('state recover requires explicit --apply authority.', 'APPLY_REQUIRED');
+    return recoverTransition(cwd, requireFlag(flags, 'expected-sha256'), typeof flags['expected-lock-sha256'] === 'string' ? { expectedLockSha256: flags['expected-lock-sha256'] } : {});
+  }
   const run = requireFlag(flags, 'run');
   if (group === 'report') return reportRun(cwd, run, typeof flags.format === 'string' ? flags.format : 'json');
+  if (group === 'baseline' && action === 'capture') return captureBaseline(cwd, run, await readInputJson(requireFlag(flags, 'file')), commandArgv, typeof flags.cwd === 'string' ? flags.cwd : '.', { timeoutMs: flags['timeout-ms'] === undefined ? undefined : Number(flags['timeout-ms']) });
+  if (group === 'baseline' && action === 'unavailable') return recordUnavailableBaseline(cwd, run, (await readInputJson(requireFlag(flags, 'file'))).reason);
   if (group === 'contract' && action === 'validate') { const candidate = await readInputJson(requireFlag(flags, 'file')); const result = validateContract(candidate); if (!result.ok) throw new KernelError('Contract validation failed.', 'INVALID_CONTRACT', result.errors); return result; }
   if (group === 'contract' && action === 'freeze') return freezeContract(cwd, run, await readInputJson(requireFlag(flags, 'file')));
   if (group === 'contract' && action === 'amend') return amendContract(cwd, run, await readInputJson(requireFlag(flags, 'file')), requireFlag(flags, 'reason'), requireFlag(flags, 'affects').split(',').map((item) => item.trim()).filter(Boolean), requireFlag(flags, 'authority'));
@@ -43,7 +49,9 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (group === 'evidence' && action === 'capture') return captureEvidence(cwd, run, await readInputJson(requireFlag(flags, 'file')), commandArgv, typeof flags.cwd === 'string' ? flags.cwd : '.', { timeoutMs: flags['timeout-ms'] === undefined ? undefined : Number(flags['timeout-ms']) });
   if (group === 'evidence' && action === 'validate') return requirePassing(await validateEvidence(cwd, run), 'EVIDENCE_GATE_FAILED', 'Evidence validation gate failed.');
   if (group === 'usage' && action === 'record') return recordUsage(cwd, run, await readInputJson(requireFlag(flags, 'file')));
+  if (group === 'final' && action === 'check') return finalVerify(cwd, run);
   if (group === 'final' && action === 'verify') return finalizeRun(cwd, run, requirePassing(await finalVerify(cwd, run), 'FINAL_GATE_FAILED', 'Final verification gate failed.'));
+  if (group === 'finalize' && action === undefined) return finalizeRun(cwd, run, requirePassing(await finalVerify(cwd, run), 'FINAL_GATE_FAILED', 'Final verification gate failed.'));
   throw new KernelError(`Unknown command: ${[group, action].filter(Boolean).join(' ')}.`, 'USAGE');
 }
 

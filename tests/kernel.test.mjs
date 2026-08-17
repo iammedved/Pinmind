@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { access, cp, mkdtemp, mkdir, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, reconcileActiveRuns, recordEvidence, redact, redactArgv, redactValue,
+  KernelError, amendContract, captureBaseline, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, reconcileActiveRuns, recoverTransition, recordEvidence, recordUnavailableBaseline, redact, redactArgv, redactValue,
   recordUsage, reportRun, routeTask, safeRelativePath, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from '../skills/pinmind/scripts/lib/core.mjs';
 import { main } from '../skills/pinmind/scripts/pinmind.mjs';
@@ -21,6 +22,7 @@ const syntheticCredentialUrl = ['https://synthetic-user:synthetic-password', 'ex
 import { assertSafePackagePaths, swapMarketplaceSource, withInstallLock } from '../scripts/install-personal-release.mjs';
 
 async function workspace() { return mkdtemp(path.join(tmpdir(), 'pinmind-')); }
+async function recordTestBaseline(cwd, runId = 'run-one') { return recordUnavailableBaseline(cwd, runId, 'Synthetic test baseline unavailable.'); }
 function contract(version = 1, changed = false) {
   return {
     contractId: 'sample-contract', version, status: 'draft', intent: changed ? 'Changed visible behavior.' : 'Provide visible behavior.', actors: ['user'],
@@ -34,8 +36,47 @@ function contract(version = 1, changed = false) {
 function evidence(evidenceId, contractVersion, covers, extra = {}) {
   return { evidenceId, contractVersion, covers: [covers], type: 'unit-test', status: 'pass', procedure: 'Manual inspection of the recorded artifact.', observed: 'passed', artifact: 'tests/kernel.test.mjs', provenance: { kind: 'manual-attestation' }, ...extra };
 }
-async function frozenRun() { const cwd = await workspace(); await initRun(cwd, 'run-one', 'User asked for behavior.'); await freezeContract(cwd, 'run-one', contract()); return cwd; }
+function freshnessContract() {
+  return {
+    contractId: 'freshness-contract', version: 1, status: 'draft', intent: 'Verify current bounded state.', actors: ['user'],
+    obligations: [{ id: 'REQ-001', type: 'capability', priority: 'must', sourceQuotes: ['Verify current state.'], statement: 'Current evidence is required.', acceptance: ['AC-001'], invariants: [] }],
+    acceptanceCriteria: [{ id: 'AC-001', statement: 'Evidence remains current.', observation: 'The declared relevant files match the captured fingerprint.', freshnessRequired: true, evidence: ['EV-001'] }],
+    invariants: [], preservation: [], boundaries: { allowed: ['relevant.txt'], forbidden: [] }, publicSeams: [], nonFunctional: [], assumptions: [], outOfScope: [],
+  };
+}
+async function runProcess(cwd, executable, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, args, { cwd, shell: false, stdio: ['ignore', 'pipe', 'pipe'] }); let stdout = ''; let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); }); child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.once('error', reject); child.once('close', (code) => code === 0 ? resolve(stdout) : reject(new Error(`${executable} exited ${code}: ${stderr}`)));
+  });
+}
+async function frozenRun() { const cwd = await workspace(); await initRun(cwd, 'run-one', 'User asked for behavior.'); await recordTestBaseline(cwd); await freezeContract(cwd, 'run-one', contract()); return cwd; }
 async function rejects(action, code) { await assert.rejects(action, (error) => error instanceof KernelError && error.code === code); }
+async function clonePinmindWorkspace(source) { const cwd = await workspace(); await cp(path.join(source, '.pinmind'), path.join(cwd, '.pinmind'), { recursive: true }); return cwd; }
+async function readPendingTransition(cwd) { return JSON.parse(await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8')); }
+async function recoverInjectedTransition(cwd, action, step) {
+  await rejects(() => action({ faultAfterStep: step }), 'INJECTED_TRANSITION_CRASH');
+  const before = await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8');
+  const diagnosis = await reconcileActiveRuns(cwd); assert.equal(diagnosis.classification, 'transition-recovery-required');
+  assert.equal(await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8'), before, 'reconcile must be byte-preserving');
+  await rejects(() => recoverTransition(cwd, '0'.repeat(64)), 'TRANSITION_HASH_MISMATCH');
+  const recovered = await recoverTransition(cwd, diagnosis.pendingTransition.transitionSha256); assert.equal(recovered.recovered, true);
+  await assert.rejects(access(path.join(cwd, '.pinmind/transition.json')));
+  return recovered;
+}
+async function seededTrials(count, concurrency, worker) {
+  for (let start = 0; start < count; start += concurrency) {
+    await Promise.all(Array.from({ length: Math.min(concurrency, count - start) }, (_, offset) => worker(start + offset)));
+  }
+}
+async function waitForFile(file, attempts = 200) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try { await access(file); return; } catch {}
+    await delay(10);
+  }
+  throw new Error(`Timed out waiting for ${file}`);
+}
 async function recordAll(cwd, version = 1) {
   await recordEvidence(cwd, 'run-one', evidence('EV-001', version, 'AC-001'));
   await recordEvidence(cwd, 'run-one', evidence('EV-002', version, 'INV-001'));
@@ -131,7 +172,7 @@ test('amendment preserves historical evidence and fresh v2 evidence can pass fin
 test('contract rejects bad prefixes, missing preservation evidence, and fabricated brief quotes', async () => {
   const bad = contract(); bad.obligations[0].id = 'TASK-001'; delete bad.preservation[0].evidence; bad.exclusions = ['silently ignored'];
   const validation = validateContract(bad); assert.equal(validation.ok, false); assert.match(validation.errors.join('\n'), /invalid REQ id/); assert.match(validation.errors.join('\n'), /planned EV evidence/); assert.match(validation.errors.join('\n'), /Unknown top-level contract field: exclusions/);
-  const cwd = await workspace(); await initRun(cwd, 'quote-run', 'User asked for behavior.'); const fabricated = contract(); fabricated.obligations[0].sourceQuotes = ['A fabricated requirement.'];
+  const cwd = await workspace(); await initRun(cwd, 'quote-run', 'User asked for behavior.'); await recordTestBaseline(cwd, 'quote-run'); const fabricated = contract(); fabricated.obligations[0].sourceQuotes = ['A fabricated requirement.'];
   await rejects(() => freezeContract(cwd, 'quote-run', fabricated), 'SOURCE_QUOTE_NOT_IN_BRIEF');
 });
 
@@ -157,7 +198,7 @@ test('evidence enforces type, command/procedure, observed result, pass artifact,
   const cwd = await frozenRun();
   await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { type: 'made-up' })), 'INVALID_EVIDENCE');
   await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { command: '', procedure: '', observed: '', artifact: '' })), 'INVALID_EVIDENCE');
-  const critical = contract(); critical.acceptanceCriteria[0].critical = true; const criticalCwd = await workspace(); await initRun(criticalCwd, 'critical-run', 'User asked for behavior.'); await freezeContract(criticalCwd, 'critical-run', critical);
+  const critical = contract(); critical.acceptanceCriteria[0].critical = true; const criticalCwd = await workspace(); await initRun(criticalCwd, 'critical-run', 'User asked for behavior.'); await recordTestBaseline(criticalCwd, 'critical-run'); await freezeContract(criticalCwd, 'critical-run', critical);
   await rejects(() => recordEvidence(criticalCwd, 'critical-run', evidence('EV-001', 1, 'AC-001')), 'INVALID_EVIDENCE');
   await recordEvidence(criticalCwd, 'critical-run', evidence('EV-001', 1, 'AC-001', { sensitivity: { method: 'mutation', observed: 'failed after mutation' } }));
 });
@@ -173,7 +214,7 @@ test('final verify rejects fabricated command-shaped MUST evidence and capture r
 
 test('final verify requires trustworthy passing evidence for every standalone invariant', async () => {
   const candidate = contract(); candidate.invariants.push({ id: 'INV-002', statement: 'A standalone safety property remains true.', evidence: ['EV-005'] });
-  const cwd = await workspace(); await initRun(cwd, 'orphan-invariant', 'User asked for behavior.'); await freezeContract(cwd, 'orphan-invariant', candidate);
+  const cwd = await workspace(); await initRun(cwd, 'orphan-invariant', 'User asked for behavior.'); await recordTestBaseline(cwd, 'orphan-invariant'); await freezeContract(cwd, 'orphan-invariant', candidate);
   await recordEvidence(cwd, 'orphan-invariant', evidence('EV-001', 1, 'AC-001')); await recordEvidence(cwd, 'orphan-invariant', evidence('EV-002', 1, 'INV-001')); await recordEvidence(cwd, 'orphan-invariant', evidence('EV-003', 1, 'PRES-001'));
   const result = await finalVerify(cwd, 'orphan-invariant'); assert.equal(result.ok, false); assert.match(result.errors.join('\n'), /INV-002 lacks trustworthy passing evidence/);
   await recordEvidence(cwd, 'orphan-invariant', evidence('EV-005', 1, 'INV-002')); assert.equal((await finalVerify(cwd, 'orphan-invariant')).ok, true);
@@ -181,7 +222,7 @@ test('final verify requires trustworthy passing evidence for every standalone in
 
 test('final verify requires every planned evidence id for each required target', async () => {
   const candidate = contract(); candidate.acceptanceCriteria[0].evidence = ['EV-001', 'EV-005'];
-  const cwd = await workspace(); await initRun(cwd, 'planned-evidence', 'User asked for behavior.'); await freezeContract(cwd, 'planned-evidence', candidate);
+  const cwd = await workspace(); await initRun(cwd, 'planned-evidence', 'User asked for behavior.'); await recordTestBaseline(cwd, 'planned-evidence'); await freezeContract(cwd, 'planned-evidence', candidate);
   await recordEvidence(cwd, 'planned-evidence', evidence('EV-001', 1, 'AC-001'));
   await recordEvidence(cwd, 'planned-evidence', evidence('EV-002', 1, 'INV-001'));
   await recordEvidence(cwd, 'planned-evidence', evidence('EV-003', 1, 'PRES-001'));
@@ -191,7 +232,7 @@ test('final verify requires every planned evidence id for each required target',
 
 test('manual attestation cannot close a critical final target', async () => {
   const candidate = contract(); candidate.acceptanceCriteria[0].critical = true;
-  const cwd = await workspace(); await initRun(cwd, 'critical-final', 'User asked for behavior.'); await freezeContract(cwd, 'critical-final', candidate);
+  const cwd = await workspace(); await initRun(cwd, 'critical-final', 'User asked for behavior.'); await recordTestBaseline(cwd, 'critical-final'); await freezeContract(cwd, 'critical-final', candidate);
   await recordEvidence(cwd, 'critical-final', evidence('EV-001', 1, 'AC-001', { sensitivity: { method: 'manual negative control', observed: 'observer reports a failure without the condition' } }));
   await recordEvidence(cwd, 'critical-final', evidence('EV-002', 1, 'INV-001')); await recordEvidence(cwd, 'critical-final', evidence('EV-003', 1, 'PRES-001'));
   const result = await finalVerify(cwd, 'critical-final'); assert.equal(result.ok, false); assert.match(result.errors.join('\n'), /AC-001 lacks trustworthy passing evidence/);
@@ -437,10 +478,61 @@ test('every Pinmind final path, including manual simple, requires a token line',
   assert.match(skill, /every task while Pinmind is active|кажд.*задач.*Pinmind/iu); assert.match(skill, /including.*simple|включая.*simple/iu); assert.match(skill, /Token usage|Токены/iu); assert.match(skill, /unavailable|недоступ/iu);
 });
 
-test('active lifecycle blocks replacement, finalizes a verified CLI run, and prevents resume', async () => {
+test('baseline receipts preserve green, pre-existing failure, and explicit unavailable outcomes', async () => {
+  const greenCwd = await workspace(); await writeFile(path.join(greenCwd, 'relevant.txt'), 'baseline'); await initRun(greenCwd, 'run-one', 'Verify current state.');
+  const green = await captureBaseline(greenCwd, 'run-one', { freshnessPaths: ['relevant.txt'] }, [process.execPath, '-e', 'process.exit(0)']); assert.equal(green.status, 'green'); assert.equal(green.provenance.exitCode, 0); assert.equal((await reportRun(greenCwd, 'run-one')).baseline.status, 'green');
+  await rejects(() => recordUnavailableBaseline(greenCwd, 'run-one', 'late'), 'BASELINE_EXISTS');
+
+  const redCwd = await workspace(); await initRun(redCwd, 'run-one', 'Verify current state.');
+  const red = await captureBaseline(redCwd, 'run-one', { freshnessPaths: [] }, [process.execPath, '-e', "console.error('pre-existing-red'); process.exitCode = 3"]); assert.equal(red.status, 'pre-existing-failure'); assert.equal(red.provenance.exitCode, 3); assert.equal(red.observed, 'Captured exit code 3.');
+  const redBefore = await readFile(path.join(redCwd, '.pinmind/runs/run-one/baseline.json'), 'utf8'); await freezeContract(redCwd, 'run-one', freshnessContract()); assert.equal(await readFile(path.join(redCwd, '.pinmind/runs/run-one/baseline.json'), 'utf8'), redBefore);
+
+  const unavailableCwd = await workspace(); await initRun(unavailableCwd, 'run-one', 'Verify current state.');
+  const unavailable = await recordUnavailableBaseline(unavailableCwd, 'run-one', 'No affordable project check is available.'); assert.equal(unavailable.status, 'unavailable'); assert.match(unavailable.reason, /No affordable/);
+  const lateCwd = await frozenRun(); await rejects(() => recordUnavailableBaseline(lateCwd, 'run-one', 'Too late.'), 'BASELINE_EXISTS');
+});
+
+test('new runs fail closed without an explicit baseline while legacy state remains readable', async () => {
+  const cwd = await workspace(); await initRun(cwd, 'run-one', 'User asked for behavior.');
+  await rejects(() => freezeContract(cwd, 'run-one', contract()), 'BASELINE_REQUIRED');
+  await recordTestBaseline(cwd); const baselineFile = path.join(cwd, '.pinmind/runs/run-one/baseline.json'); const baseline = JSON.parse(await readFile(baselineFile, 'utf8')); baseline.reason = 'tampered'; await writeFile(baselineFile, `${JSON.stringify(baseline, null, 2)}\n`);
+  await rejects(() => freezeContract(cwd, 'run-one', contract()), 'CORRUPT_BASELINE');
+
+  const legacyCwd = await workspace(); await initRun(legacyCwd, 'run-one', 'User asked for behavior.');
+  const stateFile = path.join(legacyCwd, '.pinmind/runs/run-one/state.json'); const state = JSON.parse(await readFile(stateFile, 'utf8')); delete state.baselineRequired; state.stateSha256 = hashWithout(state, 'stateSha256'); await writeFile(stateFile, `${JSON.stringify(state, null, 2)}\n`);
+  await freezeContract(legacyCwd, 'run-one', contract()); assert.equal((await finalVerify(legacyCwd, 'run-one')).baseline.status, 'unavailable');
+});
+
+test('Git-scoped freshness ignores unrelated dirty files, rejects relevant mutation, and recapture restores pass', async () => {
+  const cwd = await workspace(); await runProcess(cwd, 'git', ['init']); await runProcess(cwd, 'git', ['config', 'user.email', 'pinmind@example.test']); await runProcess(cwd, 'git', ['config', 'user.name', 'Pinmind Test']);
+  await writeFile(path.join(cwd, 'relevant.txt'), 'v1'); await writeFile(path.join(cwd, 'unrelated.txt'), 'u1'); await runProcess(cwd, 'git', ['add', 'relevant.txt', 'unrelated.txt']); await runProcess(cwd, 'git', ['commit', '-m', 'baseline']);
+  await initRun(cwd, 'run-one', 'Verify current state.'); await captureBaseline(cwd, 'run-one', { freshnessPaths: ['relevant.txt'] }, [process.execPath, '-e', 'process.exit(0)']); await freezeContract(cwd, 'run-one', freshnessContract());
+  const template = evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'freshness-check', freshnessPaths: ['relevant.txt'] });
+  const captured = await captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', 'process.exit(0)']); assert.equal(captured.provenance.workspaceFingerprint.kind, 'git-paths-v1'); assert.equal((await finalVerify(cwd, 'run-one')).verdict, 'pass');
+  await writeFile(path.join(cwd, 'unrelated.txt'), 'u2'); assert.equal((await finalVerify(cwd, 'run-one')).verdict, 'pass');
+  const canonical = ['.pinmind/active.json', '.pinmind/runs/run-one/state.json', '.pinmind/runs/run-one/evidence.json']; const before = await Promise.all(canonical.map((file) => readFile(path.join(cwd, file), 'utf8')));
+  const first = await main(['final', 'check', '--run', 'run-one'], cwd); const second = await main(['final', 'check', '--run', 'run-one'], cwd); assert.deepEqual(second, first); assert.deepEqual(await Promise.all(canonical.map((file) => readFile(path.join(cwd, file), 'utf8'))), before); await assert.rejects(access(path.join(cwd, '.pinmind/runs/run-one/final.md')));
+  await writeFile(path.join(cwd, 'relevant.txt'), 'v2'); const stale = await finalVerify(cwd, 'run-one'); assert.equal(stale.verdict, 'fail'); assert.match(stale.errors.join('\n'), /stale freshness.*EV-001/);
+  await captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', 'process.exit(0)']); assert.equal((await finalVerify(cwd, 'run-one')).verdict, 'pass'); const finalized = await main(['finalize', '--run', 'run-one'], cwd); assert.equal(finalized.finalized, true);
+});
+
+test('no-Git declared artifacts are fingerprinted and missing freshness scope fails closed', async () => {
+  const cwd = await workspace(); await writeFile(path.join(cwd, 'relevant.txt'), 'v1'); await initRun(cwd, 'run-one', 'Verify current state.'); await captureBaseline(cwd, 'run-one', { freshnessPaths: ['relevant.txt'] }, [process.execPath, '-e', 'process.exit(0)']); await freezeContract(cwd, 'run-one', freshnessContract());
+  const template = evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'artifact-check', freshnessPaths: ['relevant.txt'] });
+  const captured = await captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', 'process.exit(0)']); assert.equal(captured.provenance.workspaceFingerprint.kind, 'artifacts-v1'); assert.equal((await finalVerify(cwd, 'run-one')).verdict, 'pass');
+  await unlink(path.join(cwd, 'relevant.txt')); const stale = await finalVerify(cwd, 'run-one'); assert.equal(stale.verdict, 'fail'); assert.match(stale.errors.join('\n'), /unavailable freshness.*EV-001/);
+
+  const missingCwd = await workspace(); await initRun(missingCwd, 'run-one', 'Verify current state.'); await recordTestBaseline(missingCwd); await freezeContract(missingCwd, 'run-one', freshnessContract());
+  await captureEvidence(missingCwd, 'run-one', evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'missing-check', freshnessPaths: ['missing.txt'] }), [process.execPath, '-e', 'process.exit(0)']);
+  const unavailable = await finalVerify(missingCwd, 'run-one'); assert.equal(unavailable.verdict, 'fail'); assert.match(unavailable.errors.join('\n'), /unavailable freshness.*EV-001/);
+});
+
+test('final check is read-only, final verify stays compatible, and resume stays blocked', async () => {
   const cwd = await workspace(); await initRun(cwd, 'first-run', 'User asked for behavior.'); await rejects(() => initRun(cwd, 'second-run', 'User asked for behavior.'), 'ACTIVE_RUN_EXISTS');
-  const candidate = path.join(cwd, 'contract.json'); await writeFile(candidate, JSON.stringify(contract())); await main(['contract', 'freeze', '--run', 'first-run', '--file', candidate], cwd);
+  await recordTestBaseline(cwd, 'first-run'); const candidate = path.join(cwd, 'contract.json'); await writeFile(candidate, JSON.stringify(contract())); await main(['contract', 'freeze', '--run', 'first-run', '--file', candidate], cwd);
   for (const [id, target] of [['EV-001', 'AC-001'], ['EV-002', 'INV-001'], ['EV-003', 'PRES-001'], ['EV-004', 'AC-002']]) { const file = path.join(cwd, `${id}.json`); await writeFile(file, JSON.stringify(evidence(id, 1, target, id === 'EV-004' ? { status: 'uncertain' } : {}))); await main(['evidence', 'record', '--run', 'first-run', '--file', file], cwd); }
+  const canonical = ['.pinmind/active.json', '.pinmind/runs/first-run/state.json', '.pinmind/runs/first-run/evidence.json']; const beforeCheck = await Promise.all(canonical.map((file) => readFile(path.join(cwd, file), 'utf8')));
+  const firstCheck = await main(['final', 'check', '--run', 'first-run'], cwd); const secondCheck = await main(['final', 'check', '--run', 'first-run'], cwd); assert.equal(firstCheck.verdict, 'pass'); assert.deepEqual(secondCheck, firstCheck); assert.deepEqual(await Promise.all(canonical.map((file) => readFile(path.join(cwd, file), 'utf8'))), beforeCheck); await assert.rejects(access(path.join(cwd, '.pinmind/runs/first-run/final.md')));
   const final = await main(['final', 'verify', '--run', 'first-run'], cwd); const finalText = await readFile(final.finalPath, 'utf8'); assert.equal(final.finalized, true); assert.match(finalText, /- pass: 3/); assert.match(finalText, /- uncertain: EV-004/); assert.match(finalText, /manual\/unreplayed: EV-001, EV-002, EV-003, EV-004/); assert.match(finalText, /MUST evidence coverage: satisfied/); assert.match(finalText, /## Token usage/); assert.match(finalText, /Status: unavailable/); assert.doesNotMatch(finalText, /saved|saving|сэконом/iu); assert.doesNotMatch(finalText, /MUST verdict: pass/);
   await rejects(() => stateResume(cwd), 'NO_ACTIVE_RUN'); assert.equal((await stateShow(cwd, 'first-run')).status, 'complete'); await rejects(() => stateResume(cwd, 'first-run'), 'RUN_COMPLETE');
   await rejects(() => recordEvidence(cwd, 'first-run', evidence('EV-001', 1, 'AC-001')), 'RUN_COMPLETE');
@@ -530,6 +622,86 @@ test('reconcile reports invalid and missing pointers without repairing them', as
   await rejects(() => main(['state', 'reconcile'], missingCwd), 'DRY_RUN_REQUIRED');
 });
 
+test('transition recovery survives 100 seeded interruptions for every bounded lifecycle mutation', { timeout: 180000 }, async () => {
+  const freezeDonor = await workspace(); await initRun(freezeDonor, 'run-one', 'User asked for behavior.'); await recordTestBaseline(freezeDonor);
+  const amendDonor = await frozenRun(); await recordEvidence(amendDonor, 'run-one', evidence('EV-001', 1, 'AC-001'));
+  const evidenceDonor = await frozenRun();
+  const finalizeDonor = await frozenRun(); await recordAll(finalizeDonor); const verification = await finalVerify(finalizeDonor, 'run-one'); assert.equal(verification.ok, true);
+
+  await seededTrials(100, 10, async (seed) => {
+    const cwd = await workspace();
+    await recoverInjectedTransition(cwd, (options) => initRun(cwd, 'run-one', 'User asked for behavior.', options), seed % 6);
+    const state = (await loadState(cwd, 'run-one')).state; assert.equal(state.status, 'active'); assert.equal((await reconcileActiveRuns(cwd)).classification, 'canonical-active');
+  });
+  await seededTrials(100, 10, async (seed) => {
+    const cwd = await clonePinmindWorkspace(freezeDonor);
+    await recoverInjectedTransition(cwd, (options) => freezeContract(cwd, 'run-one', contract(), options), seed % 3);
+    const state = (await loadState(cwd, 'run-one')).state; assert.equal(state.currentContractVersion, 1); assert.equal(state.phase, 'execute');
+  });
+  await seededTrials(100, 10, async (seed) => {
+    const cwd = await clonePinmindWorkspace(amendDonor);
+    await recoverInjectedTransition(cwd, (options) => amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'approved', options), seed % 5);
+    const state = (await loadState(cwd, 'run-one')).state; assert.equal(state.currentContractVersion, 2);
+    const store = JSON.parse(await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8')); assert.equal(store.entries[0].status, 'invalidated');
+  });
+  await seededTrials(100, 10, async (seed) => {
+    const cwd = await clonePinmindWorkspace(evidenceDonor);
+    await recoverInjectedTransition(cwd, (options) => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001'), options), seed % 2);
+    const store = JSON.parse(await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8')); assert.deepEqual(store.entries.map((entry) => entry.evidenceId), ['EV-001']);
+  });
+  await seededTrials(100, 10, async (seed) => {
+    const cwd = await clonePinmindWorkspace(finalizeDonor);
+    await unlink(path.join(cwd, '.pinmind/runs/run-one/usage.json'));
+    await recoverInjectedTransition(cwd, (options) => finalizeRun(cwd, 'run-one', verification, options), seed % 5);
+    const state = (await loadState(cwd, 'run-one')).state; assert.equal(state.status, 'complete'); assert.equal((await reconcileActiveRuns(cwd)).classification, 'clean-idle');
+    await access(path.join(cwd, '.pinmind/runs/run-one/final.md')); await access(path.join(cwd, '.pinmind/runs/run-one/usage.json')); await assert.rejects(access(path.join(cwd, '.pinmind/active.json')));
+  });
+});
+
+test('SIGKILL restart requires exact stale-lock and transition hashes before recovery', { skip: process.platform === 'win32', timeout: 20000 }, async () => {
+  const cwd = await workspace(); const marker = path.join(cwd, 'prepared.marker');
+  const coreUrl = new URL('../skills/pinmind/scripts/lib/core.mjs', import.meta.url).href;
+  const script = `import { writeFile } from 'node:fs/promises'; import { initRun } from ${JSON.stringify(coreUrl)}; await initRun(${JSON.stringify(cwd)}, 'run-one', 'User asked for behavior.', { onTransitionStep: async (step) => { if (step === 1) { await writeFile(${JSON.stringify(marker)}, 'ready'); await new Promise(() => { setInterval(() => {}, 1000); }); } } });`;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', script], { stdio: ['ignore', 'ignore', 'pipe'] }); let stderr = ''; child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+  await waitForFile(marker); const closed = new Promise((resolve) => child.once('close', resolve)); assert.equal(child.kill('SIGKILL'), true); await closed;
+  assert.equal(stderr, '');
+
+  const diagnosis = await reconcileActiveRuns(cwd); assert.equal(diagnosis.classification, 'transition-recovery-required'); assert.equal(diagnosis.writerLock.status, 'stale-local');
+  await rejects(() => recoverTransition(cwd, diagnosis.pendingTransition.transitionSha256), 'LOCK_STALE_NEEDS_RECOVERY');
+  const lockBefore = await readFile(path.join(cwd, '.pinmind/writer.lock'), 'utf8'); const journalBefore = await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8');
+  await rejects(() => recoverTransition(cwd, '0'.repeat(64), { expectedLockSha256: diagnosis.writerLock.lockSha256 }), 'TRANSITION_HASH_MISMATCH');
+  assert.equal(await readFile(path.join(cwd, '.pinmind/writer.lock'), 'utf8'), lockBefore); assert.equal(await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8'), journalBefore);
+  await rejects(() => recoverTransition(cwd, diagnosis.pendingTransition.transitionSha256, { expectedLockSha256: '0'.repeat(64) }), 'LOCK_HASH_MISMATCH');
+  const recovered = await main(['state', 'recover', '--apply', '--expected-sha256', diagnosis.pendingTransition.transitionSha256, '--expected-lock-sha256', diagnosis.writerLock.lockSha256], cwd);
+  assert.equal(recovered.recovered, true); assert.equal((await reconcileActiveRuns(cwd)).classification, 'canonical-active'); await assert.rejects(access(path.join(cwd, '.pinmind/writer.lock')));
+});
+
+test('transition reconciliation and recovery fail closed on conflict and require explicit CLI authority', async () => {
+  const cwd = await workspace();
+  await rejects(() => initRun(cwd, 'run-one', 'User asked for behavior.', { faultAfterStep: 1 }), 'INJECTED_TRANSITION_CRASH');
+  const journal = await readPendingTransition(cwd); const stateTarget = journal.actions.find((action) => action.path.endsWith('/state.json')); assert.ok(stateTarget);
+  const stateFile = path.join(cwd, stateTarget.path); await writeFile(stateFile, 'unexpected-state');
+  const beforeJournal = await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8'); const beforeState = await readFile(stateFile, 'utf8');
+  const diagnosis = await reconcileActiveRuns(cwd); assert.equal(diagnosis.classification, 'transition-conflict');
+  await rejects(() => recoverTransition(cwd, journal.transitionSha256), 'TRANSITION_CONFLICT');
+  assert.equal(await readFile(path.join(cwd, '.pinmind/transition.json'), 'utf8'), beforeJournal); assert.equal(await readFile(stateFile, 'utf8'), beforeState);
+  await rejects(() => main(['state', 'recover', '--expected-sha256', journal.transitionSha256], cwd), 'APPLY_REQUIRED');
+
+  const linkedCwd = await workspace(); await rejects(() => initRun(linkedCwd, 'run-one', 'User asked for behavior.', { faultAfterStep: 0 }), 'INJECTED_TRANSITION_CRASH');
+  const outside = await workspace(); await symlink(outside, path.join(linkedCwd, '.pinmind/runs'), process.platform === 'win32' ? 'junction' : 'dir');
+  const linkedJournal = await readPendingTransition(linkedCwd); assert.equal((await reconcileActiveRuns(linkedCwd)).classification, 'transition-conflict');
+  await rejects(() => recoverTransition(linkedCwd, linkedJournal.transitionSha256), 'TRANSITION_CONFLICT'); assert.deepEqual(await readdir(outside), []);
+});
+
+test('capture transition recovery commits evidence without replaying the captured command', async () => {
+  const cwd = await frozenRun(); const sentinel = path.join(cwd, 'capture-count.txt');
+  const template = evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'transition-capture' });
+  await rejects(() => captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', "require('node:fs').appendFileSync(process.argv[1], 'x')", sentinel], '.', { faultAfterStep: 0 }), 'INJECTED_TRANSITION_CRASH');
+  assert.equal(await readFile(sentinel, 'utf8'), 'x'); const diagnosis = await reconcileActiveRuns(cwd);
+  const recovered = await main(['state', 'recover', '--apply', '--expected-sha256', diagnosis.pendingTransition.transitionSha256], cwd); assert.equal(recovered.recovered, true);
+  assert.equal(await readFile(sentinel, 'utf8'), 'x'); const store = JSON.parse(await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8')); assert.equal(store.entries[0].provenance.kind, 'captured-command');
+});
+
 test('workspace writer lock permits exactly one concurrent active-run initialization', async () => {
   const cwd = await workspace();
   const results = await Promise.allSettled([
@@ -567,7 +739,7 @@ test('workspace writer lock serializes contract freeze and fails closed for a de
   assert.deepEqual(JSON.parse(await readFile(lockFile, 'utf8')), stale);
   await assert.rejects(access(path.join(cwd, '.pinmind/runs')));
 
-  await unlink(lockFile); await initRun(cwd, 'run-one', 'User asked for behavior.');
+  await unlink(lockFile); await initRun(cwd, 'run-one', 'User asked for behavior.'); await recordTestBaseline(cwd);
   const results = await Promise.allSettled([freezeContract(cwd, 'run-one', contract()), freezeContract(cwd, 'run-one', contract())]);
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
   const rejected = results.find((result) => result.status === 'rejected'); assert.equal(rejected?.reason?.code, 'AMEND_REQUIRED');
@@ -711,7 +883,7 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   assert.match(inbox, /regression case.*before|before.*policy change/is); assert.match(inbox, /activation-miss/); assert.match(inbox, /route-misclassification/); assert.match(inbox, /Do not automatically rewrite Pinmind/i);
 });
 
-test('CLI gates throw for failed verdicts and empty input provides usage', async () => {
+test('CLI evidence gate throws, final check returns a failed verdict, and empty input provides usage', async () => {
   const cwd = await frozenRun(); const file = path.join(cwd, '.pinmind/runs/run-one/evidence.json'); const store = { format: 1, entries: [evidence('EV-999', 1, 'AC-001')] }; store.storeSha256 = hashWithout(store, 'storeSha256'); await writeFile(file, JSON.stringify(store));
-  await rejects(() => main(['evidence', 'validate', '--run', 'run-one'], cwd), 'EVIDENCE_GATE_FAILED'); await rejects(() => main(['final', 'verify', '--run', 'run-one'], cwd), 'FINAL_GATE_FAILED'); assert.match((await main([], cwd)).usage, /Usage:/);
+  await rejects(() => main(['evidence', 'validate', '--run', 'run-one'], cwd), 'EVIDENCE_GATE_FAILED'); assert.equal((await main(['final', 'check', '--run', 'run-one'], cwd)).verdict, 'fail'); assert.match((await main([], cwd)).usage, /Usage:/);
 });

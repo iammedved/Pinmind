@@ -17,13 +17,17 @@ node "$KERNEL" init --run <safe-run-id> --brief <brief-source.md>
 node "$KERNEL" state show [--run <run-id>]
 node "$KERNEL" state resume [--run <run-id>]
 node "$KERNEL" state reconcile --dry-run
+node "$KERNEL" state recover --apply --expected-sha256 <transition-sha256> \
+  [--expected-lock-sha256 <dead-local-lock-sha256>]
 ```
 
 For an active non-simple Pinmind task, run `route` before route-dependent tools or writes when the kernel is available. Run `init` only for a persistent software-change run. It creates `.pinmind/active.json` and the versioned run layout. Preserve the supplied source request separately until redaction and capture are confirmed.
 
 `state resume` succeeds only when `active.json` names the sole verified run whose state is `active`; a named run must match that canonical owner. It reports the saved phase but does not replay commands or external effects.
 
-`state reconcile --dry-run` inventories the physical managed run directories and active pointer without changing either. It reports `clean-idle`, `canonical-active`, `orphan-active`, `split-brain`, `pointer-nonactive`, `pointer-missing-run`, `pointer-diverged`, `pointer-invalid`, or `run-corrupt`, plus the next safe inspection step. A consistent result exits zero; an inconsistent result preserves the structured diagnosis in the error details and exits nonzero. Every inconsistent class blocks initialization, resume, active-run mutation, capture, and finalization. The command never repairs state, removes a lock, chooses between conflicting runs, or restarts task work; explicit repair and crash-journal recovery remain future work.
+`state reconcile --dry-run` inventories the physical managed run directories, active pointer, and bounded transition journal without changing them. In addition to active-run classifications, it reports `transition-recovery-required` when every target still matches its prepared before/after hash, or `transition-conflict` for malformed, unsafe, or divergent journal state. A consistent result exits zero; an inconsistent result preserves the structured diagnosis in the error details and exits nonzero. Every inconsistent class blocks initialization, resume, active-run mutation, capture, and finalization.
+
+The five multi-file lifecycle mutations (`init`, `freeze`, `amend`, evidence commit, and finalization) prepare one integrity-checked local redo record under the existing workspace writer lock. `state recover` is the only mutating recovery seam: it requires explicit `--apply` plus the exact transition hash printed by reconcile, writes only allowlisted Pinmind post-images whose current hash still equals the prepared before or after value, verifies the result, and removes the bounded journal. After a real local process crash, reconcile also reports the exact writer-lock hash. Recovery removes that lock only when the supplied hash still matches, its recorded same-host PID is currently absent, and its operation owns the pending transition; live, foreign, malformed, changed, or unrelated locks remain fail-closed. It never chooses between conflicting runs, launches a command, or replays deployments, messages, deletions, or other task work. Captured commands finish before the evidence transition is prepared, so recovery can commit their stored evidence but cannot run them again. The durability boundary is a cooperative single-host local filesystem with file and parent-directory synchronization; distributed filesystems and host-process restoration are not claimed.
 
 Canonical mutations use a workspace-wide `.pinmind/writer.lock`. Contending live local writers wait briefly and then serialize. A dead or foreign-host lock fails immediately; a malformed lock gets a bounded retry so a contender cannot mistake the owner's short metadata-write window for corruption. Persistent ambiguity ends with `LOCK_STALE_NEEDS_RECOVERY`. Pinmind never reclaims a lock automatically because two reclaimers could otherwise remove a newer owner's lock. Inspect the recorded host, PID, owner, operation, current processes, and canonical run state before explicitly removing that exact file. The lock is a cooperative single-host local-filesystem guarantee, not a distributed network-filesystem lock or a crash-atomic multi-file journal. Never delete it merely because its timestamp looks old.
 
@@ -58,7 +62,10 @@ node "$KERNEL" evidence record --run <run-id> --file <evidence-record.json>
 node "$KERNEL" evidence capture --run <run-id> --file <evidence-template.json> \
   [--cwd <relative-workspace-path>] [--timeout-ms 50..300000] -- <command> [args...]
 node "$KERNEL" evidence validate --run <run-id>
-node "$KERNEL" final verify --run <run-id>
+node "$KERNEL" baseline capture --run <run-id> --file <baseline-template.json> -- <command> [args...]
+node "$KERNEL" baseline unavailable --run <run-id> --file <reason.json>
+node "$KERNEL" final check --run <run-id>
+node "$KERNEL" finalize --run <run-id>
 ```
 
 An evidence record needs `evidenceId`, current `contractVersion`, non-empty `covers`, an allowed `type`, a non-empty `command` or `procedure`, an `observed` result, and one supported status: `pass`, `fail`, `uncertain`, `pending-review`, or `not-applicable`. Allowed types are `unit-test`, `integration-test`, `end-to-end-test`, `property-test`, `static-typecheck`, `lint-static-analysis`, `browser-journey`, `screenshot-reference-comparison`, `accessibility-check`, `benchmark`, `migration-dry-run`, `log-trace-observation`, `manual-pending-review`, and `external-service-proof`. A `pass` also needs an `artifact` or `reference`. Evidence covering a target marked `critical: true` needs `sensitivity.method` and `sensitivity.observed`.
@@ -67,7 +74,11 @@ Prefer `evidence capture` for executable checks. It resolves the working directo
 
 For a genuinely non-command observation, use `evidence record` with a non-empty `procedure`, no `command`, and `provenance.kind` set to `manual-attestation`. This is explicitly manual and unreplayed and cannot by itself close a `critical: true` target. Use `pending-review`, not `pass`, when the observer or required environment is unavailable.
 
-`final verify` requires every evidence ID planned by each required MUST trace, invariant, and preservation rule to have a trustworthy current passing record that covers that target; multiple planned IDs are cumulative gates, not alternatives. It verifies stored captured-command provenance and current physical artifact paths/hashes, then revalidates any saved execution graph. Finalization repeats that gate while holding the writer lock before it writes `final.md`, marks the run complete, and clears the active pointer. The report lists non-pass optional evidence and separates machine-captured evidence from manual/unreplayed attestations. It never replays stored commands, inspects the real diff, or invents a user journey; capture those checks when they run and report manual evidence honestly.
+Capture a baseline before evidence: exit zero records `green`, a nonzero exit records `pre-existing-failure`, and an unavailable check requires an explicit reason. The immutable receipt keeps its original classification and is never rewritten by later evidence.
+
+An evidence template may declare `freshnessPaths`, a unique list of at most 64 contained regular files. Capture stores their bounded content fingerprint and optional Git HEAD metadata; only the declared files affect freshness. A changed or missing declared file becomes stale or unavailable. Targets marked `freshnessRequired: true` cannot be closed by stale or unavailable evidence. When no paths are supplied, the declared evidence artifact is the default bounded scope.
+
+`final check` requires every evidence ID planned by each required MUST trace, invariant, and preservation rule to have trustworthy current passing evidence. It is read-only and byte-idempotent. Explicit `finalize` repeats the same gate while holding the writer lock before writing `final.md`, completing state, and clearing the active pointer. The legacy `final verify` command remains a deprecated compatibility alias for finalization. Neither command replays stored commands or external work.
 
 ## Record token usage and render reports
 
@@ -81,4 +92,4 @@ node "$KERNEL" report --run <run-id> --format md
 
 New runs begin with `status: unavailable`. `usage record` accepts actual counts only with an allowed observed source and derives `totalTokens` as input plus output. Cached input, cache-write input, and reasoning output are subsets and are never double-counted. Invalid, negative, inconsistent, or secret-bearing data is rejected or redacted. A checksum mismatch blocks reporting of an accidentally changed or incompletely rewritten receipt; this unkeyed hash is not a security boundary against a writer who can recompute it.
 
-`report` is read-only. It renders lifecycle, evidence counts, and exact observed token usage or an explicit unavailable status. A post-turn host adapter may record authoritative usage after `final verify`; the report then reflects it without rewriting the contract or evidence verdict.
+`report` is read-only. It renders lifecycle, baseline classification, evidence counts, and exact observed token usage or an explicit unavailable status. A post-turn host adapter may record authoritative usage after `finalize`; the report then reflects it without rewriting the contract or evidence verdict.
