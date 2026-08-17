@@ -85,6 +85,16 @@ export function redactValue(value, key = '') {
   return value;
 }
 
+const SAFE_EXECUTABLE_NAME = /^(?:bash|bun|cargo|cmake|cmd|deno|eslint|git|go|jest|make|meson|ninja|node(?:js)?|npm|npx|pnpm|powershell|pwsh|pytest|python(?:3(?:\.\d+)?)?|ruby|rustc|sh|true|tsc|vitest|yarn|zsh)(?:\.exe)?$/i;
+
+export function redactArgv(argv) {
+  if (!Array.isArray(argv)) return argv;
+  if (argv.length === 0) return [];
+  const executable = typeof argv[0] === 'string' ? path.basename(argv[0]) : '';
+  const executableLabel = SAFE_EXECUTABLE_NAME.test(executable) ? executable : '[REDACTED EXECUTABLE]';
+  return [executableLabel, ...argv.slice(1).map(() => '[REDACTED ARG]')];
+}
+
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 async function readJson(file, label = 'JSON file') {
   try { return JSON.parse(await readFile(file, 'utf8')); }
@@ -664,10 +674,11 @@ export async function captureEvidence(cwd, runId, template, argv, requestedCwd =
     }
   } finally { if (timer) clearTimeout(timer); }
   const stdout = await settleCapturedOutput(stdoutCapture); const stderr = await settleCapturedOutput(stderrCapture);
-  const entry = redactValue(structuredClone(template)); entry.command = argv.join(' '); entry.status = !timedOut && result.exitCode === 0 ? 'pass' : 'fail';
+  const sanitizedArgv = redactArgv(argv);
+  const entry = redactValue(structuredClone(template)); entry.command = sanitizedArgv.join(' '); entry.status = !timedOut && result.exitCode === 0 ? 'pass' : 'fail';
   entry.observed = timedOut ? `Capture timed out after ${policy.timeoutMs} ms. ${termination.observation}` : `Captured exit code ${result.exitCode}.`;
   entry.provenance = {
-    kind: 'captured-command', argv, cwd: relativeCwd, exitCode: result.exitCode, signal: result.signal, timedOut, timeoutMs: policy.timeoutMs, termination,
+    kind: 'captured-command', argv: sanitizedArgv, cwd: relativeCwd, exitCode: result.exitCode, signal: result.signal, timedOut, timeoutMs: policy.timeoutMs, termination,
     stdout: stdout.value, stderr: stderr.value, stdoutTruncated: stdout.truncated, stderrTruncated: stderr.truncated, outputIncomplete: stdout.incomplete || stderr.incomplete,
     capturedAt: new Date().toISOString(), artifactHashes: await artifactHashes(cwd, entry, { required: entry.status === 'pass' }),
   };

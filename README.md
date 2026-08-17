@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin candidate. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current source version: `0.2.3`.
+Current source version: `0.2.4`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -13,17 +13,17 @@ Current source version: `0.2.3`.
 
 ### Codex CLI: install the plugin from GitHub
 
-1. Add the verified `0.2.3` repository marketplace:
+1. Add the verified `0.2.4` repository marketplace:
 
    ```bash
-   codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.3
+   codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.4
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.2.3` installs the reviewed release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.2.4` installs the reviewed release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: install only the skill from source
 
@@ -88,7 +88,7 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 
 ## Project documentation
 
-- [CHANGELOG.md](CHANGELOG.md) — release history and the `0.2.3` candidate.
+- [CHANGELOG.md](CHANGELOG.md) — release history and the current `0.2.4` release.
 - [ROADMAP.md](ROADMAP.md) — evidence-backed future priorities.
 - [LANGUAGE_ROUTING.md](LANGUAGE_ROUTING.md) — multilingual routing evaluation design.
 - [SKILL.md](skills/pinmind/SKILL.md) — controller instructions and discovery rules.

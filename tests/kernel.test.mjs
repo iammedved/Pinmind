@@ -7,7 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, recordEvidence, redact, redactValue,
+  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, recordEvidence, redact, redactArgv, redactValue,
   recordUsage, reportRun, routeTask, safeRelativePath, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from '../skills/pinmind/scripts/lib/core.mjs';
 import { main } from '../skills/pinmind/scripts/pinmind.mjs';
@@ -171,6 +171,31 @@ test('redaction removes headers, cookies, URLs, sessions, private keys, and exis
   const secret = `Authorization: Basic dXNlcjpwYXNz\nAuthorization: Bearer abcdefghijklmnopqrstuvwxyz\nAuthorization=demo-credential-value\nBearer short7\n${syntheticProviderToken}\neyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnopqrstuv\nCookie: sid=cookie-secret\nSet-Cookie: sessionid=session-secret\nsession=assign-secret\nhttps://user:pass@example.test/x\n-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----\ntoken=plain-secret sk-abcdefghijklmnopqrstuvwxyz`;
   const redacted = redact(secret); for (const value of ['dXNlcjpwYXNz', 'abcdefghijklmnopqrstuvwxyz', 'demo-credential-value', 'short7', syntheticProviderToken, 'eyJhbGciOiJIUzI1NiJ9', 'cookie-secret', 'session-secret', 'assign-secret', 'user:pass', 'private-material', 'plain-secret', 'sk-abcdefghijklmnopqrstuvwxyz']) assert.equal(redacted.includes(value), false, value);
   const nested = redactValue({ Cookie: 'cookie-value', nested: { session: 'session-value', sid: 'sid-value', 'set-cookie': 'set-cookie-value' } }); for (const value of ['cookie-value', 'session-value', 'sid-value', 'set-cookie-value']) assert.equal(JSON.stringify(nested).includes(value), false, value);
+  assert.deepEqual(redactArgv(['tool', '--token', 'synthetic-value', '--api-key=synthetic-equals-value', '--label', 'safe']), ['[REDACTED EXECUTABLE]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]']);
+});
+
+test('captured evidence executes original argv but persists only sanitized command provenance', async () => {
+  const cwd = await frozenRun();
+  const separateSecret = ['synthetic', '-separate-command-value'].join('');
+  const assignedSecret = ['synthetic', '-assigned-command-value'].join('');
+  const userInfoSecret = ['synthetic-user:', 'synthetic-password-value'].join('');
+  const shortUserSecret = ['synthetic-short-user:', 'synthetic-short-password'].join('');
+  const accessTokenSecret = ['synthetic', '-access-token-value'].join('');
+  const positionalSecret = ['synthetic', '-positional-private-value'].join('');
+  const artifact = 'executed-argv.json';
+  const childScript = "const { createHash } = require('node:crypto'); const { writeFileSync } = require('node:fs'); const args = process.argv.slice(1); writeFileSync('executed-argv.json', JSON.stringify(args.map((value) => createHash('sha256').update(value).digest('hex'))));";
+  const argv = [process.execPath, '-e', childScript, '--', '--token', separateSecret, `--api-key=${assignedSecret}`, '--user', userInfoSecret, '-u', shortUserSecret, '--access-token', accessTokenSecret, positionalSecret, '--label', 'safe'];
+  const captured = await captureEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { artifact }), argv);
+  const executedHashes = JSON.parse(await readFile(path.join(cwd, artifact), 'utf8'));
+  for (const value of [separateSecret, `--api-key=${assignedSecret}`, userInfoSecret, shortUserSecret, accessTokenSecret, positionalSecret]) assert.ok(executedHashes.includes(createHash('sha256').update(value).digest('hex')), value);
+  const rawEvidence = await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8');
+  for (const value of [separateSecret, assignedSecret, userInfoSecret, shortUserSecret, accessTokenSecret, positionalSecret]) {
+    assert.equal(rawEvidence.includes(value), false, value);
+    assert.equal(captured.command.includes(value), false, value);
+  }
+  assert.match(captured.provenance.argv[0], /^node(?:js)?(?:\.exe)?$/i);
+  assert.equal(captured.provenance.argv.length, argv.length);
+  assert.ok(captured.provenance.argv.slice(1).every((value) => value === '[REDACTED ARG]'));
 });
 
 test('router executes all RU/EN and adversarial route fixtures', async () => {
@@ -197,7 +222,7 @@ test('discovery metadata is concise, bilingual, implicit, and keeps trivial excl
   assert.match(`${manifest.interface.longDescription} ${manifest.interface.defaultPrompt.join(' ')}`, /русск|Russian|RU\/EN/iu);
 });
 
-test('public 0.2.3 documentation, license, metadata, language guide, and hero asset stay coherent', async () => {
+test('public 0.2.4 documentation, license, metadata, language guide, and hero asset stay coherent', async () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const readme = await readFile(path.join(root, 'README.md'), 'utf8');
   const changelog = await readFile(path.join(root, 'CHANGELOG.md'), 'utf8');
@@ -216,14 +241,14 @@ test('public 0.2.3 documentation, license, metadata, language guide, and hero as
   const terms = await readFile(path.join(root, 'TERMS.md'), 'utf8');
   const description = skill.match(/^---\n[\s\S]*?^description:\s*(.+)$/m)?.[1] || '';
 
-  assert.match(manifest.version, /^0\.2\.3(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.match(manifest.version, /^0\.2\.4(?:\+codex\.[0-9A-Za-z.-]+)?$/);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, /Current source version:\s*`0\.2\.3`/);
+  assert.match(readme, /Current source version:\s*`0\.2\.4`/);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
-  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.3']) assert.ok(readme.includes(term), term);
+  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.4']) assert.ok(readme.includes(term), term);
   assert.match(readme, /https:\/\/github\.com\/pinmind-project\/Pinmind/);
   assert.match(readme, /needs no connector, external account, API key, or MCP server/);
   assert.doesNotMatch(readme, /pinmind@personal|personal marketplace|install-personal-release/iu);
@@ -258,7 +283,9 @@ test('public 0.2.3 documentation, license, metadata, language guide, and hero as
   assert.equal(JSON.stringify(manifest).includes('@'), false);
   for (const term of ['Host selection', 'Post-activation routing', 'End-task utility', 'SkillsBench', 'SkillRouter', 'AgentAbstain', 'MASSIVE', 'pairId', 'mustNotMutate']) assert.match(languageGuide, new RegExp(term, 'i'), term);
   assert.match(changelog, /## \[Unreleased\]/);
-  assert.match(changelog, /Target patch:\s*`0\.2\.3`/);
+  assert.match(changelog, /Target patch:\s*not assigned/);
+  assert.match(changelog, /## \[0\.2\.4\] - 2026-08-17/);
+  assert.match(changelog, /## \[0\.2\.3\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.2\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.1\] - 2026-08-16/);
   assert.match(changelog, /## \[0\.2\.0\] - 2026-08-16/);

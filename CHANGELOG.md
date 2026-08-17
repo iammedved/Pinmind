@@ -6,7 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
-Target patch: `0.2.3`.
+Target patch: not assigned.
+
+## [0.2.4] - 2026-08-17
+
+### Security
+
+- Removed all command-argument values and unrecognized executable paths from durable evidence provenance, while preserving the original arguments only for the requested subprocess execution.
+- Added a regression test proving that captured commands receive the original synthetic arguments across named, short, assigned, and positional forms while `evidence.json` retains only safe placeholders.
+
+## [0.2.3] - 2026-08-17
 
 ### Changed
 
