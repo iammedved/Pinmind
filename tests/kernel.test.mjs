@@ -277,7 +277,7 @@ test('discovery metadata is concise, bilingual, implicit, and keeps trivial excl
   assert.match(`${manifest.interface.longDescription} ${manifest.interface.defaultPrompt.join(' ')}`, /русск|Russian|RU\/EN/iu);
 });
 
-test('public 0.3.0-experimental documentation, license, metadata, evaluation guides, and hero asset stay coherent', async () => {
+test('public 0.3.1-experimental documentation, license, metadata, evaluation guides, and hero asset stay coherent', async () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const readme = await readFile(path.join(root, 'README.md'), 'utf8');
   const changelog = await readFile(path.join(root, 'CHANGELOG.md'), 'utf8');
@@ -298,14 +298,14 @@ test('public 0.3.0-experimental documentation, license, metadata, evaluation gui
   const terms = await readFile(path.join(root, 'TERMS.md'), 'utf8');
   const description = skill.match(/^---\n[\s\S]*?^description:\s*(.+)$/m)?.[1] || '';
 
-  assert.match(manifest.version, /^0\.3\.0-experimental(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.match(manifest.version, /^0\.3\.1-experimental(?:\+codex\.[0-9A-Za-z.-]+)?$/);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, /Current source version:\s*`0\.3\.0-experimental`/);
+  assert.match(readme, /Current source version:\s*`0\.3\.1-experimental`/);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
-  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add iammedved/Pinmind --ref v0.3.0-experimental']) assert.ok(readme.includes(term), term);
+  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add iammedved/Pinmind --ref v0.3.1-experimental']) assert.ok(readme.includes(term), term);
   assert.match(readme, /https:\/\/github\.com\/iammedved\/Pinmind/);
   assert.match(readme, /needs no connector, external account, API key, or MCP server/);
   assert.doesNotMatch(readme, /pinmind@personal|personal marketplace|install-personal-release/iu);
@@ -343,7 +343,10 @@ test('public 0.3.0-experimental documentation, license, metadata, evaluation gui
   for (const term of ['workShape', 'desiredProfile', 'actualProfile', 'verificationOracle', 'provider-neutral', '16 original synthetic contrast cases']) assert.match(`${readme}\n${aepGuide}`, new RegExp(term, 'i'), term);
   assert.match(changelog, /## \[Unreleased\]/);
   assert.match(changelog, /Target patch:\s*not assigned/);
+  assert.match(changelog, /## \[0\.3\.1-experimental\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.3\.0-experimental\] - 2026-08-17/);
+  assert.match(`${readme}\n${changelog}`, /immutable baseline/);
+  assert.match(`${readme}\n${changelog}`, /experimental.*(?:maturity|marker)|(?:maturity|marker).*experimental/is);
   assert.match(changelog, /## \[0\.2\.4\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.3\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.2\] - 2026-08-17/);

@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 Target patch: not assigned.
 
+## [0.3.1-experimental] - 2026-08-17
+
+### Changed
+
+- Advanced the patch component while retaining the `experimental` marker: the release hardens security without changing the AEP Phase 0 maturity level or runtime routing contract.
+- Updated public installation documentation for the pinned `v0.3.1-experimental` repository marketplace while preserving `v0.3.0-experimental` as an immutable baseline.
+
 ### Security
 
 - Reject symlinks and non-regular entries across the persistent `.pinmind` state path before reading or writing run data.
