@@ -105,7 +105,7 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 - [SUPPORT.md](SUPPORT.md) — safe support requests.
 - [CONTRIBUTING.md](.github/CONTRIBUTING.md) — manually reviewed proposals.
 
-Runtime state is written to the target workspace's ignored `.pinmind/` directory. It must not be committed or packaged.
+Runtime state is written to the target workspace's ignored `.pinmind/` directory. It must not be committed or packaged. Pinmind rejects symlinks in this state path and sanitizes credential-shaped text before persistence.
 
 ## Versioning
 

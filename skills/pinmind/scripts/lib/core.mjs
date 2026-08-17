@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, writeFile, mkdir, access, rename, unlink, open, realpath, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, rename, unlink, open, realpath, stat, lstat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { hostname } from 'node:os';
 import path from 'node:path';
@@ -66,6 +66,9 @@ export function redact(text) {
   if (typeof text !== 'string') return text;
   return text
     .replace(/-----BEGIN(?: [A-Z]+)? PRIVATE KEY-----[\s\S]*?-----END(?: [A-Z]+)? PRIVATE KEY-----/g, '[REDACTED PRIVATE KEY]')
+    .replace(/(\[\s*)(["'])((?:[A-Za-z_][A-Za-z0-9_]*_)?(?:SECRET|PASSWORD|PASSWD|TOKEN|API_KEY|ACCESS_KEY|SECRET_KEY|PRIVATE_KEY|CREDENTIALS?|DATABASE_URL|DB_URL|CONNECTION_STRING))\2(\s*\]\s*=\s*)(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|`(?:\\.|[^`\\\r\n])*`|[^;,\r\n)\]}]+)/gi, '$1$2$3$2$4"[REDACTED]"')
+    .replace(/(["'])((?:[A-Za-z_][A-Za-z0-9_]*_)?(?:SECRET|PASSWORD|PASSWD|TOKEN|API_KEY|ACCESS_KEY|SECRET_KEY|PRIVATE_KEY|CREDENTIALS?|DATABASE_URL|DB_URL|CONNECTION_STRING))\1(\s*:\s*)(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^,}\r\n]+)/gi, '$1$2$1$3"[REDACTED]"')
+    .replace(/(^|[^A-Za-z0-9_])((?:(?:export|set)[ \t]+|\$env:)?(?:[A-Za-z_][A-Za-z0-9_]*_)?(?:SECRET|PASSWORD|PASSWD|TOKEN|API_KEY|ACCESS_KEY|SECRET_KEY|PRIVATE_KEY|CREDENTIALS?|DATABASE_URL|DB_URL|CONNECTION_STRING)[ \t]*[=:][ \t]*)[^\r\n]*/gim, '$1$2[REDACTED]')
     .replace(/\bxox[baprs]-[A-Za-z0-9-]{10,}\b/gi, '[REDACTED]')
     .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/g, '[REDACTED]')
     .replace(/\b(sk-[A-Za-z0-9_-]{12,}|gh[pousr]_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})\b/g, '[REDACTED]')
@@ -122,6 +125,65 @@ export function layout(cwd, runId) {
   return { root, runs, run, lock: path.join(root, 'writer.lock'), active: path.join(root, 'active.json'), brief: path.join(run, 'brief.md'), state: path.join(run, 'state.json'), evidence: path.join(run, 'evidence.json'), usage: path.join(run, 'usage.json'), final: path.join(run, 'final.md'), execution: path.join(run, 'execution.json'), contracts: path.join(run, 'contracts'), amendments: path.join(run, 'amendments') };
 }
 
+function unsafeStatePath(label, detail = '') {
+  return new KernelError(`Pinmind state ${label} must be a physical path inside the workspace.${detail ? ` ${detail}` : ''}`, 'UNSAFE_STATE_PATH');
+}
+
+async function existingEntry(candidate, label) {
+  try { return await lstat(candidate); }
+  catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw unsafeStatePath(label, error.message);
+  }
+}
+
+async function verifyStateEntry(candidate, boundary, kind, label) {
+  const entry = await existingEntry(candidate, label);
+  if (!entry) return false;
+  const validKind = kind === 'directory' ? entry.isDirectory() : entry.isFile();
+  if (entry.isSymbolicLink() || !validKind) throw unsafeStatePath(label, `Expected a regular ${kind}.`);
+  let resolved;
+  try { resolved = await realpath(candidate); }
+  catch (error) { throw unsafeStatePath(label, error.message); }
+  if (!isPhysicalDescendant(boundary, resolved)) throw unsafeStatePath(label, 'The resolved path escapes its state boundary.');
+  return true;
+}
+
+async function verifiedStateRoot(cwd, { create = false } = {}) {
+  let workspace;
+  try { workspace = await realpath(path.resolve(cwd)); }
+  catch (error) { throw unsafeStatePath('workspace', error.message); }
+  const workspaceEntry = await existingEntry(workspace, 'workspace');
+  if (!workspaceEntry?.isDirectory() || workspaceEntry.isSymbolicLink()) throw unsafeStatePath('workspace', 'Expected a physical directory.');
+  const root = path.join(workspace, '.pinmind');
+  let exists = await verifyStateEntry(root, workspace, 'directory', 'root');
+  if (!exists && create) {
+    try { await mkdir(root, { mode: 0o700 }); }
+    catch (error) { if (error.code !== 'EEXIST') throw unsafeStatePath('root', error.message); }
+    exists = await verifyStateEntry(root, workspace, 'directory', 'root');
+    if (!exists) throw unsafeStatePath('root', 'The directory could not be created safely.');
+  }
+  if (exists) {
+    await verifyStateEntry(path.join(root, 'active.json'), root, 'file', 'active pointer');
+    await verifyStateEntry(path.join(root, 'writer.lock'), root, 'file', 'writer lock');
+  }
+  return { workspace, root, exists };
+}
+
+async function verifiedLayout(cwd, runId, { createRoot = false } = {}) {
+  const stateRoot = await verifiedStateRoot(cwd, { create: createRoot });
+  const files = layout(stateRoot.workspace, runId);
+  if (!stateRoot.exists) return files;
+  if (!(await verifyStateEntry(files.runs, files.root, 'directory', 'runs directory'))) return files;
+  if (!(await verifyStateEntry(files.run, files.root, 'directory', 'run directory'))) return files;
+  await verifyStateEntry(files.contracts, files.run, 'directory', 'contracts directory');
+  await verifyStateEntry(files.amendments, files.run, 'directory', 'amendments directory');
+  for (const [label, file] of Object.entries({ brief: files.brief, state: files.state, evidence: files.evidence, usage: files.usage, final: files.final, execution: files.execution })) {
+    await verifyStateEntry(file, files.run, 'file', `${label} file`);
+  }
+  return files;
+}
+
 async function inspectExistingLock(lockFile) {
   let current;
   try { current = await readJson(lockFile, 'Writer lock'); }
@@ -140,8 +202,7 @@ async function inspectExistingLock(lockFile) {
 }
 
 async function acquireWorkspaceLock(cwd, operation, waitMs = LOCK_WAIT_MS) {
-  const root = path.resolve(cwd, '.pinmind'); const lockFile = path.join(root, 'writer.lock');
-  await mkdir(root, { recursive: true });
+  const { root } = await verifiedStateRoot(cwd, { create: true }); const lockFile = path.join(root, 'writer.lock');
   const ownerId = randomUUID(); const deadline = Date.now() + waitMs;
   let heldCode = 'LOCK_HELD';
   while (true) {
@@ -183,7 +244,7 @@ function stateHash(state) { return hashWithout(state, 'stateSha256'); }
 function setStateHash(state) { state.stateSha256 = stateHash(state); return state; }
 
 export async function loadState(cwd, runId) {
-  const files = layout(cwd, runId);
+  const files = await verifiedLayout(cwd, runId);
   const state = await readJson(files.state, 'Run state');
   if (state.format !== FORMAT || state.runId !== runId || typeof state.stateSha256 !== 'string' || stateHash(state) !== state.stateSha256) {
     throw new KernelError(`Run state is corrupt: ${runId}`, 'CORRUPT_STATE');
@@ -245,6 +306,7 @@ export async function verifyRun(cwd, runId) {
   if (briefHash !== state.briefSha256) throw new KernelError('Immutable brief hash does not match state.', 'CORRUPT_STATE');
   for (const [version, expectedHash] of Object.entries(state.contractHashes || {})) {
     const file = path.join(files.contracts, `contract-v${String(version).padStart(3, '0')}.json`);
+    await verifyStateEntry(file, files.contracts, 'file', `contract v${version}`);
     const contract = await readJson(file, 'Frozen contract');
     if (contract.contractSha256 !== expectedHash || hashWithout(contract, 'contractSha256') !== expectedHash) throw new KernelError(`Frozen contract v${version} was changed.`, 'FROZEN_CONTRACT_CHANGED');
   }
@@ -253,7 +315,7 @@ export async function verifyRun(cwd, runId) {
 }
 
 async function initRunUnlocked(cwd, runId, briefText) {
-  const files = layout(cwd, runId);
+  const files = await verifiedLayout(cwd, runId, { createRoot: true });
   if (await exists(files.run)) throw new KernelError(`Run already exists: ${runId}`, 'RUN_EXISTS');
   if (await exists(files.active)) {
     const active = await readJson(files.active, 'Active run pointer');
@@ -282,7 +344,9 @@ export async function initRun(cwd, runId, briefText) {
 async function currentContract(files, state) {
   if (!state.currentContractVersion) throw new KernelError('No frozen contract exists.', 'NO_CONTRACT');
   const version = state.currentContractVersion;
-  return readJson(path.join(files.contracts, `contract-v${String(version).padStart(3, '0')}.json`), 'Frozen contract');
+  const file = path.join(files.contracts, `contract-v${String(version).padStart(3, '0')}.json`);
+  await verifyStateEntry(file, files.contracts, 'file', `contract v${version}`);
+  return readJson(file, 'Frozen contract');
 }
 
 function normalizeForMatch(value) { return String(value).replace(/\s+/g, ' ').trim().toLocaleLowerCase(); }
@@ -748,7 +812,7 @@ async function validateAndSaveExecutionUnlocked(cwd, runId, execution, expectedE
 }
 
 export async function validateAndSaveExecution(cwd, runId, execution, options = {}) {
-  const files = layout(cwd, safeRunId(runId));
+  const files = await verifiedLayout(cwd, safeRunId(runId));
   const expectedExecutionSha256 = Object.prototype.hasOwnProperty.call(options, 'expectedExecutionSha256') ? options.expectedExecutionSha256 : await fileSha256OrNull(files.execution);
   if (expectedExecutionSha256 !== null && (typeof expectedExecutionSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(expectedExecutionSha256))) throw new KernelError('expectedExecutionSha256 must identify the caller snapshot or be null.', 'INVALID_EXECUTION');
   return withWorkspaceLock(cwd, `save-execution:${safeRunId(runId)}`, () => validateAndSaveExecutionUnlocked(cwd, runId, execution, expectedExecutionSha256));
@@ -827,7 +891,7 @@ export function routeTask(input = {}) {
 export async function stateShow(cwd, requestedRunId) {
   let runId = requestedRunId;
   if (!runId) {
-    const activePath = path.resolve(cwd, '.pinmind', 'active.json');
+    const { root } = await verifiedStateRoot(cwd); const activePath = path.join(root, 'active.json');
     if (!(await exists(activePath))) throw new KernelError('There is no active run.', 'NO_ACTIVE_RUN');
     const active = await readJson(activePath, 'Active run pointer'); runId = active.runId;
   }

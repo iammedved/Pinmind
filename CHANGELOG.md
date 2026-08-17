@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 Target patch: not assigned.
 
+### Security
+
+- Reject symlinks and non-regular entries across the persistent `.pinmind` state path before reading or writing run data.
+- Redact conventional environment-style credential assignments before briefs, amendments, or captured output are persisted.
+
 ## [0.3.0-experimental] - 2026-08-17
 
 ### Added

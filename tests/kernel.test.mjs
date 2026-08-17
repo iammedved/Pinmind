@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { access, mkdtemp, mkdir, readFile, readdir, symlink, unlink, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
 import { hostname, tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -52,15 +52,61 @@ test('amendment requires authority, exact normative diff coverage, and records h
   const candidateFile = path.join(cwd, 'candidate-v2.json'); await writeFile(candidateFile, JSON.stringify(contract(2, true)));
   await rejects(() => main(['contract', 'amend', '--run', 'run-one', '--file', candidateFile, '--reason', 'Clarification.', '--affects', 'INTENT'], cwd), 'MISSING_ARGUMENT');
   await rejects(() => amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['AC-001'], 'approved'), 'INVALID_AMENDMENT');
-  const result = await amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'ticket SECRET=not-for-log');
+  const result = await amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'ticket AWS_SECRET_ACCESS_KEY=synthetic-amendment-value');
   assert.deepEqual(result, { version: 2, changes: ['INTENT'], invalidatedEvidence: ['EV-001'] });
   const amendment = await readFile(path.join(cwd, '.pinmind/runs/run-one/amendments/amendment-v002.json'), 'utf8');
-  assert.equal(amendment.includes('not-for-log'), false); assert.match(amendment, /INTENT/);
+  assert.equal(amendment.includes('synthetic-amendment-value'), false); assert.match(amendment, /INTENT/);
 });
 
 test('state hash detects corruption', async () => {
   const cwd = await workspace(); await initRun(cwd, 'state-run', 'User asked for behavior.'); const file = path.join(cwd, '.pinmind/runs/state-run/state.json'); const state = JSON.parse(await readFile(file, 'utf8')); state.phase = 'tampered'; await writeFile(file, JSON.stringify(state));
   await rejects(() => loadState(cwd, 'state-run'), 'CORRUPT_STATE');
+});
+
+test('persistent state rejects symlink escapes and accepts a benign workspace alias', async () => {
+  const rootCwd = await workspace(); const rootTarget = await workspace();
+  await symlink(rootTarget, path.join(rootCwd, '.pinmind'), process.platform === 'win32' ? 'junction' : 'dir');
+  await rejects(() => initRun(rootCwd, 'root-link', 'Synthetic brief.'), 'UNSAFE_STATE_PATH');
+  assert.deepEqual(await readdir(rootTarget), []);
+
+  const runsCwd = await workspace(); const runsTarget = await workspace();
+  await mkdir(path.join(runsCwd, '.pinmind'));
+  await symlink(runsTarget, path.join(runsCwd, '.pinmind/runs'), process.platform === 'win32' ? 'junction' : 'dir');
+  await rejects(() => initRun(runsCwd, 'runs-link', 'Synthetic brief.'), 'UNSAFE_STATE_PATH');
+  assert.deepEqual(await readdir(runsTarget), []);
+
+  const runCwd = await workspace(); const runTarget = await workspace();
+  await mkdir(path.join(runCwd, '.pinmind/runs'), { recursive: true });
+  await symlink(runTarget, path.join(runCwd, '.pinmind/runs/run-link'), process.platform === 'win32' ? 'junction' : 'dir');
+  await rejects(() => loadState(runCwd, 'run-link'), 'UNSAFE_STATE_PATH');
+
+  const contractCwd = await frozenRun(); const externalContract = path.join(await workspace(), 'contract.json');
+  const contractFile = path.join(contractCwd, '.pinmind/runs/run-one/contracts/contract-v001.json');
+  await writeFile(externalContract, await readFile(contractFile)); await unlink(contractFile); await symlink(externalContract, contractFile, 'file');
+  await rejects(() => finalVerify(contractCwd, 'run-one'), 'UNSAFE_STATE_PATH');
+
+  const physicalCwd = await workspace(); const aliasCwd = `${physicalCwd}-alias`;
+  await symlink(physicalCwd, aliasCwd, process.platform === 'win32' ? 'junction' : 'dir');
+  await initRun(aliasCwd, 'alias-run', 'Synthetic brief.');
+  assert.equal((await loadState(aliasCwd, 'alias-run')).state.runId, 'alias-run');
+});
+
+test('persistent state rejects symlinks at every root and run entry before touching the target', async () => {
+  const entries = [
+    ['.pinmind/active.json', 'file'], ['.pinmind/writer.lock', 'file'],
+    ['.pinmind/runs/run-one/brief.md', 'file'], ['.pinmind/runs/run-one/state.json', 'file'],
+    ['.pinmind/runs/run-one/evidence.json', 'file'], ['.pinmind/runs/run-one/usage.json', 'file'],
+    ['.pinmind/runs/run-one/final.md', 'file'], ['.pinmind/runs/run-one/execution.json', 'file'],
+    ['.pinmind/runs/run-one/contracts', 'directory'], ['.pinmind/runs/run-one/amendments', 'directory'],
+  ];
+  for (const [relative, kind] of entries) {
+    const cwd = await frozenRun(); const outside = await workspace(); const candidate = path.join(cwd, relative); const target = path.join(outside, kind === 'directory' ? 'target-directory' : 'target-file');
+    if (kind === 'directory') await mkdir(target); else await writeFile(target, 'synthetic-outside-sentinel');
+    try { await rename(candidate, `${candidate}.local`); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    await symlink(target, candidate, process.platform === 'win32' && kind === 'directory' ? 'junction' : kind === 'directory' ? 'dir' : 'file');
+    await rejects(() => loadState(cwd, 'run-one'), 'UNSAFE_STATE_PATH');
+    if (kind === 'directory') assert.deepEqual(await readdir(target), [], relative); else assert.equal(await readFile(target, 'utf8'), 'synthetic-outside-sentinel', relative);
+  }
 });
 
 test('amendment rejects deletion of a MUST obligation with irrelevant affects', async () => {
@@ -173,8 +219,11 @@ test('execution accepts sequential zones and safe Windows paths', async () => {
 });
 
 test('redaction removes headers, cookies, URLs, sessions, private keys, and existing token forms', async () => {
-  const secret = `Authorization: Basic dXNlcjpwYXNz\nAuthorization: Bearer ${syntheticBearerValue}\nAuthorization=demo-credential-value\nBearer short7\n${syntheticProviderToken}\n${syntheticJwt}\nCookie: sid=cookie-secret\nSet-Cookie: sessionid=session-secret\nsession=assign-secret\n${syntheticCredentialUrl}\n${syntheticPrivateKeyBlock}\ntoken=plain-secret ${syntheticApiToken}`;
-  const redacted = redact(secret); for (const value of ['dXNlcjpwYXNz', syntheticBearerValue, 'demo-credential-value', 'short7', syntheticProviderToken, 'eyJhbGciOiJIUzI1NiJ9', 'cookie-secret', 'session-secret', 'assign-secret', 'synthetic-user:synthetic-password', 'private-material', 'plain-secret', syntheticApiToken]) assert.equal(redacted.includes(value), false, value);
+  const envValues = ['synthetic-aws-value', 'synthetic-openai-value', 'synthetic-db-value', 'synthetic-database-url;Pwd=synthetic-semicolon-tail', 'synthetic-json-"quoted"-value', 'synthetic-backtick-value', 'synthetic-comma-value,tail', 'synthetic-dot-value', 'synthetic-paren-value', 'synthetic-bracket-value', 'synthetic-colon-value', 'synthetic-backtick-boundary-value', 'synthetic-js-bracket-"escaped"-value', 'synthetic-python-bracket-value'];
+  const secret = `Authorization: Basic dXNlcjpwYXNz\nAuthorization: Bearer ${syntheticBearerValue}\nAuthorization=demo-credential-value\nBearer short7\n${syntheticProviderToken}\n${syntheticJwt}\nCookie: sid=cookie-secret\nSet-Cookie: sessionid=session-secret\nsession=assign-secret\n${syntheticCredentialUrl}\n${syntheticPrivateKeyBlock}\ntoken=plain-secret ${syntheticApiToken}\nAWS_SECRET_ACCESS_KEY=${envValues[0]}\nexport OPENAI_API_KEY='${envValues[1]}'\nDB_PASSWORD=${envValues[2]}\nDATABASE_URL=${envValues[3]}\n${JSON.stringify({ SERVICE_TOKEN: envValues[4] })}\nOPENAI_API_KEY=\`${envValues[5]}\`\nACCESS_KEY=${envValues[6]}\nprocess.env.DATABASE_URL=${envValues[7]}\n(OPENAI_API_KEY=${envValues[8]})\n[ACCESS_KEY=${envValues[9]}]\nconfig:DB_PASSWORD=${envValues[10]}\n\`ACCESS_KEY=${envValues[11]}\`\nprocess.env["DATABASE_URL"] = ${JSON.stringify(envValues[12])};\nos.environ['ACCESS_KEY'] = '${envValues[13]}'\nLOG_LEVEL=debug\nTOKEN_TTL=60\nTOKEN_BUCKET_SIZE=10\nPASSWORD_POLICY=strict`;
+  const redacted = redact(secret); for (const value of ['dXNlcjpwYXNz', syntheticBearerValue, 'demo-credential-value', 'short7', syntheticProviderToken, 'eyJhbGciOiJIUzI1NiJ9', 'cookie-secret', 'session-secret', 'assign-secret', 'synthetic-user:synthetic-password', 'private-material', 'plain-secret', syntheticApiToken, ...envValues]) assert.equal(redacted.includes(value), false, value);
+  for (const ordinary of ['LOG_LEVEL=debug', 'TOKEN_TTL=60', 'TOKEN_BUCKET_SIZE=10', 'PASSWORD_POLICY=strict']) assert.ok(redacted.includes(ordinary), ordinary);
+  assert.deepEqual(JSON.parse(redact(JSON.stringify({ SERVICE_TOKEN: envValues[4], TOKEN_TTL: 60 }))), { SERVICE_TOKEN: '[REDACTED]', TOKEN_TTL: 60 });
   const nested = redactValue({ Cookie: 'cookie-value', nested: { session: 'session-value', sid: 'sid-value', 'set-cookie': 'set-cookie-value' } }); for (const value of ['cookie-value', 'session-value', 'sid-value', 'set-cookie-value']) assert.equal(JSON.stringify(nested).includes(value), false, value);
   assert.deepEqual(redactArgv(['tool', '--token', 'synthetic-value', '--api-key=synthetic-equals-value', '--label', 'safe']), ['[REDACTED EXECUTABLE]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]']);
 });
@@ -187,14 +236,15 @@ test('captured evidence executes original argv but persists only sanitized comma
   const shortUserSecret = ['synthetic-short-user:', 'synthetic-short-password'].join('');
   const accessTokenSecret = ['synthetic', '-access-token-value'].join('');
   const positionalSecret = ['synthetic', '-positional-private-value'].join('');
+  const outputEnvSecret = ['synthetic', '-env-output-value'].join('');
   const artifact = 'executed-argv.json';
-  const childScript = "const { createHash } = require('node:crypto'); const { writeFileSync } = require('node:fs'); const args = process.argv.slice(1); writeFileSync('executed-argv.json', JSON.stringify(args.map((value) => createHash('sha256').update(value).digest('hex'))));";
-  const argv = [process.execPath, '-e', childScript, '--', '--token', separateSecret, `--api-key=${assignedSecret}`, '--user', userInfoSecret, '-u', shortUserSecret, '--access-token', accessTokenSecret, positionalSecret, '--label', 'safe'];
+  const childScript = "const { createHash } = require('node:crypto'); const { writeFileSync } = require('node:fs'); const args = process.argv.slice(1); const outputSecret = args[args.indexOf('--output-secret') + 1]; writeFileSync('executed-argv.json', JSON.stringify(args.map((value) => createHash('sha256').update(value).digest('hex')))); process.stdout.write(`OPENAI_API_KEY=${outputSecret}\\n`);";
+  const argv = [process.execPath, '-e', childScript, '--', '--token', separateSecret, `--api-key=${assignedSecret}`, '--user', userInfoSecret, '-u', shortUserSecret, '--access-token', accessTokenSecret, positionalSecret, '--output-secret', outputEnvSecret, '--label', 'safe'];
   const captured = await captureEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { artifact }), argv);
   const executedHashes = JSON.parse(await readFile(path.join(cwd, artifact), 'utf8'));
-  for (const value of [separateSecret, `--api-key=${assignedSecret}`, userInfoSecret, shortUserSecret, accessTokenSecret, positionalSecret]) assert.ok(executedHashes.includes(createHash('sha256').update(value).digest('hex')), value);
+  for (const value of [separateSecret, `--api-key=${assignedSecret}`, userInfoSecret, shortUserSecret, accessTokenSecret, positionalSecret, outputEnvSecret]) assert.ok(executedHashes.includes(createHash('sha256').update(value).digest('hex')), value);
   const rawEvidence = await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8');
-  for (const value of [separateSecret, assignedSecret, userInfoSecret, shortUserSecret, accessTokenSecret, positionalSecret]) {
+  for (const value of [separateSecret, assignedSecret, userInfoSecret, shortUserSecret, accessTokenSecret, positionalSecret, outputEnvSecret]) {
     assert.equal(rawEvidence.includes(value), false, value);
     assert.equal(captured.command.includes(value), false, value);
   }
