@@ -8,6 +8,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 Target patch: not assigned.
 
+## [0.3.0-experimental] - 2026-08-17
+
+### Added
+
+- Added the provider-neutral Adaptive Execution Policy Phase 0 decision contract for separating work shape, desired capability profile, actual host capability, escalation reason, and verification oracle.
+- Added 16 original reviewed-synthetic cases as eight minimal contrast pairs, split evenly between development and held-out release corpora.
+- Added a dependency-free, read-only validator and mutation tests for schema closure, pair integrity, capability availability, oracle gates, bounded input, and private-data rejection.
+
+### Changed
+
+- Updated public installation and release documentation for the pinned `v0.3.0-experimental` repository marketplace.
+- Kept runtime routing and execution unchanged: Phase 0 neither selects a concrete model nor starts an agent or authorizes an action.
+
+### Security
+
+- Prohibited raw prompts, responses, traces, credentials, personal paths, identity fields, and concrete model brands from the AEP corpus.
+- Required unsupported capabilities and missing verification oracles to fail closed to an explicit fallback or human-confirmation gate.
+
 ## [0.2.4] - 2026-08-17
 
 ### Security

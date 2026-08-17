@@ -14,6 +14,8 @@ Pinmind `v0.2.1` already has the mechanisms that were the main reason to study S
 
 `v0.2.2` adds a source-backed [language-routing design](LANGUAGE_ROUTING.md) and README hero, not a new classifier or runtime. The current architecture and the reviewed 100-star-or-more projects and forks are recorded in [design-decisions.md](skills/pinmind/references/design-decisions.md). Roadmap items below deliberately exclude capabilities already present in the published baseline.
 
+`v0.3.0-experimental` adds the provider-neutral [Adaptive Execution Policy Phase 0](ADAPTIVE_EXECUTION_POLICY.md): a decision contract, 16 original synthetic contrast cases, a held-out split, and a deterministic validator. It does not select a concrete model, start agents, or change runtime execution. Shadow evaluation and any host-specific adapter remain future opt-in milestones.
+
 ## Priority decision
 
 The recommended next assurance initiative is **the phrase-level language-routing eval package**. It directly addresses the owner's current goal—better Russian, mixed-language, colloquial, typo, negative, and conflict handling—without pretending that internal router code can control the host's earlier skill choice.

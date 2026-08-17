@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "aep-decision-contract-v0",
+  "split": "dev",
+  "description": "Original reviewed-synthetic development contrasts for provider-neutral execution recommendations.",
+  "cases": [
+    {
+      "id": "aep-workshape-direct-programmatic-001a",
+      "pairId": "aep-workshape-direct-programmatic-001",
+      "variant": "a",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.coordinationPattern"],
+      "inputs": {
+        "routeSnapshot": {"route": "audit", "clarity": "clear", "executionSpan": "local", "risk": "low", "needsHumanConfirmation": false},
+        "probeSignals": {"coordinationPattern": "semantic-single-step"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "direct",
+        "desiredProfile": "bounded-fast",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "unit-test", "availability": "available", "independent": true},
+        "decisionConfidence": "high",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": []
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-workshape-direct-programmatic-001b",
+      "pairId": "aep-workshape-direct-programmatic-001",
+      "variant": "b",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.coordinationPattern"],
+      "inputs": {
+        "routeSnapshot": {"route": "audit", "clarity": "clear", "executionSpan": "local", "risk": "low", "needsHumanConfirmation": false},
+        "probeSignals": {"coordinationPattern": "bounded-parallel-batch"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "programmatic",
+        "desiredProfile": "bounded-fast",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "unit-test", "availability": "available", "independent": true},
+        "decisionConfidence": "high",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": ["single-agent"]
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-workshape-direct-single-002a",
+      "pairId": "aep-workshape-direct-single-002",
+      "variant": "a",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.coordinationPattern"],
+      "inputs": {
+        "routeSnapshot": {"route": "audit", "clarity": "clear", "executionSpan": "local", "risk": "medium", "needsHumanConfirmation": false},
+        "probeSignals": {"coordinationPattern": "semantic-single-step"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "direct",
+        "desiredProfile": "bounded-fast",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "lint-static-analysis", "availability": "available", "independent": true},
+        "decisionConfidence": "high",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": []
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-workshape-direct-single-002b",
+      "pairId": "aep-workshape-direct-single-002",
+      "variant": "b",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.coordinationPattern"],
+      "inputs": {
+        "routeSnapshot": {"route": "audit", "clarity": "clear", "executionSpan": "local", "risk": "medium", "needsHumanConfirmation": false},
+        "probeSignals": {"coordinationPattern": "exploratory"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "single-agent",
+        "desiredProfile": "balanced-execution",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "lint-static-analysis", "availability": "available", "independent": true},
+        "decisionConfidence": "medium",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": ["direct"]
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-workshape-single-multi-003a",
+      "pairId": "aep-workshape-single-multi-003",
+      "variant": "a",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.decomposition"],
+      "inputs": {
+        "routeSnapshot": {"route": "software-change", "clarity": "clear", "executionSpan": "cross-cutting", "risk": "medium", "needsHumanConfirmation": false},
+        "probeSignals": {"decomposition": "coupled"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "single-agent",
+        "desiredProfile": "balanced-execution",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "integration-test", "availability": "available", "independent": true},
+        "decisionConfidence": "high",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": []
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-workshape-single-multi-003b",
+      "pairId": "aep-workshape-single-multi-003",
+      "variant": "b",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.decomposition"],
+      "inputs": {
+        "routeSnapshot": {"route": "software-change", "clarity": "clear", "executionSpan": "cross-cutting", "risk": "medium", "needsHumanConfirmation": false},
+        "probeSignals": {"decomposition": "independent"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "multi-agent",
+        "desiredProfile": "balanced-execution",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "integration-test", "availability": "available", "independent": true},
+        "decisionConfidence": "high",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": ["single-agent"]
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-profile-bounded-balanced-004a",
+      "pairId": "aep-profile-bounded-balanced-004",
+      "variant": "a",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.failureState"],
+      "inputs": {
+        "routeSnapshot": {"route": "software-change", "clarity": "clear", "executionSpan": "local", "risk": "medium", "needsHumanConfirmation": false},
+        "probeSignals": {"failureState": "none"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "single-agent",
+        "desiredProfile": "bounded-fast",
+        "escalationReason": "none",
+        "verificationOracle": {"type": "unit-test", "availability": "available", "independent": true},
+        "decisionConfidence": "high",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": ["direct"]
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    },
+    {
+      "id": "aep-profile-bounded-balanced-004b",
+      "pairId": "aep-profile-bounded-balanced-004",
+      "variant": "b",
+      "split": "dev",
+      "contrastInputPaths": ["inputs.probeSignals.failureState"],
+      "inputs": {
+        "routeSnapshot": {"route": "software-change", "clarity": "clear", "executionSpan": "local", "risk": "medium", "needsHumanConfirmation": false},
+        "probeSignals": {"failureState": "repeated"},
+        "hostCapabilities": {"programmaticCalls": true, "subagents": true, "availableProfiles": ["bounded-fast", "balanced-execution", "deep-decision", "exceptional-decision"]}
+      },
+      "expectedRecommendation": {
+        "workShape": "single-agent",
+        "desiredProfile": "balanced-execution",
+        "escalationReason": "repeated-failure",
+        "verificationOracle": {"type": "unit-test", "availability": "available", "independent": true},
+        "decisionConfidence": "medium",
+        "needsHumanConfirmation": false,
+        "allowedFallbacks": ["direct"]
+      },
+      "provenance": {"kind": "reviewed-synthetic", "original": true, "privateInput": false}
+    }
+  ]
+}

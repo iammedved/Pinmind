@@ -13,6 +13,11 @@ import {
 import { main } from '../skills/pinmind/scripts/pinmind.mjs';
 
 const syntheticProviderToken = ['xox', 'b-synthetic-redaction-value'].join('');
+const syntheticBearerValue = ['abcdefghijklm', 'nopqrstuvwxyz'].join('');
+const syntheticJwt = ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'abcdefghijklmnopqrstuv'].join('.');
+const syntheticApiToken = ['sk', 'abcdefghijklmnopqrstuvwxyz'].join('-');
+const syntheticPrivateKeyBlock = ['-----BEGIN ', 'PRIVATE KEY-----\nprivate-material\n-----END ', 'PRIVATE KEY-----'].join('');
+const syntheticCredentialUrl = ['https://synthetic-user:synthetic-password', 'example.test/x'].join('@');
 import { assertSafePackagePaths, swapMarketplaceSource, withInstallLock } from '../scripts/install-personal-release.mjs';
 
 async function workspace() { return mkdtemp(path.join(tmpdir(), 'pinmind-')); }
@@ -168,8 +173,8 @@ test('execution accepts sequential zones and safe Windows paths', async () => {
 });
 
 test('redaction removes headers, cookies, URLs, sessions, private keys, and existing token forms', async () => {
-  const secret = `Authorization: Basic dXNlcjpwYXNz\nAuthorization: Bearer abcdefghijklmnopqrstuvwxyz\nAuthorization=demo-credential-value\nBearer short7\n${syntheticProviderToken}\neyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnopqrstuv\nCookie: sid=cookie-secret\nSet-Cookie: sessionid=session-secret\nsession=assign-secret\nhttps://user:pass@example.test/x\n-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----\ntoken=plain-secret sk-abcdefghijklmnopqrstuvwxyz`;
-  const redacted = redact(secret); for (const value of ['dXNlcjpwYXNz', 'abcdefghijklmnopqrstuvwxyz', 'demo-credential-value', 'short7', syntheticProviderToken, 'eyJhbGciOiJIUzI1NiJ9', 'cookie-secret', 'session-secret', 'assign-secret', 'user:pass', 'private-material', 'plain-secret', 'sk-abcdefghijklmnopqrstuvwxyz']) assert.equal(redacted.includes(value), false, value);
+  const secret = `Authorization: Basic dXNlcjpwYXNz\nAuthorization: Bearer ${syntheticBearerValue}\nAuthorization=demo-credential-value\nBearer short7\n${syntheticProviderToken}\n${syntheticJwt}\nCookie: sid=cookie-secret\nSet-Cookie: sessionid=session-secret\nsession=assign-secret\n${syntheticCredentialUrl}\n${syntheticPrivateKeyBlock}\ntoken=plain-secret ${syntheticApiToken}`;
+  const redacted = redact(secret); for (const value of ['dXNlcjpwYXNz', syntheticBearerValue, 'demo-credential-value', 'short7', syntheticProviderToken, 'eyJhbGciOiJIUzI1NiJ9', 'cookie-secret', 'session-secret', 'assign-secret', 'synthetic-user:synthetic-password', 'private-material', 'plain-secret', syntheticApiToken]) assert.equal(redacted.includes(value), false, value);
   const nested = redactValue({ Cookie: 'cookie-value', nested: { session: 'session-value', sid: 'sid-value', 'set-cookie': 'set-cookie-value' } }); for (const value of ['cookie-value', 'session-value', 'sid-value', 'set-cookie-value']) assert.equal(JSON.stringify(nested).includes(value), false, value);
   assert.deepEqual(redactArgv(['tool', '--token', 'synthetic-value', '--api-key=synthetic-equals-value', '--label', 'safe']), ['[REDACTED EXECUTABLE]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]', '[REDACTED ARG]']);
 });
@@ -222,12 +227,14 @@ test('discovery metadata is concise, bilingual, implicit, and keeps trivial excl
   assert.match(`${manifest.interface.longDescription} ${manifest.interface.defaultPrompt.join(' ')}`, /русск|Russian|RU\/EN/iu);
 });
 
-test('public 0.2.4 documentation, license, metadata, language guide, and hero asset stay coherent', async () => {
+test('public 0.3.0-experimental documentation, license, metadata, evaluation guides, and hero asset stay coherent', async () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const readme = await readFile(path.join(root, 'README.md'), 'utf8');
   const changelog = await readFile(path.join(root, 'CHANGELOG.md'), 'utf8');
   const license = await readFile(path.join(root, 'LICENSE'), 'utf8');
+  const roadmap = await readFile(path.join(root, 'ROADMAP.md'), 'utf8');
   const languageGuide = await readFile(path.join(root, 'LANGUAGE_ROUTING.md'), 'utf8');
+  const aepGuide = await readFile(path.join(root, 'ADAPTIVE_EXECUTION_POLICY.md'), 'utf8');
   const hero = await readFile(path.join(root, 'docs/assets/pinmind-hero.png'));
   const skill = await readFile(path.join(root, 'skills/pinmind/SKILL.md'), 'utf8');
   const agent = await readFile(path.join(root, 'skills/pinmind/agents/openai.yaml'), 'utf8');
@@ -241,15 +248,15 @@ test('public 0.2.4 documentation, license, metadata, language guide, and hero as
   const terms = await readFile(path.join(root, 'TERMS.md'), 'utf8');
   const description = skill.match(/^---\n[\s\S]*?^description:\s*(.+)$/m)?.[1] || '';
 
-  assert.match(manifest.version, /^0\.2\.4(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.match(manifest.version, /^0\.3\.0-experimental(?:\+codex\.[0-9A-Za-z.-]+)?$/);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, /Current source version:\s*`0\.2\.4`/);
+  assert.match(readme, /Current source version:\s*`0\.3\.0-experimental`/);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
-  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.4']) assert.ok(readme.includes(term), term);
-  assert.match(readme, /https:\/\/github\.com\/pinmind-project\/Pinmind/);
+  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add iammedved/Pinmind --ref v0.3.0-experimental']) assert.ok(readme.includes(term), term);
+  assert.match(readme, /https:\/\/github\.com\/iammedved\/Pinmind/);
   assert.match(readme, /needs no connector, external account, API key, or MCP server/);
   assert.doesNotMatch(readme, /pinmind@personal|personal marketplace|install-personal-release/iu);
   assert.equal(readme.includes(['', 'home', ''].join('/')), false);
@@ -260,6 +267,7 @@ test('public 0.2.4 documentation, license, metadata, language guide, and hero as
   assert.equal(hero.readUInt32BE(20), 941);
   assert.equal(createHash('sha256').update(hero).digest('hex'), '3219be9fc321fa58704e8594793f15c818ef15f0b8630bf80cb5f8757372f515');
   assert.match(readme, /\[CHANGELOG\.md\]\(CHANGELOG\.md\)/);
+  assert.match(readme, /\[ADAPTIVE_EXECUTION_POLICY\.md\]\(ADAPTIVE_EXECUTION_POLICY\.md\)/);
   assert.equal(manifest.author.name, 'Pinmind Project');
   assert.equal(manifest.interface.developerName, 'Pinmind Project');
   for (const personalUrlField of ['homepage', 'repository']) assert.equal(personalUrlField in manifest, false);
@@ -277,13 +285,15 @@ test('public 0.2.4 documentation, license, metadata, language guide, and hero as
   assert.match(privacy, /no account system, connector, MCP server, telemetry service/);
   assert.match(support, /minimal synthetic example/);
   assert.match(terms, /MIT License/);
-  const publicMetadata = `${readme}\n${changelog}\n${license}\n${JSON.stringify(manifest)}\n${JSON.stringify(marketplace)}\n${contributing}\n${pullRequestTemplate}\n${security}\n${privacy}\n${support}\n${terms}`;
+  const publicMetadata = `${readme}\n${changelog}\n${license}\n${roadmap}\n${languageGuide}\n${aepGuide}\n${JSON.stringify(manifest)}\n${JSON.stringify(marketplace)}\n${contributing}\n${pullRequestTemplate}\n${security}\n${privacy}\n${support}\n${terms}`;
   assert.doesNotMatch(publicMetadata, /(?:\/home\/|[A-Za-z]:\\Users\\)[A-Za-z0-9._-]+/i);
   assert.doesNotMatch(publicMetadata, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
   assert.equal(JSON.stringify(manifest).includes('@'), false);
   for (const term of ['Host selection', 'Post-activation routing', 'End-task utility', 'SkillsBench', 'SkillRouter', 'AgentAbstain', 'MASSIVE', 'pairId', 'mustNotMutate']) assert.match(languageGuide, new RegExp(term, 'i'), term);
+  for (const term of ['workShape', 'desiredProfile', 'actualProfile', 'verificationOracle', 'provider-neutral', '16 original synthetic contrast cases']) assert.match(`${readme}\n${aepGuide}`, new RegExp(term, 'i'), term);
   assert.match(changelog, /## \[Unreleased\]/);
   assert.match(changelog, /Target patch:\s*not assigned/);
+  assert.match(changelog, /## \[0\.3\.0-experimental\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.4\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.3\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.2\] - 2026-08-17/);
@@ -356,7 +366,7 @@ test('usage rejects malformed metadata or inconsistent counts and detects accide
   await rejects(() => recordUsage(cwd, 'run-one', { ...base, model: 'gpt-5.6\n- injected: true' }), 'INVALID_USAGE');
   await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: 'Authorization=demo-credential-value' }), 'INVALID_USAGE');
   await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: syntheticProviderToken }), 'INVALID_USAGE');
-  await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnopqrstuv' }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: syntheticJwt }), 'INVALID_USAGE');
   await recordUsage(cwd, 'run-one', base); const file = path.join(cwd, '.pinmind/runs/run-one/usage.json'); const receipt = JSON.parse(await readFile(file, 'utf8')); receipt.outputTokens = 21; await writeFile(file, JSON.stringify(receipt));
   await rejects(() => reportRun(cwd, 'run-one', 'json'), 'CORRUPT_USAGE');
 });

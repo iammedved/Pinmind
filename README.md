@@ -2,9 +2,9 @@
 
 ![Pinmind routes non-trivial work through specialized skills and verified evidence](docs/assets/pinmind-hero.png)
 
-Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin candidate. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
+Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current source version: `0.2.4`.
+Current source version: `0.3.0-experimental`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -13,23 +13,23 @@ Current source version: `0.2.4`.
 
 ### Codex CLI: install the plugin from GitHub
 
-1. Add the verified `0.2.4` repository marketplace:
+1. Add the pinned experimental repository marketplace:
 
    ```bash
-   codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.4
+   codex plugin marketplace add iammedved/Pinmind --ref v0.3.0-experimental
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.2.4` installs the reviewed release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.3.0-experimental` selects this exact prerelease; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: install only the skill from source
 
-1. Copy `https://github.com/pinmind-project/Pinmind`.
+1. Copy `https://github.com/iammedved/Pinmind`.
 2. Start Codex CLI and invoke `$skill-installer`.
-3. Ask: `Install the Pinmind skill from https://github.com/pinmind-project/Pinmind, path skills/pinmind.`
+3. Ask: `Install the Pinmind skill from https://github.com/iammedved/Pinmind, path skills/pinmind.`
 4. If Pinmind does not appear immediately, restart Codex.
 5. Run `/skills` and confirm that `pinmind` is available.
 
@@ -71,6 +71,12 @@ Official OpenAI guidance: [install and use plugins](https://learn.chatgpt.com/do
 
 Implicit selection is probabilistic. Explicit invocation is the reliable choice for critical work.
 
+## Experimental Adaptive Execution Policy
+
+`0.3.0-experimental` adds AEP Phase 0: a provider-neutral decision contract, 16 original synthetic contrast cases, a held-out release split, and a deterministic validator.
+
+Phase 0 does **not** select a concrete model, change `route`, start an agent, authorize an action, or store prompts and traces. It only defines how a future host adapter could choose a work shape, capability profile, escalation reason, and verification oracle. Mapping profiles to current models and reasoning levels remains a later opt-in step that requires held-out evaluation and separate authorization.
+
 ## Kernel CLI
 
 Run kernel commands from the target workspace with the repository-relative entry point:
@@ -88,7 +94,8 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 
 ## Project documentation
 
-- [CHANGELOG.md](CHANGELOG.md) — release history and the current `0.2.4` release.
+- [CHANGELOG.md](CHANGELOG.md) — release history and the current experimental release.
+- [ADAPTIVE_EXECUTION_POLICY.md](ADAPTIVE_EXECUTION_POLICY.md) — provider-neutral AEP Phase 0 contract and rollout boundary.
 - [ROADMAP.md](ROADMAP.md) — evidence-backed future priorities.
 - [LANGUAGE_ROUTING.md](LANGUAGE_ROUTING.md) — multilingual routing evaluation design.
 - [SKILL.md](skills/pinmind/SKILL.md) — controller instructions and discovery rules.
@@ -108,12 +115,14 @@ Pinmind follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 - `MINOR` for backward-compatible capabilities.
 - `PATCH` for backward-compatible fixes and documentation corrections.
 
-Release tags use `vMAJOR.MINOR.PATCH`. Build metadata such as `+codex.<cachebuster>` refreshes an installed snapshot without changing the product version.
+Release tags use `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH-PRERELEASE`. Build metadata such as `+codex.<cachebuster>` refreshes an installed snapshot without changing the product version.
 
 ## Validation
 
 ```bash
 node --test tests/kernel.test.mjs
+node scripts/validate-aep-decision-contract.mjs
+node --test tests/aep-decision-contract.test.mjs
 node --check skills/pinmind/scripts/lib/core.mjs
 node --check skills/pinmind/scripts/pinmind.mjs
 git diff --check
@@ -123,6 +132,7 @@ git diff --check
 
 - Pinmind cannot control whether a host selects it implicitly.
 - The deterministic router runs only after Pinmind is selected.
+- AEP Phase 0 is an evaluation contract, not a runtime model or agent router.
 - Filesystem locking is cooperative and single-host, not a distributed lock.
 - Evidence containment protects workflow integrity; it is not a sandbox against a hostile writer.
 - Pinmind includes no dashboard, daemon, connector, MCP server, or external telemetry service.
