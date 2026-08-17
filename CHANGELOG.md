@@ -6,7 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
-Target patch: not assigned.
+No target version is assigned.
+
+## [0.4.0-experimental] - 2026-08-17
+
+### Added
+
+- Added deterministic regressions for unsafe production/credential phrasing and read-only explanation or investigation intent.
+- Added canonical-active reconciliation plus an integrity-checked local transition journal and explicit recovery protocol for bounded Pinmind state mutations.
+- Added explicit baseline receipts, bounded relevant-file freshness, read-only `final check`, and explicit `finalize` while preserving `final verify` as a compatibility alias.
+- Added the adapter-first P2 architecture decision for activation observations, post-turn usage, guarded authorization receipts, and shadow Luna/Terra/Sol recommendations.
+
+### Changed
+
+- Advanced the minor component because P0/P1 add backward-compatible public capabilities; retained `experimental` because real-host activation and P2 adapters are not production-proven.
+- Kept P2 out of the kernel until each independently removable adapter passes its admission gate.
+
+### Security
+
+- Fail closed on orphan, split-brain, divergent-pointer, missing-run, invalid-pointer, and corrupt-run active-state inconsistencies.
+- Never describe a saved phase as task recovery, replay external effects during local recovery, or treat a model recommendation as authority.
 
 ## [0.3.1-experimental] - 2026-08-17
 

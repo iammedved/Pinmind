@@ -1,10 +1,10 @@
 # Pinmind roadmap
 
-Research and prioritization date: 2026-08-17. This roadmap started after `v0.2.1`, was expanded for `v0.2.2` and the `v0.3.0` Adaptive Execution Policy, and was reprioritized against a fresh `v0.3.1-experimental` source/runtime audit. It records candidate work; it does not authorize implementation or turn Pinmind into a workflow service.
+Research and prioritization date: 2026-08-17. This roadmap started after `v0.2.1`, was expanded for `v0.2.2` and the `v0.3.0` Adaptive Execution Policy, and was reprioritized against a fresh `v0.3.1-experimental` source/runtime audit. The P0/P1 implementation is released in `v0.4.0-experimental`; P2 follows the separate [adapter-first architecture decision](docs/p2-architecture.md). This file records candidate work; it does not authorize implementation or turn Pinmind into a workflow service.
 
 ## Released baseline
 
-The current public baseline is `v0.3.1-experimental`. Its lineage starts with the following `v0.2.1` mechanisms, which were the main reason to study Superpowers, nick-vels/skills, and Matt Pocock's skills:
+The current public baseline is `v0.4.0-experimental`. Its lineage starts with the following `v0.2.1` mechanisms, which were the main reason to study Superpowers, nick-vels/skills, and Matt Pocock's skills:
 
 - deterministic post-activation RU/EN routing and proportional capability composition;
 - RED/GREEN diagnosis, immutable briefs and contracts, amendments, traceable evidence, and blind goal-axis review;
@@ -16,7 +16,9 @@ The current public baseline is `v0.3.1-experimental`. Its lineage starts with th
 
 `v0.3.0-experimental` adds the provider-neutral [Adaptive Execution Policy Phase 0](ADAPTIVE_EXECUTION_POLICY.md): a decision contract, 16 original synthetic contrast cases, a held-out split, and a deterministic validator. It does not select a concrete model, start agents, or change runtime execution. Shadow evaluation and any host-specific adapter remain future opt-in milestones.
 
-`v0.3.1-experimental` is the current security/portability patch baseline. A fresh audit confirmed that the deterministic bundled corpora and validators pass, but also reproduced gaps that the existing corpora do not cover. Therefore “released” and “green on the curated corpus” must not be read as “all real phrasing and interrupted-state behavior are proven.”
+`v0.3.1-experimental` was the security/portability patch baseline. A fresh audit confirmed that its deterministic bundled corpora and validators passed, but also reproduced gaps that those corpora did not cover. Therefore “released” and “green on the curated corpus” must not be read as “all real phrasing and interrupted-state behavior are proven.”
+
+`v0.4.0-experimental` closes those reproduced P0/P1 defects and makes final checking observational. It does not implement P2 host dispatch, external-effect enforcement, or real-host activation measurement.
 
 ## Fresh audit correction
 
@@ -142,8 +144,9 @@ Pinmind already requires explicit current authority for publishing, deploying, m
 
 ### Proposed seam
 
-- For persistent medium/high-risk runs, record a hash-checked receipt containing the effect class, exact target/scope, sanitized user authority, decision, and timestamp.
-- Match the receipt immediately before the governed action. Any changed action, target, or scope invalidates it and requires new authority.
+- For persistent medium/high-risk runs, record a hash-checked receipt containing the effect class, exact target/scope, contract hash, sanitized user authority, decision, and timestamp.
+- Match the receipt inside a concrete effect adapter immediately before the governed action. Any changed action, target, scope, or contract invalidates it and requires new authority.
+- Require an idempotency key or durable result identifier and persist `attempted | succeeded | failed | unknown`; never auto-retry an ambiguous external result.
 - Treat rejection, ambiguity, or missing authority as a hard stop. Never infer approval from credentials, access, historical permission, or a broad “finish everything.”
 - Keep the mechanism local and dependency-free; do not embed the Agents SDK.
 
@@ -165,7 +168,8 @@ Until one threshold is met, the existing prose gate remains mandatory and the ne
 ### Proposed seam
 
 - Select a compact representative subset from the versioned `dev` and held-out `release` language corpora.
-- Store only sanitized result records: plugin/host/version, corpus hash, fresh-session flag, intended eligibility, observed activation, route, timestamp, and notes.
+- Store only closed-schema sanitized result records: plugin artifact and metadata hashes, host/version, corpus version/hash and case ID, fresh-session flag, intended eligibility, explicit/implicit mode, observed activation, route-policy version, route, timestamp, and result classification.
+- Exclude free-form notes, prompts, responses, traces, and personal paths; they add privacy and review cost without improving the metric.
 - Change one metadata field at a time and compare precision/recall against the same held-out set.
 - Treat a positive host miss as a discovery regression signal, not as proof that the post-activation router is wrong. No public event currently guarantees that an implicitly selected skill can be identified on every host.
 
@@ -186,7 +190,7 @@ OpenAI says implicit discovery begins with only the skill name and description a
 - Accept a public `codex exec --json` stream or launch one explicit Codex turn as a foreground wrapper.
 - Forward the normal assistant result; wait for exactly one successful terminal `turn.completed` event.
 - Copy `input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`, and `reasoning_output_tokens` without reinterpretation. Derive Pinmind's total only by its documented input-plus-output rule.
-- Optionally write the existing hash-checked `usage.json` for an explicit run and print the exact post-turn token line after the model response.
+- Optionally write the existing hash-checked `usage.json` with `scope: turn` for an explicit run and print the exact post-turn token line after the model response. Never overwrite a broader authoritative receipt.
 - Store no raw prompt or assistant body by default. Persist only sanitized event provenance and the usage fields.
 - Keep `unavailable` for failed, interrupted, ambiguous, missing, or unsupported streams.
 
@@ -225,7 +229,7 @@ The official [OpenAI model catalog](https://developers.openai.com/api/docs/model
 
 Risk and reasoning complexity remain separate axes. A high-risk mechanical action still needs exact user authority and verification; it does not automatically need Sol. Conversely, an architectural read-only decision may justify Sol without granting any mutation authority. Missing authority or a missing oracle is a stop/confirmation condition, not a reason to buy more reasoning.
 
-The adapter must not rewrite the route, lower risk, grant authority, choose multi-agent work, remove confirmation, or execute an external effect. `simple` work does not require a dispatch artifact. Unsupported effort values degrade to the nearest explicitly allowed host capability and are recorded; host-specific extras are never assumed portable.
+The adapter must not rewrite the route, lower risk, grant authority, choose multi-agent work, remove confirmation, or execute an external effect. It remains shadow-only until the host exposes a verified pre-turn model-selection hook. `simple` work does not require a dispatch artifact. Unsupported effort values degrade to the nearest explicitly allowed host capability and are recorded; host-specific extras are never assumed portable.
 
 ### Escalation and fallback
 

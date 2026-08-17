@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current source version: `0.3.1-experimental`.
+Current source version: `0.4.0-experimental`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current source version: `0.3.1-experimental`.
 1. Add the pinned experimental repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.3.1-experimental
+   codex plugin marketplace add iammedved/Pinmind --ref v0.4.0-experimental
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.3.1-experimental` selects this exact prerelease; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.4.0-experimental` selects this exact prerelease; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: install only the skill from source
 
@@ -75,7 +75,7 @@ Implicit selection is probabilistic. Explicit invocation is the reliable choice 
 
 `0.3.0-experimental` introduced AEP Phase 0: a provider-neutral decision contract, 16 original synthetic contrast cases, a held-out release split, and a deterministic validator.
 
-`0.3.1-experimental` is a backward-compatible security patch over that immutable baseline. The patch number advances because persistent-state path validation and credential redaction were hardened; the `experimental` marker remains because AEP maturity and host integration are unchanged.
+`0.4.0-experimental` adds backward-compatible P0/P1 correctness capabilities: safer RU/EN routing, canonical-active reconciliation, crash-consistent local transitions, explicit baselines, bounded freshness, and a pure `final check`. It also records the adapter-first [P2 architecture decision](docs/p2-architecture.md); P2 host adapters remain gated and off by default.
 
 Phase 0 does **not** select a concrete model, change `route`, start an agent, authorize an action, or store prompts and traces. It only defines how a future host adapter could choose a work shape, capability profile, escalation reason, and verification oracle. Mapping profiles to current models and reasoning levels remains a later opt-in step that requires held-out evaluation and separate authorization.
 
@@ -104,6 +104,7 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 
 - [CHANGELOG.md](CHANGELOG.md) — release history and the current experimental release.
 - [ADAPTIVE_EXECUTION_POLICY.md](ADAPTIVE_EXECUTION_POLICY.md) — provider-neutral AEP Phase 0 contract and rollout boundary.
+- [P2 architecture decision](docs/p2-architecture.md) — adapter boundaries, model handoffs, admission tests, and rejected runtime expansion.
 - [ROADMAP.md](ROADMAP.md) — evidence-backed future priorities.
 - [LANGUAGE_ROUTING.md](LANGUAGE_ROUTING.md) — multilingual routing evaluation design.
 - [SKILL.md](skills/pinmind/SKILL.md) — controller instructions and discovery rules.
