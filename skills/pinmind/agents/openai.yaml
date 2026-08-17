@@ -1,0 +1,6 @@
+interface:
+  display_name: "Pinmind"
+  short_description: "Adaptive verified RU/EN task controller"
+  default_prompt: "Use $pinmind для нетривиальной задачи: route it deterministically before task inspection, compose needed domain skills, verify evidence, and report authoritative token usage or unavailable."
+policy:
+  allow_implicit_invocation: true

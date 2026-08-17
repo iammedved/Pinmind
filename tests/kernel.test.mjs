@@ -1,0 +1,547 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import test from 'node:test';
+import { access, mkdtemp, mkdir, readFile, readdir, symlink, unlink, writeFile } from 'node:fs/promises';
+import { hostname, tmpdir } from 'node:os';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
+import {
+  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, recordEvidence, redact, redactValue,
+  recordUsage, reportRun, routeTask, safeRelativePath, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
+} from '../skills/pinmind/scripts/lib/core.mjs';
+import { main } from '../skills/pinmind/scripts/pinmind.mjs';
+
+const syntheticProviderToken = ['xox', 'b-synthetic-redaction-value'].join('');
+import { assertSafePackagePaths, swapMarketplaceSource, withInstallLock } from '../scripts/install-personal-release.mjs';
+
+async function workspace() { return mkdtemp(path.join(tmpdir(), 'pinmind-')); }
+function contract(version = 1, changed = false) {
+  return {
+    contractId: 'sample-contract', version, status: 'draft', intent: changed ? 'Changed visible behavior.' : 'Provide visible behavior.', actors: ['user'],
+    obligations: [{ id: 'REQ-001', type: 'capability', priority: 'must', sourceQuotes: ['User asked for behavior.'], statement: 'Behavior is available.', acceptance: ['AC-001'], invariants: ['INV-001'] }, { id: 'REQ-002', type: 'capability', priority: 'should', sourceQuotes: ['User asked for behavior.'], statement: 'Optional behavior is observed.', acceptance: ['AC-002'], invariants: [] }],
+    acceptanceCriteria: [{ id: 'AC-001', given: 'a user', when: 'they act', then: ['they see the behavior'], evidence: ['EV-001'] }, { id: 'AC-002', statement: 'Optional result is present.', observation: 'The result appears in the response.', evidence: ['EV-004'] }],
+    invariants: [{ id: 'INV-001', statement: 'Existing behavior remains safe.', evidence: ['EV-002'] }],
+    preservation: [{ id: 'PRES-001', statement: 'Public API remains compatible.', evidence: ['EV-003'] }],
+    boundaries: { allowed: ['src'], forbidden: ['auth'] }, publicSeams: [], nonFunctional: [], assumptions: [], outOfScope: [],
+  };
+}
+function evidence(evidenceId, contractVersion, covers, extra = {}) {
+  return { evidenceId, contractVersion, covers: [covers], type: 'unit-test', status: 'pass', procedure: 'Manual inspection of the recorded artifact.', observed: 'passed', artifact: 'tests/kernel.test.mjs', provenance: { kind: 'manual-attestation' }, ...extra };
+}
+async function frozenRun() { const cwd = await workspace(); await initRun(cwd, 'run-one', 'User asked for behavior.'); await freezeContract(cwd, 'run-one', contract()); return cwd; }
+async function rejects(action, code) { await assert.rejects(action, (error) => error instanceof KernelError && error.code === code); }
+async function recordAll(cwd, version = 1) {
+  await recordEvidence(cwd, 'run-one', evidence('EV-001', version, 'AC-001'));
+  await recordEvidence(cwd, 'run-one', evidence('EV-002', version, 'INV-001'));
+  await recordEvidence(cwd, 'run-one', evidence('EV-003', version, 'PRES-001'));
+}
+
+test('frozen contract detects a silent edit', async () => {
+  const cwd = await frozenRun(); const file = path.join(cwd, '.pinmind/runs/run-one/contracts/contract-v001.json'); const value = JSON.parse(await readFile(file, 'utf8')); value.intent = 'Tampered.'; await writeFile(file, JSON.stringify(value));
+  await rejects(() => finalVerify(cwd, 'run-one'), 'FROZEN_CONTRACT_CHANGED');
+});
+
+test('amendment requires authority, exact normative diff coverage, and records history', async () => {
+  const cwd = await frozenRun(); await recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001'));
+  const candidateFile = path.join(cwd, 'candidate-v2.json'); await writeFile(candidateFile, JSON.stringify(contract(2, true)));
+  await rejects(() => main(['contract', 'amend', '--run', 'run-one', '--file', candidateFile, '--reason', 'Clarification.', '--affects', 'INTENT'], cwd), 'MISSING_ARGUMENT');
+  await rejects(() => amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['AC-001'], 'approved'), 'INVALID_AMENDMENT');
+  const result = await amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'ticket SECRET=not-for-log');
+  assert.deepEqual(result, { version: 2, changes: ['INTENT'], invalidatedEvidence: ['EV-001'] });
+  const amendment = await readFile(path.join(cwd, '.pinmind/runs/run-one/amendments/amendment-v002.json'), 'utf8');
+  assert.equal(amendment.includes('not-for-log'), false); assert.match(amendment, /INTENT/);
+});
+
+test('state hash detects corruption', async () => {
+  const cwd = await workspace(); await initRun(cwd, 'state-run', 'User asked for behavior.'); const file = path.join(cwd, '.pinmind/runs/state-run/state.json'); const state = JSON.parse(await readFile(file, 'utf8')); state.phase = 'tampered'; await writeFile(file, JSON.stringify(state));
+  await rejects(() => loadState(cwd, 'state-run'), 'CORRUPT_STATE');
+});
+
+test('amendment rejects deletion of a MUST obligation with irrelevant affects', async () => {
+  const cwd = await frozenRun(); const candidate = contract(2); candidate.obligations = [];
+  await rejects(() => amendContract(cwd, 'run-one', candidate, 'Remove requirement.', ['AC-001'], 'approved'), 'INVALID_AMENDMENT');
+});
+
+test('amendment rejects a boundary change without BOUNDARIES and invalidates all on broad change', async () => {
+  const cwd = await frozenRun(); await recordAll(cwd); const candidate = contract(2); candidate.boundaries.allowed.push('tests');
+  await rejects(() => amendContract(cwd, 'run-one', candidate, 'Broaden boundary.', ['REQ-001'], 'approved'), 'INVALID_AMENDMENT');
+  const result = await amendContract(cwd, 'run-one', candidate, 'Broaden boundary.', ['BOUNDARIES'], 'approved');
+  assert.deepEqual(result.invalidatedEvidence.sort(), ['EV-001', 'EV-002', 'EV-003']);
+});
+
+test('amendment preserves historical evidence and fresh v2 evidence can pass final verification', async () => {
+  const cwd = await frozenRun(); await recordAll(cwd); await amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'approved');
+  assert.equal((await validateEvidence(cwd, 'run-one')).ok, true);
+  await recordAll(cwd, 2); const store = JSON.parse(await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8'));
+  assert.equal(store.entries.length, 6); assert.equal((await finalVerify(cwd, 'run-one')).ok, true);
+});
+
+test('contract rejects bad prefixes, missing preservation evidence, and fabricated brief quotes', async () => {
+  const bad = contract(); bad.obligations[0].id = 'TASK-001'; delete bad.preservation[0].evidence; bad.exclusions = ['silently ignored'];
+  const validation = validateContract(bad); assert.equal(validation.ok, false); assert.match(validation.errors.join('\n'), /invalid REQ id/); assert.match(validation.errors.join('\n'), /planned EV evidence/); assert.match(validation.errors.join('\n'), /Unknown top-level contract field: exclusions/);
+  const cwd = await workspace(); await initRun(cwd, 'quote-run', 'User asked for behavior.'); const fabricated = contract(); fabricated.obligations[0].sourceQuotes = ['A fabricated requirement.'];
+  await rejects(() => freezeContract(cwd, 'quote-run', fabricated), 'SOURCE_QUOTE_NOT_IN_BRIEF');
+});
+
+test('outOfScope is canonical and its amendment diff requires OUT-OF-SCOPE', async () => {
+  const cwd = await frozenRun(); await recordAll(cwd); const candidate = contract(2); candidate.outOfScope = ['A newly excluded concern.'];
+  await rejects(() => amendContract(cwd, 'run-one', candidate, 'Clarify scope.', ['INTENT'], 'approved'), 'INVALID_AMENDMENT');
+  const result = await amendContract(cwd, 'run-one', candidate, 'Clarify scope.', ['OUT-OF-SCOPE'], 'approved'); assert.deepEqual(result.invalidatedEvidence.sort(), ['EV-001', 'EV-002', 'EV-003']);
+});
+
+test('statement-only acceptance requires an explicit observation', () => {
+  const candidate = contract(); candidate.acceptanceCriteria[1] = { id: 'AC-002', statement: 'An unobservable assertion.', evidence: ['EV-004'] };
+  const result = validateContract(candidate); assert.equal(result.ok, false); assert.match(result.errors.join('\n'), /needs an observation/);
+});
+
+test('amendment source quotes permit authority only for new or changed obligations', async () => {
+  const cwd = await frozenRun(); const candidate = contract(2); candidate.obligations.push({ id: 'REQ-003', type: 'capability', priority: 'should', sourceQuotes: ['Later user approves catalog behavior.'], statement: 'Catalog behavior is available.', acceptance: [], invariants: [] });
+  const result = await amendContract(cwd, 'run-one', candidate, 'Later user addition.', ['REQ-003'], 'Later user approves catalog behavior.'); assert.equal(result.version, 2);
+  const failingCwd = await frozenRun(); const invalid = contract(2); invalid.obligations.push({ id: 'REQ-003', type: 'capability', priority: 'should', sourceQuotes: ['Unbacked new behavior.'], statement: 'Catalog behavior is available.', acceptance: [], invariants: [] });
+  await rejects(() => amendContract(failingCwd, 'run-one', invalid, 'Later user addition.', ['REQ-003'], 'Different authority text.'), 'SOURCE_QUOTE_NOT_IN_BRIEF');
+});
+
+test('evidence enforces type, command/procedure, observed result, pass artifact, and critical sensitivity', async () => {
+  const cwd = await frozenRun();
+  await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { type: 'made-up' })), 'INVALID_EVIDENCE');
+  await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { command: '', procedure: '', observed: '', artifact: '' })), 'INVALID_EVIDENCE');
+  const critical = contract(); critical.acceptanceCriteria[0].critical = true; const criticalCwd = await workspace(); await initRun(criticalCwd, 'critical-run', 'User asked for behavior.'); await freezeContract(criticalCwd, 'critical-run', critical);
+  await rejects(() => recordEvidence(criticalCwd, 'critical-run', evidence('EV-001', 1, 'AC-001')), 'INVALID_EVIDENCE');
+  await recordEvidence(criticalCwd, 'critical-run', evidence('EV-001', 1, 'AC-001', { sensitivity: { method: 'mutation', observed: 'failed after mutation' } }));
+});
+
+test('final verify rejects fabricated command-shaped MUST evidence and capture records trustworthy provenance', async () => {
+  const cwd = await frozenRun(); const fabricated = evidence('EV-001', 1, 'AC-001', { command: 'node --test', procedure: undefined, provenance: undefined }); await recordEvidence(cwd, 'run-one', fabricated);
+  await recordEvidence(cwd, 'run-one', evidence('EV-002', 1, 'INV-001')); await recordEvidence(cwd, 'run-one', evidence('EV-003', 1, 'PRES-001'));
+  assert.equal((await finalVerify(cwd, 'run-one')).ok, false);
+  const capturedCwd = await frozenRun(); await writeFile(path.join(capturedCwd, 'capture.txt'), 'captured artifact'); const template = evidence('EV-001', 1, 'AC-001', { artifact: 'capture.txt' }); const templateFile = path.join(capturedCwd, 'capture-template.json'); await writeFile(templateFile, JSON.stringify(template));
+  const captured = await main(['evidence', 'capture', '--run', 'run-one', '--file', templateFile, '--cwd', '.', '--', process.execPath, '--version'], capturedCwd); assert.equal(captured.provenance.kind, 'captured-command'); assert.equal(captured.provenance.exitCode, 0);
+  await recordEvidence(capturedCwd, 'run-one', evidence('EV-002', 1, 'INV-001')); await recordEvidence(capturedCwd, 'run-one', evidence('EV-003', 1, 'PRES-001')); assert.equal((await finalVerify(capturedCwd, 'run-one')).ok, true);
+});
+
+test('final verify requires trustworthy passing evidence for every standalone invariant', async () => {
+  const candidate = contract(); candidate.invariants.push({ id: 'INV-002', statement: 'A standalone safety property remains true.', evidence: ['EV-005'] });
+  const cwd = await workspace(); await initRun(cwd, 'orphan-invariant', 'User asked for behavior.'); await freezeContract(cwd, 'orphan-invariant', candidate);
+  await recordEvidence(cwd, 'orphan-invariant', evidence('EV-001', 1, 'AC-001')); await recordEvidence(cwd, 'orphan-invariant', evidence('EV-002', 1, 'INV-001')); await recordEvidence(cwd, 'orphan-invariant', evidence('EV-003', 1, 'PRES-001'));
+  const result = await finalVerify(cwd, 'orphan-invariant'); assert.equal(result.ok, false); assert.match(result.errors.join('\n'), /INV-002 lacks trustworthy passing evidence/);
+  await recordEvidence(cwd, 'orphan-invariant', evidence('EV-005', 1, 'INV-002')); assert.equal((await finalVerify(cwd, 'orphan-invariant')).ok, true);
+});
+
+test('final verify requires every planned evidence id for each required target', async () => {
+  const candidate = contract(); candidate.acceptanceCriteria[0].evidence = ['EV-001', 'EV-005'];
+  const cwd = await workspace(); await initRun(cwd, 'planned-evidence', 'User asked for behavior.'); await freezeContract(cwd, 'planned-evidence', candidate);
+  await recordEvidence(cwd, 'planned-evidence', evidence('EV-001', 1, 'AC-001'));
+  await recordEvidence(cwd, 'planned-evidence', evidence('EV-002', 1, 'INV-001'));
+  await recordEvidence(cwd, 'planned-evidence', evidence('EV-003', 1, 'PRES-001'));
+  const missing = await finalVerify(cwd, 'planned-evidence'); assert.equal(missing.ok, false); assert.match(missing.errors.join('\n'), /AC-001 lacks trustworthy passing evidence for planned EV-005/);
+  await recordEvidence(cwd, 'planned-evidence', evidence('EV-005', 1, 'AC-001')); assert.equal((await finalVerify(cwd, 'planned-evidence')).ok, true);
+});
+
+test('manual attestation cannot close a critical final target', async () => {
+  const candidate = contract(); candidate.acceptanceCriteria[0].critical = true;
+  const cwd = await workspace(); await initRun(cwd, 'critical-final', 'User asked for behavior.'); await freezeContract(cwd, 'critical-final', candidate);
+  await recordEvidence(cwd, 'critical-final', evidence('EV-001', 1, 'AC-001', { sensitivity: { method: 'manual negative control', observed: 'observer reports a failure without the condition' } }));
+  await recordEvidence(cwd, 'critical-final', evidence('EV-002', 1, 'INV-001')); await recordEvidence(cwd, 'critical-final', evidence('EV-003', 1, 'PRES-001'));
+  const result = await finalVerify(cwd, 'critical-final'); assert.equal(result.ok, false); assert.match(result.errors.join('\n'), /AC-001 lacks trustworthy passing evidence/);
+});
+
+test('evidence store hash detects corruption before validation', async () => {
+  const cwd = await frozenRun(); await recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001')); const file = path.join(cwd, '.pinmind/runs/run-one/evidence.json'); const store = JSON.parse(await readFile(file, 'utf8')); store.entries[0].observed = 'tampered'; await writeFile(file, JSON.stringify(store));
+  await rejects(() => validateEvidence(cwd, 'run-one'), 'CORRUPT_EVIDENCE');
+});
+
+test('evidence rejects stale versions and unknown coverage', async () => {
+  const cwd = await frozenRun(); await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 0, 'AC-001')), 'INVALID_EVIDENCE'); await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'NOPE-001')), 'INVALID_EVIDENCE');
+});
+
+test('execution rejects untraced work, cycles, and overlapping parallel zones', async () => {
+  const cwd = await frozenRun();
+  await rejects(() => validateAndSaveExecution(cwd, 'run-one', { units: [{ unitId: 'WU-001', obligations: [], criteria: [], zone: ['src'] }] }), 'INVALID_EXECUTION');
+  await rejects(() => validateAndSaveExecution(cwd, 'run-one', { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], dependsOn: ['WU-002'], zone: ['src/a'] }, { unitId: 'WU-002', obligations: ['REQ-001'], criteria: [], dependsOn: ['WU-001'], zone: ['src/b'] }] }), 'INVALID_EXECUTION');
+  await rejects(() => validateAndSaveExecution(cwd, 'run-one', { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], zone: ['src'] }, { unitId: 'WU-002', obligations: ['REQ-001'], criteria: [], zone: ['src/child'] }] }), 'INVALID_EXECUTION');
+});
+
+test('execution accepts sequential zones and safe Windows paths', async () => {
+  const cwd = await frozenRun(); const result = await validateAndSaveExecution(cwd, 'run-one', { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], zone: ['src'] }, { unitId: 'WU-002', obligations: ['REQ-001'], criteria: [], dependsOn: ['WU-001'], zone: ['src/child'] }] });
+  assert.equal(result.ok, true); assert.equal(safeRelativePath('src\\feature\\file.mjs'), 'src/feature/file.mjs'); assert.throws(() => safeRelativePath('../escape'), KernelError);
+});
+
+test('redaction removes headers, cookies, URLs, sessions, private keys, and existing token forms', async () => {
+  const secret = `Authorization: Basic dXNlcjpwYXNz\nAuthorization: Bearer abcdefghijklmnopqrstuvwxyz\nAuthorization=demo-credential-value\nBearer short7\n${syntheticProviderToken}\neyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnopqrstuv\nCookie: sid=cookie-secret\nSet-Cookie: sessionid=session-secret\nsession=assign-secret\nhttps://user:pass@example.test/x\n-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----\ntoken=plain-secret sk-abcdefghijklmnopqrstuvwxyz`;
+  const redacted = redact(secret); for (const value of ['dXNlcjpwYXNz', 'abcdefghijklmnopqrstuvwxyz', 'demo-credential-value', 'short7', syntheticProviderToken, 'eyJhbGciOiJIUzI1NiJ9', 'cookie-secret', 'session-secret', 'assign-secret', 'user:pass', 'private-material', 'plain-secret', 'sk-abcdefghijklmnopqrstuvwxyz']) assert.equal(redacted.includes(value), false, value);
+  const nested = redactValue({ Cookie: 'cookie-value', nested: { session: 'session-value', sid: 'sid-value', 'set-cookie': 'set-cookie-value' } }); for (const value of ['cookie-value', 'session-value', 'sid-value', 'set-cookie-value']) assert.equal(JSON.stringify(nested).includes(value), false, value);
+});
+
+test('router executes all RU/EN and adversarial route fixtures', async () => {
+  const fixtures = JSON.parse(await readFile(fileURLToPath(new URL('../evals/fixtures/routes.json', import.meta.url)), 'utf8')); assert.ok(fixtures.length >= 50);
+  for (const fixture of fixtures) {
+    const actual = routeTask(fixture.input); assert.equal(actual.route, fixture.expected, fixture.name); if (fixture.risk) assert.equal(actual.risk, fixture.risk, fixture.name); if (fixture.clarity) assert.equal(actual.clarity, fixture.clarity, fixture.name); if (fixture.executionSpan) assert.equal(actual.executionSpan, fixture.executionSpan, fixture.name); assert.equal(typeof actual.reason, 'string', `${fixture.name} reason type`); assert.ok(actual.reason.length > 0, `${fixture.name} reason`); assert.ok(Array.isArray(actual.signals) && actual.signals.length > 0, `${fixture.name} signals`); assert.match(actual.confidence, /^(high|medium|low)$/, `${fixture.name} confidence`); assert.equal(typeof actual.needsHumanConfirmation, 'boolean', `${fixture.name} confirmation type`); if (fixture.reasonIncludes) assert.match(actual.reason.toLowerCase(), new RegExp(fixture.reasonIncludes), `${fixture.name} reason content`); if (fixture.confidence) assert.equal(actual.confidence, fixture.confidence, `${fixture.name} confidence`); if (fixture.needsHumanConfirmation !== undefined) assert.equal(actual.needsHumanConfirmation, fixture.needsHumanConfirmation, `${fixture.name} confirmation`); for (const signal of fixture.signalsInclude || []) assert.ok(actual.signals.includes(signal), `${fixture.name} signal ${signal}`);
+  }
+  assert.equal(routeTask({ kind: 'simple', text: 'Add payment integration' }).route, 'software-change');
+  for (const kind of ['audit', 'investigation']) {
+    const actual = routeTask({ kind, text: 'Add payment integration with a webhook' });
+    assert.equal(actual.route, kind, `${kind} explicit route`); assert.equal(actual.risk, 'high', `${kind} risk`); assert.equal(actual.executionSpan, 'multi-system', `${kind} span`); assert.equal(typeof actual.reason, 'string', `${kind} reason type`); assert.ok(actual.reason.length > 0, `${kind} reason`);
+  }
+  const cli = await main(['route', '--text', 'Добавь платежную интеграцию', '--kind', 'audit']); assert.equal(cli.route, 'audit'); assert.equal(typeof cli.reason, 'string');
+  const investigationCli = await main(['route', '--text', 'Why does login sometimes return 500?']); assert.equal(investigationCli.route, 'investigation'); assert.equal(typeof investigationCli.reason, 'string');
+});
+
+test('discovery metadata is concise, bilingual, implicit, and keeps trivial exclusions', async () => {
+  const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
+  const agent = await readFile(fileURLToPath(new URL('../skills/pinmind/agents/openai.yaml', import.meta.url)), 'utf8');
+  const manifest = JSON.parse(await readFile(fileURLToPath(new URL('../.codex-plugin/plugin.json', import.meta.url)), 'utf8'));
+  const description = skill.match(/^---\n[\s\S]*?^description:\s*(.+)$/m)?.[1] || '';
+  assert.match(description, /Русск|русск/u); assert.match(description, /research|исслед/u); assert.match(description, /diagnos|диагност/u); assert.match(description, /Do not use|Не использ/u); assert.match(description, /run.*route.*before.*(?:memory|references|workspace)/iu); assert.ok(description.length < 700); assert.doesNotMatch(description, /every task|any request|любая задача|всегда/iu);
+  assert.match(agent, /allow_implicit_invocation:\s*true/); assert.match(agent, /русск|Russian|RU\/EN/iu);
+  assert.match(`${manifest.interface.longDescription} ${manifest.interface.defaultPrompt.join(' ')}`, /русск|Russian|RU\/EN/iu);
+});
+
+test('public 0.2.3 documentation, license, metadata, language guide, and hero asset stay coherent', async () => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const readme = await readFile(path.join(root, 'README.md'), 'utf8');
+  const changelog = await readFile(path.join(root, 'CHANGELOG.md'), 'utf8');
+  const license = await readFile(path.join(root, 'LICENSE'), 'utf8');
+  const languageGuide = await readFile(path.join(root, 'LANGUAGE_ROUTING.md'), 'utf8');
+  const hero = await readFile(path.join(root, 'docs/assets/pinmind-hero.png'));
+  const skill = await readFile(path.join(root, 'skills/pinmind/SKILL.md'), 'utf8');
+  const agent = await readFile(path.join(root, 'skills/pinmind/agents/openai.yaml'), 'utf8');
+  const manifest = JSON.parse(await readFile(path.join(root, '.codex-plugin/plugin.json'), 'utf8'));
+  const marketplace = JSON.parse(await readFile(path.join(root, '.agents/plugins/marketplace.json'), 'utf8'));
+  const contributing = await readFile(path.join(root, '.github/CONTRIBUTING.md'), 'utf8');
+  const pullRequestTemplate = await readFile(path.join(root, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8');
+  const security = await readFile(path.join(root, 'SECURITY.md'), 'utf8');
+  const privacy = await readFile(path.join(root, 'PRIVACY.md'), 'utf8');
+  const support = await readFile(path.join(root, 'SUPPORT.md'), 'utf8');
+  const terms = await readFile(path.join(root, 'TERMS.md'), 'utf8');
+  const description = skill.match(/^---\n[\s\S]*?^description:\s*(.+)$/m)?.[1] || '';
+
+  assert.match(manifest.version, /^0\.2\.3(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
+  assert.match(description, /^"Default RU\/EN controller/);
+  assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
+  for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
+  assert.match(readme, /Current source version:\s*`0\.2\.3`/);
+  assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
+  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add pinmind-project/Pinmind --ref v0.2.3']) assert.ok(readme.includes(term), term);
+  assert.match(readme, /https:\/\/github\.com\/pinmind-project\/Pinmind/);
+  assert.match(readme, /needs no connector, external account, API key, or MCP server/);
+  assert.doesNotMatch(readme, /pinmind@personal|personal marketplace|install-personal-release/iu);
+  assert.equal(readme.includes(['', 'home', ''].join('/')), false);
+  assert.equal(readme.includes(['', 'Users', ''].join('\\')), false);
+  assert.match(readme, /!\[[^\]]*Pinmind[^\]]*\]\(docs\/assets\/pinmind-hero\.png\)/i);
+  assert.deepEqual([...hero.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(hero.readUInt32BE(16), 1672);
+  assert.equal(hero.readUInt32BE(20), 941);
+  assert.equal(createHash('sha256').update(hero).digest('hex'), '3219be9fc321fa58704e8594793f15c818ef15f0b8630bf80cb5f8757372f515');
+  assert.match(readme, /\[CHANGELOG\.md\]\(CHANGELOG\.md\)/);
+  assert.equal(manifest.author.name, 'Pinmind Project');
+  assert.equal(manifest.interface.developerName, 'Pinmind Project');
+  for (const personalUrlField of ['homepage', 'repository']) assert.equal(personalUrlField in manifest, false);
+  assert.equal('url' in manifest.author, false);
+  assert.equal('websiteURL' in manifest.interface, false);
+  assert.equal(marketplace.name, 'pinmind-project');
+  assert.equal(marketplace.interface.displayName, 'Pinmind Project');
+  assert.deepEqual(marketplace.plugins.map(({ name, source, policy, category }) => ({ name, source, policy, category })), [{
+    name: 'pinmind', source: { source: 'local', path: './' }, policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' }, category: 'Productivity',
+  }]);
+  assert.match(license, /Copyright \(c\) 2026 Pinmind Project/);
+  assert.match(contributing, /only actor who merges, tags, or publishes/);
+  assert.match(pullRequestTemplate, /does not grant write or merge access/);
+  assert.match(security, /Security → Report a vulnerability/);
+  assert.match(privacy, /no account system, connector, MCP server, telemetry service/);
+  assert.match(support, /minimal synthetic example/);
+  assert.match(terms, /MIT License/);
+  const publicMetadata = `${readme}\n${changelog}\n${license}\n${JSON.stringify(manifest)}\n${JSON.stringify(marketplace)}\n${contributing}\n${pullRequestTemplate}\n${security}\n${privacy}\n${support}\n${terms}`;
+  assert.doesNotMatch(publicMetadata, /(?:\/home\/|[A-Za-z]:\\Users\\)[A-Za-z0-9._-]+/i);
+  assert.doesNotMatch(publicMetadata, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+  assert.equal(JSON.stringify(manifest).includes('@'), false);
+  for (const term of ['Host selection', 'Post-activation routing', 'End-task utility', 'SkillsBench', 'SkillRouter', 'AgentAbstain', 'MASSIVE', 'pairId', 'mustNotMutate']) assert.match(languageGuide, new RegExp(term, 'i'), term);
+  assert.match(changelog, /## \[Unreleased\]/);
+  assert.match(changelog, /Target patch:\s*`0\.2\.3`/);
+  assert.match(changelog, /## \[0\.2\.2\] - 2026-08-17/);
+  assert.match(changelog, /## \[0\.2\.1\] - 2026-08-16/);
+  assert.match(changelog, /## \[0\.2\.0\] - 2026-08-16/);
+  assert.match(changelog, /Semantic Versioning/);
+});
+
+test('release packaging rejects private runtime and repository metadata', () => {
+  assert.doesNotThrow(() => assertSafePackagePaths(['.codex-plugin/plugin.json', 'skills/pinmind/SKILL.md']));
+  assert.throws(() => assertSafePackagePaths(['.pinmind/active.json']), /Forbidden runtime\/private path/);
+  assert.throws(() => assertSafePackagePaths(['.git/config']), /Forbidden runtime\/private path/);
+  assert.throws(() => assertSafePackagePaths(['skills/pinmind/.pinmind/private.json']), /Forbidden runtime\/private path/);
+});
+
+test('release installer restores the previous marketplace source when installation fails', async () => {
+  const cwd = await workspace();
+  const marketplaceSource = path.join(cwd, 'pinmind');
+  const staged = path.join(cwd, 'staged');
+  const backup = path.join(cwd, 'backup');
+  const failed = path.join(cwd, 'failed');
+  await mkdir(marketplaceSource); await writeFile(path.join(marketplaceSource, 'marker'), 'previous');
+  await mkdir(staged); await writeFile(path.join(staged, 'marker'), 'candidate');
+  await assert.rejects(
+    () => swapMarketplaceSource({ marketplaceSource, staged, backup, failed, installAndVerify: async () => { throw new Error('simulated install failure'); } }),
+    /simulated install failure/,
+  );
+  assert.equal(await readFile(path.join(marketplaceSource, 'marker'), 'utf8'), 'previous');
+  await assert.rejects(access(backup)); await assert.rejects(access(failed)); await assert.rejects(access(staged));
+});
+
+test('release installer commits a verified source and serializes concurrent swaps', async () => {
+  const cwd = await workspace();
+  const marketplaceSource = path.join(cwd, 'pinmind');
+  const staged = path.join(cwd, 'staged');
+  const backup = path.join(cwd, 'backup');
+  const failed = path.join(cwd, 'failed');
+  await mkdir(marketplaceSource); await writeFile(path.join(marketplaceSource, 'marker'), 'previous');
+  await mkdir(staged); await writeFile(path.join(staged, 'marker'), 'candidate');
+  await swapMarketplaceSource({ marketplaceSource, staged, backup, failed, installAndVerify: async () => {} });
+  assert.equal(await readFile(path.join(marketplaceSource, 'marker'), 'utf8'), 'candidate');
+  await assert.rejects(access(backup));
+
+  const installLock = path.join(cwd, 'install.lock');
+  let releaseLock;
+  const held = withInstallLock(installLock, () => new Promise((resolve) => { releaseLock = resolve; }));
+  while (!releaseLock) await delay(1);
+  await assert.rejects(() => withInstallLock(installLock, async () => {}), /Another Pinmind release installation owns/);
+  releaseLock(); await held; await assert.rejects(access(installLock));
+});
+
+test('usage defaults to unavailable and reports exact observed totals without estimates', async () => {
+  const cwd = await frozenRun();
+  const initial = await reportRun(cwd, 'run-one', 'json'); assert.equal(initial.tokenUsage.status, 'unavailable'); assert.equal(initial.tokenUsage.totalTokens, null); assert.match(initial.tokenUsage.reason, /did not expose|not recorded/i);
+  await recordUsage(cwd, 'run-one', { status: 'unavailable', source: 'host-unavailable', scope: 'task', capturedAt: '2026-08-16T17:59:00.000Z', reason: `Authorization=demo-credential-value ${syntheticProviderToken}` }); const unavailable = await reportRun(cwd, 'run-one', 'json'); assert.equal(JSON.stringify(unavailable).includes('demo-credential-value'), false); assert.equal(JSON.stringify(unavailable).includes(syntheticProviderToken), false);
+  const observed = await recordUsage(cwd, 'run-one', { status: 'actual', source: 'codex-sdk', scope: 'task', model: 'gpt-5.6', inputTokens: 1200, cachedInputTokens: 400, outputTokens: 300, reasoningOutputTokens: 50, capturedAt: '2026-08-16T18:00:00.000Z', reference: 'turn-123' });
+  assert.equal(observed.totalTokens, 1500); assert.equal(observed.reference, 'turn-123');
+  const report = await reportRun(cwd, 'run-one', 'json'); assert.equal(report.tokenUsage.totalTokens, 1500); assert.equal(report.tokenUsage.inputTokens, 1200); assert.equal(report.tokenUsage.outputTokens, 300); assert.equal(report.tokenUsage.cachedInputTokens, 400); assert.equal(report.tokenUsage.reasoningOutputTokens, 50); assert.equal('reference' in report.tokenUsage, false);
+  const markdown = await reportRun(cwd, 'run-one', 'md'); assert.match(markdown, /Total: 1,500/); assert.match(markdown, /Source: codex-sdk/); assert.doesNotMatch(markdown, /saved|saving|сэконом/iu);
+});
+
+test('usage rejects malformed metadata or inconsistent counts and detects accidental receipt corruption', async () => {
+  const cwd = await frozenRun(); const base = { status: 'actual', source: 'app-server', scope: 'task', inputTokens: 100, outputTokens: 20, capturedAt: '2026-08-16T18:00:00.000Z' };
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, inputTokens: -1 }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, totalTokens: 999 }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, cachedInputTokens: 101 }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, source: 'host-unavailable' }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, format: 2 }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, capturedAt: '1' }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, model: 'gpt-5.6\n- injected: true' }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: 'Authorization=demo-credential-value' }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: syntheticProviderToken }), 'INVALID_USAGE');
+  await rejects(() => recordUsage(cwd, 'run-one', { ...base, reference: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnopqrstuv' }), 'INVALID_USAGE');
+  await recordUsage(cwd, 'run-one', base); const file = path.join(cwd, '.pinmind/runs/run-one/usage.json'); const receipt = JSON.parse(await readFile(file, 'utf8')); receipt.outputTokens = 21; await writeFile(file, JSON.stringify(receipt));
+  await rejects(() => reportRun(cwd, 'run-one', 'json'), 'CORRUPT_USAGE');
+});
+
+test('report is read-only and CLI records authoritative usage', async () => {
+  const cwd = await frozenRun(); const usageFile = path.join(cwd, 'usage-input.json'); await writeFile(usageFile, JSON.stringify({ status: 'actual', source: 'codex-exec-json', scope: 'task', inputTokens: 77, outputTokens: 23, capturedAt: '2026-08-16T18:00:00.000Z' }));
+  const recorded = await main(['usage', 'record', '--run', 'run-one', '--file', usageFile], cwd); assert.equal(recorded.totalTokens, 100);
+  const run = path.join(cwd, '.pinmind/runs/run-one'); const canonical = ['brief.md', 'state.json', 'evidence.json', 'usage.json', 'contracts/contract-v001.json']; const before = await Promise.all(canonical.map((file) => readFile(path.join(run, file), 'utf8'))); const markdown = await main(['report', '--run', 'run-one', '--format', 'md'], cwd); const json = await main(['report', '--run', 'run-one', '--format', 'json'], cwd); const after = await Promise.all(canonical.map((file) => readFile(path.join(run, file), 'utf8')));
+  assert.deepEqual(before, after); await assert.rejects(readFile(path.join(run, 'final.md'), 'utf8')); assert.match(markdown, /Total: 100/); assert.equal(json.tokenUsage.totalTokens, 100);
+});
+
+test('every Pinmind final path, including manual simple, requires a token line', async () => {
+  const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
+  const simple = routeTask({ kind: 'simple', text: 'Привет' }); assert.equal(simple.route, 'simple');
+  assert.match(skill, /every task while Pinmind is active|кажд.*задач.*Pinmind/iu); assert.match(skill, /including.*simple|включая.*simple/iu); assert.match(skill, /Token usage|Токены/iu); assert.match(skill, /unavailable|недоступ/iu);
+});
+
+test('active lifecycle blocks replacement, finalizes a verified CLI run, and prevents resume', async () => {
+  const cwd = await workspace(); await initRun(cwd, 'first-run', 'User asked for behavior.'); await rejects(() => initRun(cwd, 'second-run', 'User asked for behavior.'), 'ACTIVE_RUN_EXISTS');
+  const candidate = path.join(cwd, 'contract.json'); await writeFile(candidate, JSON.stringify(contract())); await main(['contract', 'freeze', '--run', 'first-run', '--file', candidate], cwd);
+  for (const [id, target] of [['EV-001', 'AC-001'], ['EV-002', 'INV-001'], ['EV-003', 'PRES-001'], ['EV-004', 'AC-002']]) { const file = path.join(cwd, `${id}.json`); await writeFile(file, JSON.stringify(evidence(id, 1, target, id === 'EV-004' ? { status: 'uncertain' } : {}))); await main(['evidence', 'record', '--run', 'first-run', '--file', file], cwd); }
+  const final = await main(['final', 'verify', '--run', 'first-run'], cwd); const finalText = await readFile(final.finalPath, 'utf8'); assert.equal(final.finalized, true); assert.match(finalText, /- pass: 3/); assert.match(finalText, /- uncertain: EV-004/); assert.match(finalText, /manual\/unreplayed: EV-001, EV-002, EV-003, EV-004/); assert.match(finalText, /MUST evidence coverage: satisfied/); assert.match(finalText, /## Token usage/); assert.match(finalText, /Status: unavailable/); assert.doesNotMatch(finalText, /saved|saving|сэконом/iu); assert.doesNotMatch(finalText, /MUST verdict: pass/);
+  await rejects(() => stateResume(cwd), 'NO_ACTIVE_RUN'); assert.equal((await stateShow(cwd, 'first-run')).status, 'complete'); await rejects(() => stateResume(cwd, 'first-run'), 'RUN_COMPLETE');
+  await rejects(() => recordEvidence(cwd, 'first-run', evidence('EV-001', 1, 'AC-001')), 'RUN_COMPLETE');
+  await rejects(() => amendContract(cwd, 'first-run', contract(2, true), 'Clarification.', ['INTENT'], 'approved'), 'RUN_COMPLETE');
+  await rejects(() => validateAndSaveExecution(cwd, 'first-run', { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], zone: ['src'] }] }), 'RUN_COMPLETE');
+  const postTurn = await recordUsage(cwd, 'first-run', { status: 'actual', source: 'codex-sdk', scope: 'task', inputTokens: 10, outputTokens: 5, capturedAt: '2026-08-16T18:00:00.000Z' }); assert.equal(postTurn.totalTokens, 15);
+  await initRun(cwd, 'second-run', 'User asked for behavior.');
+});
+
+test('workspace writer lock permits exactly one concurrent active-run initialization', async () => {
+  const cwd = await workspace();
+  const results = await Promise.allSettled([
+    initRun(cwd, 'race-one', 'User asked for behavior.'),
+    initRun(cwd, 'race-two', 'User asked for behavior.'),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const rejected = results.find((result) => result.status === 'rejected');
+  assert.ok(rejected?.reason instanceof KernelError);
+  assert.match(rejected.reason.code, /^(ACTIVE_RUN_EXISTS|LOCK_HELD)$/);
+  const active = JSON.parse(await readFile(path.join(cwd, '.pinmind/active.json'), 'utf8'));
+  const runDirectories = await readdir(path.join(cwd, '.pinmind/runs'));
+  assert.deepEqual(runDirectories, [active.runId]);
+});
+
+test('workspace writer lock preserves concurrent evidence appends', async () => {
+  const cwd = await frozenRun();
+  const records = [evidence('EV-001', 1, 'AC-001'), evidence('EV-002', 1, 'INV-001')];
+  await Promise.all(records.map((record) => recordEvidence(cwd, 'run-one', record)));
+  const store = JSON.parse(await readFile(path.join(cwd, '.pinmind/runs/run-one/evidence.json'), 'utf8'));
+  assert.deepEqual(store.entries.map((entry) => entry.evidenceId).sort(), ['EV-001', 'EV-002']);
+});
+
+test('workspace writer lock serializes contract freeze and fails closed for a dead owner', async () => {
+  const cwd = await workspace(); await mkdir(path.join(cwd, '.pinmind'), { recursive: true });
+  const lockFile = path.join(cwd, '.pinmind/writer.lock');
+  const stale = { format: 1, ownerId: 'dead-owner', pid: 99999999, hostname: hostname(), operation: 'crashed', startedAt: '2026-08-16T00:00:00.000Z' };
+  await writeFile(lockFile, JSON.stringify(stale));
+  const blocked = await Promise.allSettled([
+    initRun(cwd, 'race-one', 'User asked for behavior.'),
+    initRun(cwd, 'race-two', 'User asked for behavior.'),
+  ]);
+  assert.equal(blocked.filter((result) => result.status === 'fulfilled').length, 0);
+  for (const result of blocked) assert.equal(result.reason?.code, 'LOCK_STALE_NEEDS_RECOVERY');
+  assert.deepEqual(JSON.parse(await readFile(lockFile, 'utf8')), stale);
+  await assert.rejects(access(path.join(cwd, '.pinmind/runs')));
+
+  await unlink(lockFile); await initRun(cwd, 'run-one', 'User asked for behavior.');
+  const results = await Promise.allSettled([freezeContract(cwd, 'run-one', contract()), freezeContract(cwd, 'run-one', contract())]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const rejected = results.find((result) => result.status === 'rejected'); assert.equal(rejected?.reason?.code, 'AMEND_REQUIRED');
+  const state = (await loadState(cwd, 'run-one')).state; assert.equal(state.currentContractVersion, 1); assert.equal(Object.keys(state.contractHashes).length, 1);
+});
+
+test('workspace writer lock rejects stale concurrent usage and execution replacements', async () => {
+  const usageCwd = await frozenRun();
+  const initialUsage = JSON.parse(await readFile(path.join(usageCwd, '.pinmind/runs/run-one/usage.json'), 'utf8'));
+  const usageRecords = [
+    { status: 'actual', source: 'codex-sdk', scope: 'task', inputTokens: 10, outputTokens: 2, capturedAt: '2026-08-16T18:00:00.000Z' },
+    { status: 'actual', source: 'codex-sdk', scope: 'task', inputTokens: 20, outputTokens: 3, capturedAt: '2026-08-16T18:00:01.000Z' },
+  ];
+  const usageResults = await Promise.allSettled(usageRecords.map((record) => recordUsage(usageCwd, 'run-one', record, { expectedUsageSha256: initialUsage.usageSha256 })));
+  assert.equal(usageResults.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(usageResults.find((result) => result.status === 'rejected')?.reason?.code, 'STALE_USAGE');
+  const storedUsage = JSON.parse(await readFile(path.join(usageCwd, '.pinmind/runs/run-one/usage.json'), 'utf8'));
+  assert.ok([12, 23].includes(storedUsage.totalTokens));
+
+  const executionCwd = await frozenRun();
+  const executions = [
+    { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], zone: ['src/a'] }] },
+    { units: [{ unitId: 'WU-002', obligations: ['REQ-001'], criteria: [], zone: ['src/b'] }] },
+  ];
+  const executionResults = await Promise.allSettled(executions.map((execution) => validateAndSaveExecution(executionCwd, 'run-one', execution, { expectedExecutionSha256: null })));
+  assert.equal(executionResults.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(executionResults.find((result) => result.status === 'rejected')?.reason?.code, 'STALE_EXECUTION');
+  const storedExecution = JSON.parse(await readFile(path.join(executionCwd, '.pinmind/runs/run-one/execution.json'), 'utf8'));
+  assert.ok(['WU-001', 'WU-002'].includes(storedExecution.units[0].unitId));
+});
+
+test('workspace writer lock permits exactly one concurrent final-state commit', async () => {
+  const cwd = await frozenRun(); await recordAll(cwd); const verification = await finalVerify(cwd, 'run-one'); assert.equal(verification.ok, true);
+  const results = await Promise.allSettled([finalizeRun(cwd, 'run-one', verification), finalizeRun(cwd, 'run-one', verification)]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(results.find((result) => result.status === 'rejected')?.reason?.code, 'RUN_COMPLETE');
+  assert.equal((await stateShow(cwd, 'run-one')).status, 'complete');
+  await assert.rejects(access(path.join(cwd, '.pinmind/active.json')));
+});
+
+test('capture rejects physical cwd and artifact escapes while allowing internal symlinks', async () => {
+  const cwd = await frozenRun(); const outside = await workspace();
+  const directoryLink = path.join(cwd, 'outside-dir');
+  await symlink(outside, directoryLink, process.platform === 'win32' ? 'junction' : 'dir');
+  const template = evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'trace-capture-cwd' });
+  await rejects(() => captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', "require('node:fs').writeFileSync('escaped.txt', 'bad')"], 'outside-dir'), 'UNSAFE_PATH');
+  await assert.rejects(access(path.join(outside, 'escaped.txt')));
+
+  const outsideArtifact = path.join(outside, 'artifact.txt'); await writeFile(outsideArtifact, 'outside');
+  await symlink(outside, path.join(cwd, 'outside-artifact-dir'), process.platform === 'win32' ? 'junction' : 'dir');
+  const artifactTemplate = evidence('EV-001', 1, 'AC-001', { artifact: 'outside-artifact-dir/artifact.txt' });
+  await rejects(() => captureEvidence(cwd, 'run-one', artifactTemplate, [process.execPath, '-e', 'process.exit(0)']), 'UNSAFE_PATH');
+
+  const internal = path.join(cwd, 'internal'); await mkdir(internal); await symlink(internal, path.join(cwd, 'internal-link'), process.platform === 'win32' ? 'junction' : 'dir');
+  const captured = await captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', 'process.exit(0)'], 'internal-link');
+  assert.equal(captured.status, 'pass'); assert.equal(captured.provenance.cwd, 'internal-link');
+});
+
+test('capture timeout fails honestly and terminates the controlled descendant tree', async () => {
+  const cwd = await frozenRun(); const sentinel = path.join(cwd, 'late-child.txt');
+  const grandchild = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'late'), 350)`;
+  const parent = `const { spawn } = require('node:child_process'); spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: 'ignore' }); setTimeout(() => process.exit(0), 700);`;
+  const template = evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'trace-timeout' });
+  const started = Date.now();
+  const captured = await captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', parent], '.', { timeoutMs: 100, terminationGraceMs: 50 });
+  assert.equal(captured.status, 'fail'); assert.equal(captured.provenance.timedOut, true); assert.equal(captured.provenance.timeoutMs, 100); assert.ok(Date.now() - started < 1200);
+  assert.match(captured.provenance.termination.scope, /^(original-process-group|taskkill-reported-tree)$/);
+  assert.equal(captured.provenance.termination.detachedDescendantsCovered, false);
+  assert.equal(typeof captured.provenance.termination.observation, 'string');
+  await delay(450); await assert.rejects(access(sentinel));
+});
+
+test('timeout provenance does not claim detached POSIX descendants are covered', { skip: process.platform === 'win32' }, async () => {
+  const cwd = await frozenRun(); const sentinel = path.join(cwd, 'detached-child.txt');
+  const grandchild = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'detached'), 300)`;
+  const parent = `const { spawn } = require('node:child_process'); const child = spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { detached: true, stdio: 'ignore' }); child.unref(); setTimeout(() => {}, 1000);`;
+  const captured = await captureEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'trace-detached-timeout' }), [process.execPath, '-e', parent], '.', { timeoutMs: 100, terminationGraceMs: 50 });
+  assert.equal(captured.status, 'fail'); assert.equal(captured.provenance.termination.scope, 'original-process-group'); assert.equal(captured.provenance.termination.detachedDescendantsCovered, false);
+  await delay(350); await access(sentinel);
+});
+
+test('capture rejects a stale contract snapshot and finalization repeats verification under lock', async () => {
+  const cwd = await frozenRun(); const template = evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'trace-stale-capture' });
+  const capture = captureEvidence(cwd, 'run-one', template, [process.execPath, '-e', 'setTimeout(() => process.exit(0), 150)']);
+  await delay(30); await amendContract(cwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'approved');
+  await rejects(() => capture, 'STALE_CAPTURE');
+
+  const finalCwd = await frozenRun(); await recordAll(finalCwd); const verified = await finalVerify(finalCwd, 'run-one'); assert.equal(verified.ok, true);
+  await amendContract(finalCwd, 'run-one', contract(2, true), 'Clarification.', ['INTENT'], 'approved');
+  await rejects(() => finalizeRun(finalCwd, 'run-one', verified), 'FINAL_GATE_FAILED');
+});
+
+test('final verification rejects an artifact symlink swapped outside after capture', async () => {
+  const cwd = await frozenRun(); const outside = await workspace();
+  const internalDirectory = path.join(cwd, 'inside'); const externalDirectory = path.join(outside, 'escaped'); await mkdir(internalDirectory); await mkdir(externalDirectory);
+  await writeFile(path.join(internalDirectory, 'artifact.txt'), 'same bytes'); await writeFile(path.join(externalDirectory, 'artifact.txt'), 'same bytes');
+  const alias = path.join(cwd, 'artifact-link'); await symlink(internalDirectory, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  await captureEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { artifact: 'artifact-link/artifact.txt' }), [process.execPath, '-e', 'process.exit(0)']);
+  await recordEvidence(cwd, 'run-one', evidence('EV-002', 1, 'INV-001')); await recordEvidence(cwd, 'run-one', evidence('EV-003', 1, 'PRES-001'));
+  await unlink(alias); await symlink(externalDirectory, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const result = await finalVerify(cwd, 'run-one'); assert.equal(result.ok, false); assert.match(result.errors.join('\n'), /AC-001 lacks trustworthy passing evidence/);
+});
+
+test('activation corpus and instructions require the deterministic post-activation router lifecycle', async () => {
+  const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
+  const hostSmoke = await readFile(fileURLToPath(new URL('../skills/pinmind/references/host-smoke.md', import.meta.url)), 'utf8');
+  const corpus = JSON.parse(await readFile(fileURLToPath(new URL('../evals/fixtures/activation-smoke.json', import.meta.url)), 'utf8'));
+  assert.match(skill, /kernel router|pinmind\.mjs route/iu); assert.match(skill, /before.*(?:tools|writes)|до.*(?:инструмент|изменен)/iu); assert.match(skill, /non-deterministic|недетерминирован/iu);
+  const mandatoryRoute = skill.indexOf('## Mandatory first action'); const proportionalRouting = skill.indexOf('## Route proportionally');
+  assert.ok(mandatoryRoute > 0 && mandatoryRoute < proportionalRouting); assert.match(skill.slice(mandatoryRoute, proportionalRouting), /before.*progress update[\s\S]*before.*(?:reference|workspace)/iu);
+  assert.match(skill.slice(mandatoryRoute, proportionalRouting), /\{\s*"text"\s*:\s*"<full sanitized user request>"\s*\}/i);
+  assert.match(skill, /(?:if|when) (?:the )?route(?: is| returns?) `?simple`?[\s\S]{0,180}(?:without|no) (?:further )?(?:reference|workspace)/iu);
+  for (const field of ['caseId', 'hostVersion', 'pluginVersion', 'observedAt', 'freshSession', 'selection', 'observedRoute', 'routeBeforeTaskTools']) assert.match(hostSmoke, new RegExp(field));
+  assert.match(hostSmoke, /new ChatGPT chat|new Codex .* thread/i); assert.match(hostSmoke, /does not claim|does not prove|не доказы/iu);
+  assert.equal(corpus.schemaVersion, 1); assert.ok(Array.isArray(corpus.cases));
+  const ids = new Set(); const counts = { ru: 0, en: 0, mixed: 0, negative: 0, conflict: 0 }; const routes = new Set();
+  for (const item of corpus.cases) {
+    assert.match(item.id, /^[a-z0-9][a-z0-9-]+$/); assert.equal(ids.has(item.id), false, item.id); ids.add(item.id);
+    assert.match(item.locale, /^(ru|en|mixed)$/); assert.match(item.class, /^(positive|negative|conflict|explicit)$/); assert.equal(typeof item.prompt, 'string'); assert.equal(typeof item.expect?.implicitEligible, 'boolean');
+    counts[item.locale] += 1; if (item.class === 'negative') counts.negative += 1; if (item.class === 'conflict') counts.conflict += 1;
+    if (item.class === 'negative') assert.equal(item.expect.implicitEligible, false, item.id); else assert.equal(item.expect.implicitEligible, true, item.id);
+    const routed = routeTask({ text: item.prompt });
+    for (const field of ['route', 'clarity', 'executionSpan', 'risk']) assert.equal(routed[field], item.expect[field], `${item.id}:${field}`);
+    if (item.expect.needsHumanConfirmation !== undefined) assert.equal(routed.needsHumanConfirmation, item.expect.needsHumanConfirmation, `${item.id}:confirmation`);
+    if (item.class === 'conflict') { assert.equal(routed.route, 'audit', item.id); assert.equal(routed.needsHumanConfirmation, true, item.id); }
+    routes.add(routed.route);
+  }
+  assert.ok(counts.ru >= 6); assert.ok(counts.en >= 6); assert.ok(counts.mixed >= 4); assert.ok(counts.negative >= 6); assert.ok(counts.conflict >= 2);
+  assert.deepEqual([...routes].sort(), ['audit', 'investigation', 'operational', 'simple', 'software-change', 'spike']);
+  const release = routeTask({ text: 'Доделай Pinmind: исправь гонки всех канонических изменений, symlink containment, timeout process groups, router lifecycle и host smoke corpus.' });
+  assert.equal(release.route, 'software-change'); assert.equal(release.risk, 'high'); assert.equal(release.executionSpan, 'cross-cutting');
+});
+
+test('progressive references preserve composition, diagnosis, handoff, and regression boundaries', async () => {
+  const route = await readFile(fileURLToPath(new URL('../skills/pinmind/references/route.md', import.meta.url)), 'utf8');
+  const execution = await readFile(fileURLToPath(new URL('../skills/pinmind/references/execution.md', import.meta.url)), 'utf8');
+  const inbox = await readFile(fileURLToPath(new URL('../skills/pinmind/references/regression-inbox.md', import.meta.url)), 'utf8');
+  assert.match(route, /Composition after routing/i); for (const kind of ['simple', 'operational', 'spike', 'audit', 'investigation', 'software-change']) assert.ok(route.includes(`| \`${kind}\` |`), kind);
+  assert.match(execution, /Investigation feedback loop/i); assert.match(execution, /public-seam test[\s\S]*CLI.API.browser[\s\S]*minimal (?:throwaway )?harness[\s\S]*(?:property|fuzz)[\s\S]*(?:bisect|differential)/i);
+  assert.match(execution, /Phase boundar/i); for (const action of ['continue', 'compact', 'handoff', 'subagent']) assert.ok(execution.includes(`\`${action}\``), action);
+  assert.match(inbox, /regression case.*before|before.*policy change/is); assert.match(inbox, /activation-miss/); assert.match(inbox, /route-misclassification/); assert.match(inbox, /Do not automatically rewrite Pinmind/i);
+});
+
+test('CLI gates throw for failed verdicts and empty input provides usage', async () => {
+  const cwd = await frozenRun(); const file = path.join(cwd, '.pinmind/runs/run-one/evidence.json'); const store = { format: 1, entries: [evidence('EV-999', 1, 'AC-001')] }; store.storeSha256 = hashWithout(store, 'storeSha256'); await writeFile(file, JSON.stringify(store));
+  await rejects(() => main(['evidence', 'validate', '--run', 'run-one'], cwd), 'EVIDENCE_GATE_FAILED'); await rejects(() => main(['final', 'verify', '--run', 'run-one'], cwd), 'FINAL_GATE_FAILED'); assert.match((await main([], cwd)).usage, /Usage:/);
+});
