@@ -1,10 +1,10 @@
 # Pinmind roadmap
 
-Research and prioritization date: 2026-08-17. This roadmap started after `v0.2.1`, was expanded for `v0.2.2` and the `v0.3.0` Adaptive Execution Policy, and was reprioritized against a fresh `v0.3.1-experimental` source/runtime audit. The P0/P1 implementation is released in `v0.4.0-experimental`; P2 follows the separate [adapter-first architecture decision](docs/p2-architecture.md). This file records candidate work; it does not authorize implementation or turn Pinmind into a workflow service.
+Research and prioritization date: 2026-08-17. This roadmap started after `v0.2.1`, was expanded for `v0.2.2` and the `v0.3.0` Adaptive Execution Policy, and was reprioritized against a fresh `v0.3.1-experimental` source/runtime audit. The P0/P1 implementation is released in `v0.4.0-experimental`, with a fresh-host phrasing correction in `v0.4.1-experimental`; P2 follows the separate [adapter-first architecture decision](docs/p2-architecture.md). This file records candidate work; it does not authorize implementation or turn Pinmind into a workflow service.
 
 ## Released baseline
 
-The current public baseline is `v0.4.0-experimental`. Its lineage starts with the following `v0.2.1` mechanisms, which were the main reason to study Superpowers, nick-vels/skills, and Matt Pocock's skills:
+The current public baseline is `v0.4.1-experimental`. Its lineage starts with the following `v0.2.1` mechanisms, which were the main reason to study Superpowers, nick-vels/skills, and Matt Pocock's skills:
 
 - deterministic post-activation RU/EN routing and proportional capability composition;
 - RED/GREEN diagnosis, immutable briefs and contracts, amendments, traceable evidence, and blind goal-axis review;
@@ -19,6 +19,8 @@ The current public baseline is `v0.4.0-experimental`. Its lineage starts with th
 `v0.3.1-experimental` was the security/portability patch baseline. A fresh audit confirmed that its deterministic bundled corpora and validators passed, but also reproduced gaps that those corpora did not cover. Therefore “released” and “green on the curated corpus” must not be read as “all real phrasing and interrupted-state behavior are proven.”
 
 `v0.4.0-experimental` closes those reproduced P0/P1 defects and makes final checking observational. It does not implement P2 host dispatch, external-effect enforcement, or real-host activation measurement.
+
+`v0.4.1-experimental` closes a post-release read-only phrasing regression reproduced by the first fresh CLI installation smoke. It does not broaden P2 scope.
 
 ## Fresh audit correction
 

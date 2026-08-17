@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 No target version is assigned.
 
+## [0.4.1-experimental] - 2026-08-17
+
+### Fixed
+
+- Treat English `without changing files` and compound `do not create or modify files` wording as a read-only authority boundary instead of an affirmative modification request.
+- Preserve a real fresh-CLI regression plus an affirmative implementation/conflict control in the deterministic route corpus.
+
 ## [0.4.0-experimental] - 2026-08-17
 
 ### Added

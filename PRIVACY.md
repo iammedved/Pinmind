@@ -1,6 +1,6 @@
 # Privacy
 
-Pinmind `0.4.0-experimental` is a skills-only plugin. It provides local instructions, a bundled kernel, and an offline AEP Phase 0 evaluation corpus; it has no account system, connector, MCP server, telemetry service, or project-operated network endpoint.
+Pinmind `0.4.1-experimental` is a skills-only plugin. It provides local instructions, a bundled kernel, and an offline AEP Phase 0 evaluation corpus; it has no account system, connector, MCP server, telemetry service, or project-operated network endpoint.
 
 Pinmind processes only the task context and files made available by the active ChatGPT or Codex host. Data handling by that host and by any separately enabled tool is governed by the corresponding provider and user configuration.
 
