@@ -125,7 +125,7 @@ Pinmind stores command provenance, but `final verify` intentionally does not rep
 - Attach a bounded fingerprint of at most 64 declared relevant files to each completion-critical verification snapshot, inside or outside Git. Record Git HEAD as diagnostic metadata only: unrelated commits must not stale evidence when every declared relevant file is byte-identical.
 - Before completion, compare that snapshot with the current relevant state. A later relevant mutation marks the evidence stale until the planned check is captured again.
 - When no trustworthy fingerprint is possible, state that freshness is manual or unavailable; do not silently pass.
-- Split the API into `final check`, which only computes and reports `pass | fail | uncertain`, and `finalize`, which acquires the writer lock, rechecks the same gate, writes terminal artifacts, marks the run complete, and clears the active pointer.
+- Add `final check`, which only computes and reports `pass | fail | uncertain`. Prefer `finalize` for explicit completion; it acquires the writer lock, rechecks the same gate, writes terminal artifacts, marks the run complete, and clears the active pointer. Keep the published `final verify` spelling as a deprecated finalizing compatibility alias.
 
 This adopts the narrow useful part of Superpowers' baseline and verification discipline: success claims require current command evidence, not prior output. Sources: [using git worktrees](https://github.com/obra/superpowers/blob/main/skills/using-git-worktrees/SKILL.md) and [verification before completion](https://github.com/obra/superpowers/blob/main/skills/verification-before-completion/SKILL.md) (accessed 2026-08-17). It does not mandate a worktree for every task.
 
@@ -134,7 +134,7 @@ This adopts the narrow useful part of Superpowers' baseline and verification dis
 - Test green, pre-existing-red, unavailable, unrelated-dirty, relevant-post-check mutation, untracked artifact, and no-Git cases.
 - Finalization fails closed only for required stale evidence; it must not erase or mislabel the original observation.
 - Do not use an arbitrary age threshold. Fresh means “captured after the last relevant mutation in this run.”
-- Repeated `final check` calls are byte-for-byte state-idempotent and never remove the active pointer; only explicit `finalize` mutates lifecycle state.
+- Repeated `final check` calls are byte-for-byte state-idempotent and never remove the active pointer; `finalize` and the deprecated `final verify` compatibility alias mutate lifecycle state.
 
 ## P2. Authorization receipts for external effects
 
