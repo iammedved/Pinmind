@@ -2,7 +2,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson,
+  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, reconcileActiveRuns,
   recordEvidence, recordUsage, reportRun, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from './lib/core.mjs';
 
@@ -17,7 +17,7 @@ function parse(argv) {
 }
 function requireFlag(flags, name) { if (typeof flags[name] !== 'string') throw new KernelError(`--${name} is required.`, 'MISSING_ARGUMENT'); return flags[name]; }
 function print(value) { process.stdout.write(typeof value === 'string' ? `${value.replace(/\n?$/, '\n')}` : `${JSON.stringify(value, null, 2)}\n`); }
-const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|usage record|report|state show|state resume|final verify';
+const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|usage record|report|state show|state resume|state reconcile --dry-run|final verify';
 function requirePassing(result, code, message) { if (!result.ok) throw new KernelError(message, code, result.errors); return result; }
 
 export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
@@ -27,6 +27,12 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (group === 'route') return routeTask(flags.file ? await readInputJson(flags.file) : { text: requireFlag(flags, 'text'), kind: flags.kind });
   if (group === 'state' && action === 'show') return stateShow(cwd, flags.run);
   if (group === 'state' && action === 'resume') return stateResume(cwd, flags.run);
+  if (group === 'state' && action === 'reconcile') {
+    if (flags['dry-run'] !== true) throw new KernelError('state reconcile currently supports only --dry-run.', 'DRY_RUN_REQUIRED');
+    const result = await reconcileActiveRuns(cwd);
+    if (!result.ok) throw new KernelError('The active-run state is inconsistent.', 'ACTIVE_RUN_INCONSISTENT', [result]);
+    return result;
+  }
   const run = requireFlag(flags, 'run');
   if (group === 'report') return reportRun(cwd, run, typeof flags.format === 'string' ? flags.format : 'json');
   if (group === 'contract' && action === 'validate') { const candidate = await readInputJson(requireFlag(flags, 'file')); const result = validateContract(candidate); if (!result.ok) throw new KernelError('Contract validation failed.', 'INVALID_CONTRACT', result.errors); return result; }
@@ -42,7 +48,7 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  main().then(print).catch((error) => {
+  main().then((value) => { print(value); if (value?.ok === false) process.exitCode = 1; }).catch((error) => {
     const output = { ok: false, code: error.code || 'UNEXPECTED_ERROR', error: error.message, details: error.details || [] };
     process.stderr.write(`${JSON.stringify(output)}\n`); process.exitCode = 1;
   });

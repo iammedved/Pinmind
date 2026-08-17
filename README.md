@@ -86,6 +86,7 @@ Run kernel commands from the target workspace with the repository-relative entry
 ```bash
 node skills/pinmind/scripts/pinmind.mjs route --file request.json
 node skills/pinmind/scripts/pinmind.mjs init --run <run-id> --brief brief.md
+node skills/pinmind/scripts/pinmind.mjs state reconcile --dry-run
 node skills/pinmind/scripts/pinmind.mjs contract freeze --run <run-id> --file contract.json
 node skills/pinmind/scripts/pinmind.mjs evidence capture --run <run-id> --file evidence.json -- <command> [args...]
 node skills/pinmind/scripts/pinmind.mjs final verify --run <run-id>

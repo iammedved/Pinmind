@@ -16,9 +16,14 @@ node "$KERNEL" route --text "<request>" [--kind simple|operational|spike|audit|i
 node "$KERNEL" init --run <safe-run-id> --brief <brief-source.md>
 node "$KERNEL" state show [--run <run-id>]
 node "$KERNEL" state resume [--run <run-id>]
+node "$KERNEL" state reconcile --dry-run
 ```
 
 For an active non-simple Pinmind task, run `route` before route-dependent tools or writes when the kernel is available. Run `init` only for a persistent software-change run. It creates `.pinmind/active.json` and the versioned run layout. Preserve the supplied source request separately until redaction and capture are confirmed.
+
+`state resume` succeeds only when `active.json` names the sole verified run whose state is `active`; a named run must match that canonical owner. It reports the saved phase but does not replay commands or external effects.
+
+`state reconcile --dry-run` inventories the physical managed run directories and active pointer without changing either. It reports `clean-idle`, `canonical-active`, `orphan-active`, `split-brain`, `pointer-nonactive`, `pointer-missing-run`, `pointer-diverged`, `pointer-invalid`, or `run-corrupt`, plus the next safe inspection step. A consistent result exits zero; an inconsistent result preserves the structured diagnosis in the error details and exits nonzero. Every inconsistent class blocks initialization, resume, active-run mutation, capture, and finalization. The command never repairs state, removes a lock, chooses between conflicting runs, or restarts task work; explicit repair and crash-journal recovery remain future work.
 
 Canonical mutations use a workspace-wide `.pinmind/writer.lock`. Contending live local writers wait briefly and then serialize. A dead or foreign-host lock fails immediately; a malformed lock gets a bounded retry so a contender cannot mistake the owner's short metadata-write window for corruption. Persistent ambiguity ends with `LOCK_STALE_NEEDS_RECOVERY`. Pinmind never reclaims a lock automatically because two reclaimers could otherwise remove a newer owner's lock. Inspect the recorded host, PID, owner, operation, current processes, and canonical run state before explicitly removing that exact file. The lock is a cooperative single-host local-filesystem guarantee, not a distributed network-filesystem lock or a crash-atomic multi-file journal. Never delete it merely because its timestamp looks old.
 

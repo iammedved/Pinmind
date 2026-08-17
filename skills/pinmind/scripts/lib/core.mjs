@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, writeFile, mkdir, access, rename, unlink, open, realpath, stat, lstat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, rename, unlink, open, realpath, stat, lstat, readdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { hostname } from 'node:os';
 import path from 'node:path';
@@ -255,6 +255,85 @@ export async function loadState(cwd, runId) {
 async function saveState(files, state) { state.updatedAt = new Date().toISOString(); await writeJsonAtomic(files.state, setStateHash(state)); }
 function requireActiveRun(state, runId) { if (state.status !== 'active') throw new KernelError(`Run ${runId} is complete.`, 'RUN_COMPLETE'); }
 
+function reconciliationResult(classification, pointerRunId, activeRunIds, runIds, issues = []) {
+  const ok = classification === 'clean-idle' || classification === 'canonical-active';
+  const nextSafeSteps = {
+    'clean-idle': 'No recovery action is required.',
+    'canonical-active': `Resume only ${pointerRunId}; this diagnostic did not execute or replay task work.`,
+    'orphan-active': 'Inspect the orphan run and restore a canonical pointer only through a future explicitly authorized repair.',
+    'split-brain': 'Stop writers and inspect every listed active run; do not choose or rewrite an owner automatically.',
+    'pointer-nonactive': 'Inspect the interrupted finalization boundary; do not delete the pointer automatically.',
+    'pointer-missing-run': 'Inspect the pointer and workspace history; the referenced run is missing.',
+    'pointer-diverged': 'Inspect the pointer and active run states; ownership is inconsistent.',
+    'pointer-invalid': 'Inspect the invalid active pointer without replacing it automatically.',
+    'run-corrupt': 'Inspect the listed managed run entries; reconciliation cannot trust corrupted state.',
+  };
+  return { ok, classification, pointerRunId, activeRunIds, managedRunCount: runIds.length, issues, nextSafeStep: nextSafeSteps[classification] };
+}
+
+export async function reconcileActiveRuns(cwd) {
+  const stateRoot = await verifiedStateRoot(cwd);
+  if (!stateRoot.exists) return reconciliationResult('clean-idle', null, [], []);
+  const runsPath = path.join(stateRoot.root, 'runs');
+  const hasRuns = await verifyStateEntry(runsPath, stateRoot.root, 'directory', 'runs directory');
+  const runIds = []; const activeRunIds = []; const issues = [];
+  if (hasRuns) {
+    const entries = (await readdir(runsPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (entry.isSymbolicLink() || !entry.isDirectory()) {
+        issues.push(`${entry.name}: expected a physical run directory`);
+        continue;
+      }
+      let runId;
+      try { runId = safeRunId(entry.name); }
+      catch { issues.push(`${entry.name}: invalid run id`); continue; }
+      runIds.push(runId);
+      try {
+        const { state } = await loadState(cwd, runId);
+        if (state.status === 'active') activeRunIds.push(runId);
+      } catch (error) {
+        if (error.code === 'UNSAFE_STATE_PATH') throw error;
+        issues.push(`${runId}: ${error.code || 'INVALID_STATE'}`);
+      }
+    }
+  }
+  runIds.sort(); activeRunIds.sort();
+
+  const activePath = path.join(stateRoot.root, 'active.json');
+  let pointerRunId = null; let pointerInvalid = false;
+  if (await exists(activePath)) {
+    try {
+      const pointer = await readJson(activePath, 'Active run pointer');
+      if (pointer.format !== FORMAT) pointerInvalid = true;
+      else pointerRunId = safeRunId(pointer.runId);
+    } catch (error) {
+      if (error.code === 'UNSAFE_STATE_PATH') throw error;
+      pointerInvalid = true;
+    }
+  }
+
+  if (issues.length) return reconciliationResult('run-corrupt', pointerRunId, activeRunIds, runIds, issues);
+  if (activeRunIds.length > 1) return reconciliationResult('split-brain', pointerRunId, activeRunIds, runIds);
+  if (pointerInvalid) return reconciliationResult('pointer-invalid', null, activeRunIds, runIds);
+  if (!pointerRunId) return activeRunIds.length === 0
+    ? reconciliationResult('clean-idle', null, activeRunIds, runIds)
+    : reconciliationResult('orphan-active', null, activeRunIds, runIds);
+  if (!runIds.includes(pointerRunId)) return reconciliationResult('pointer-missing-run', pointerRunId, activeRunIds, runIds);
+  if (activeRunIds.length === 0) return reconciliationResult('pointer-nonactive', pointerRunId, activeRunIds, runIds);
+  if (activeRunIds[0] !== pointerRunId) return reconciliationResult('pointer-diverged', pointerRunId, activeRunIds, runIds);
+  return reconciliationResult('canonical-active', pointerRunId, activeRunIds, runIds);
+}
+
+async function requireCanonicalActiveRun(cwd, state, runId) {
+  requireActiveRun(state, runId);
+  const reconciliation = await reconcileActiveRuns(cwd);
+  if (!reconciliation.ok || reconciliation.classification !== 'canonical-active') {
+    throw new KernelError('The active-run state is inconsistent and requires read-only reconciliation.', 'ACTIVE_RUN_INCONSISTENT', [reconciliation.classification, ...reconciliation.activeRunIds]);
+  }
+  if (reconciliation.pointerRunId !== runId) throw new KernelError(`Run ${runId} is not the canonical active run.`, 'NOT_ACTIVE_RUN');
+  return reconciliation;
+}
+
 function ids(items) { return new Set((items || []).map((item) => item.id)); }
 function requireArray(value, label, errors) { if (!Array.isArray(value)) errors.push(`${label} must be an array.`); }
 function validId(value) { return typeof value === 'string' && /^[A-Z][A-Z0-9]*-\d{3,}$/.test(value); }
@@ -317,13 +396,9 @@ export async function verifyRun(cwd, runId) {
 async function initRunUnlocked(cwd, runId, briefText) {
   const files = await verifiedLayout(cwd, runId, { createRoot: true });
   if (await exists(files.run)) throw new KernelError(`Run already exists: ${runId}`, 'RUN_EXISTS');
-  if (await exists(files.active)) {
-    const active = await readJson(files.active, 'Active run pointer');
-    const activeRun = safeRunId(active.runId);
-    const activeState = await loadState(cwd, activeRun);
-    if (activeState.state.status === 'active') throw new KernelError(`An active run already exists: ${activeRun}`, 'ACTIVE_RUN_EXISTS');
-    await unlink(files.active);
-  }
+  const reconciliation = await reconcileActiveRuns(cwd);
+  if (reconciliation.classification === 'canonical-active') throw new KernelError(`An active run already exists: ${reconciliation.pointerRunId}`, 'ACTIVE_RUN_EXISTS');
+  if (reconciliation.classification !== 'clean-idle') throw new KernelError('The active-run state is inconsistent and must be reconciled before initialization.', 'ACTIVE_RUN_INCONSISTENT', [reconciliation.classification, ...reconciliation.activeRunIds]);
   if (typeof briefText !== 'string' || !briefText.trim()) throw new KernelError('briefText is required.', 'INVALID_BRIEF');
   const brief = redact(briefText);
   await mkdir(files.contracts, { recursive: true });
@@ -388,7 +463,7 @@ function invalidationTargets(previous, changes) {
 
 async function freezeContractUnlocked(cwd, runId, candidate) {
   const { files, state } = await verifyRun(cwd, runId);
-  requireActiveRun(state, runId);
+  await requireCanonicalActiveRun(cwd, state, runId);
   const expectedVersion = (state.currentContractVersion || 0) + 1;
   if (state.currentContractVersion) throw new KernelError('A frozen contract already exists; use contract amend.', 'AMEND_REQUIRED');
   const validation = validateContract(candidate, { expectedVersion });
@@ -411,7 +486,7 @@ export async function freezeContract(cwd, runId, candidate) {
 
 async function amendContractUnlocked(cwd, runId, candidate, reason, affected, authority) {
   const { files, state } = await verifyRun(cwd, runId);
-  requireActiveRun(state, runId);
+  await requireCanonicalActiveRun(cwd, state, runId);
   const previous = await currentContract(files, state);
   if (typeof reason !== 'string' || !reason.trim()) throw new KernelError('An amendment reason is required.', 'AMENDMENT_REASON_REQUIRED');
   if (typeof authority !== 'string' || !authority.trim()) throw new KernelError('An amendment authority is required.', 'AMENDMENT_AUTHORITY_REQUIRED');
@@ -532,7 +607,8 @@ async function writeUsage(files, receipt) {
 }
 
 async function recordUsageUnlocked(cwd, runId, record, expectedUsageSha256) {
-  const { files } = await verifyRun(cwd, runId); const current = await loadUsage(files);
+  const { files, state } = await verifyRun(cwd, runId); const current = await loadUsage(files);
+  if (state.status === 'active') await requireCanonicalActiveRun(cwd, state, runId);
   if (expectedUsageSha256 !== undefined && current.usageSha256 !== expectedUsageSha256) throw new KernelError('Usage changed after the caller snapshot.', 'STALE_USAGE');
   const receipt = sanitizeUsageInput(record); const errors = usageErrors(receipt);
   if (errors.length) throw new KernelError('Usage validation failed.', 'INVALID_USAGE', errors);
@@ -567,7 +643,7 @@ function evidenceEntryErrors(entry, contract, version) {
 
 async function recordEvidenceUnlocked(cwd, runId, record, { allowCaptured = false, expectedSnapshot } = {}) {
   const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state);
-  requireActiveRun(state, runId);
+  await requireCanonicalActiveRun(cwd, state, runId);
   if (expectedSnapshot && (state.stateSha256 !== expectedSnapshot.stateSha256 || state.currentContractVersion !== expectedSnapshot.contractVersion || contract.contractSha256 !== expectedSnapshot.contractSha256)) {
     throw new KernelError('The run changed while evidence was being captured.', 'STALE_CAPTURE');
   }
@@ -712,7 +788,7 @@ async function settleCapturedOutput(capture, waitMs = 750) {
 export async function captureEvidence(cwd, runId, template, argv, requestedCwd = '.', options = {}) {
   if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string' && item.length > 0)) throw new KernelError('evidence capture requires a command after --.', 'MISSING_COMMAND');
   const policy = capturePolicy(options); const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state);
-  requireActiveRun(state, runId);
+  await requireCanonicalActiveRun(cwd, state, runId);
   const expectedSnapshot = { stateSha256: state.stateSha256, contractVersion: state.currentContractVersion, contractSha256: contract.contractSha256 };
   const intendedCwd = await resolveContainedExisting(cwd, requestedCwd, 'capture cwd', 'directory'); const relativeCwd = intendedCwd.relative;
   if (nonEmptyText(template?.artifact)) {
@@ -804,7 +880,7 @@ async function fileSha256OrNull(file) {
 
 async function validateAndSaveExecutionUnlocked(cwd, runId, execution, expectedExecutionSha256) {
   const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state); const result = validateExecution(execution, contract);
-  requireActiveRun(state, runId);
+  await requireCanonicalActiveRun(cwd, state, runId);
   const currentExecutionSha256 = await fileSha256OrNull(files.execution);
   if (expectedExecutionSha256 !== undefined && currentExecutionSha256 !== expectedExecutionSha256) throw new KernelError('Execution view changed after the caller snapshot.', 'STALE_EXECUTION');
   if (!result.ok) throw new KernelError('Execution validation failed.', 'INVALID_EXECUTION', result.errors);
@@ -828,7 +904,11 @@ export function routeTask(input = {}) {
   const signalSet = new Set(); const mark = (condition, signal) => { if (condition) signalSet.add(signal); return condition; };
   if (explicitInvocation) mark(true, 'activation:explicit');
   if (explicit) mark(true, `explicit:${explicitRoute || 'unknown'}`);
-  const highRisk = mark(/\b(auth(?:entication|orization)?|password|payment|migration|delete|deletion|permission|races?|race\s+conditions?|concurrency|security|secret|production)\b|аутентификац|авторизац|парол|оплат|платеж|миграц|удален|прав.*доступ|гонк|конкурент|безопасност|секрет|продакшн/u.test(text), 'risk:high');
+  const productionContext = /\b(?:prod|production)\b|\blive\b[^\n]{0,60}\b(?:database|data|records?|credentials?|keys?)\b|\b(?:deploy|publish|release|roll\s*out|ship|migrate|wipe|delete|rotate|revoke)\b[^\n]{0,80}\blive\b|\blive\b[^\n]{0,80}\b(?:deploy|publish|release|roll\s*out|ship|migration|wipe|delete|rotation|revocation)\b|(?<![\p{L}\p{N}_])прод(?:а|е)(?![\p{L}\p{N}_])|продакшн|боев\S*(?:\s+\S+){0,3}\s+(?:баз|данн|ключ|учетн)|(?:выкат|разверн|задепло|опублик|релиз|мигрир|удал|сотр|ротац|отоз)\S*[^\n]{0,80}(?:лайв|боев\S*)/u.test(text);
+  const credentialContext = /\b(?:credentials?|api[- ]?keys?|access[- ]?keys?)\b|учетн\S*\s+данн|ключ\S*\s+доступ/u.test(text);
+  const destructiveDataEffect = /\b(?:wipe|purge|erase|destroy)\b[^\n]{0,80}\b(?:data|database|records?|credentials?|keys?)\b|(?:сотр|очист|уничтож)\S*[^\n]{0,80}(?:данн|баз|запис|ключ|учетн)/u.test(text);
+  const credentialEffect = credentialContext && /\b(?:rotate|revoke|reset|replace|delete|remove|change)\b|ротац|отоз|отмен|смен|замен|удал/u.test(text);
+  const highRisk = mark(/\b(auth(?:entication|orization)?|password|payment|migration|delete|deletion|permission|races?|race\s+conditions?|concurrency|security|secret|production)\b|аутентификац|авторизац|парол|оплат|платеж|миграц|удален|прав.*доступ|гонк|конкурент|безопасност|секрет|продакшн/u.test(text) || productionContext || destructiveDataEffect || credentialEffect, 'risk:high');
   const multiSystem = /\b(payment|integration|multi-system|distributed|webhook)\b|платеж|интеграц|нескольк.*систем|вебхук/u.test(text);
   const architectural = mark(/\b(architecture|architectural|public\s+(?:api|interface)|breaking\s+change|system\s+shape|system\s+boundar(?:y|ies)|service\s+boundar(?:y|ies)|data\s+schema)\b|архитектур|публичн\S*\s+(?:api|интерфейс)|границ\S*\s+(?:сервис|систем)|схем\S*\s+обмен|перепроектир/u.test(text), 'clarity:architectural');
   const crossCutting = multiSystem || architectural || /\b(api|database|schema|shared state|canonical (?:state|mutation|change)|process group|workspace-wide|lifecycle|migration)\b|all\s+canonical\s+(?:state\s+)?(?:mutations?|changes?)|нескольк.*модул|общ.*состояни|каноническ.*(?:состояни|изменени)|жизненн.*цикл|групп.*процесс|баз\S*\s+данн|миграц|мигрир/u.test(text);
@@ -841,7 +921,11 @@ export function routeTask(input = {}) {
     .replace(new RegExp(noChangePattern.source, 'gu'), '')
     .replace(/\bafter\s+(?:the\s+)?(?:update|change|migration)\b/gu, '')
     .trim();
-  const requestedChange = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate)\b|исправ|измен|внес|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|сделай|пофикс|почин|усил.*(?:защит|безопас)/u.test(affirmativeText);
+  const actionText = affirmativeText.replace(/\b(?:software-change|software change|investigation|audit|operational|simple|spike)\b/gu, '');
+  const directiveText = actionText
+    .replace(/\bhow\s+to\s+(?:fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|improve|redesign|migrate|deploy)\b/gu, '')
+    .replace(/как\s+(?:исправить|изменить|реализовать|добавить|обновить|удалить|переписать|улучшить|переработать|мигрировать|развернуть)/gu, '');
+  const requestedChange = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace)\b|исправ|измен|внес|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|сделай|пофикс|почин|сотр|очист|уничтож|ротац|отоз|смен|замен|усил.*(?:защит|безопас)/u.test(directiveText);
   const softwareImpact = /\b(add|render|use|build|component|page|ui|catalog|asset|assets|code|implement|api|database|schema|client)\b|добав|рендер|использ.*(?:изображ|asset|ресурс)|страниц|компонент|интерфейс|каталог|код|баз\S*\s+данн|схем/u.test(text);
   const translationIntent = /\b(?:translate|translation)\b|перевед/u.test(text);
   const boundedText = /\b(?:translate\s+(?:this|it)|(?:this|the)?\s*(?:sentence|phrase|word|paragraph|text))\b|перевед\S*\s+(?:это|этот|эту|его|её|ее)|(?:это|этот|эту|данн\S*)?\s*(?:предложен|фраз|слов|абзац|текст)/u.test(text);
@@ -854,13 +938,15 @@ export function routeTask(input = {}) {
   const operationalIntent = /\b(copy|rename|move|fix typo|sort files?)\b|скопир|переимен|перемест|исправ.*опечат|отсортир.*файл/u.test(text) && !softwareImpact;
   const operational = operationalIntent && !noChange;
   const symptom = /\b(?:errors?|fail(?:s|ed|ure|ing)?|returns?\s+[45]\d{2}|crash(?:es|ed|ing)?|broken|not\s+work(?:ing)?)\b|ошиб|падает|сломал|не\s+работает/u.test(text);
-  const investigation = /\b(debug|diagnos|investigat|root cause|reproduce|bug|find (?:the )?cause)\b|диагност|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || (symptom && !requestedChange);
-  const auditRequest = /\b(audit|review|reviewing|pr review|security review|inspect|evaluate|check|report)\b|аудит|ревью|провер|посмотр|оцени|проанализир|глян|отчет|сообщи/u.test(text);
+  const exploratoryQuestion = /\b(?:feasibility|compare (?:the )?(?:options|approaches)|explore (?:the )?(?:options|approaches))\b|оцен.*возможност|сравни.*(?:вариант|подход)/u.test(text);
+  const investigation = (!exploratoryQuestion && /\b(debug|diagnos\S*|investigat(?:e|es|ed|ing|ion)|root cause|reproduce|bug|find (?:the )?cause|find why)\b|диагност|расследован|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text)) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || (symptom && !requestedChange);
+  const explanation = /\b(?:explain|describe)\b|\bhow\s+(?:does|do|is|are)\b|объясн|расскаж|опиш\S*\s+как/u.test(text);
+  const auditRequest = /\b(audit|review|reviewing|pr review|security review|inspect|evaluate|check|report|look for (?:problems|issues)|find (?:problems|issues))\b|аудит|ревью|провер|посмотр|оцени|проанализир|глян|отчет|сообщи|поиск(?:ать|и).*проблем|найд\S*.*проблем/u.test(text);
   const spike = /\b(feasibility|research|can we|should we|spike|explore|compare (?:the )?(?:options|approaches))\b|оцен.*возможност|исследу|можем ли|спайк|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
-  const recognizedReadOnlyIntent = investigation || auditRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
+  const recognizedReadOnlyIntent = investigation || explanation || auditRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
   const conflict = mark(noChange && (requestedChange || operationalIntent || !recognizedReadOnlyIntent), 'authority:conflict');
   const vague = mark(/^(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
-  const audit = conflict || (auditRequest && !investigation && (!requestedChange || noChange));
+  const audit = conflict || (!investigation && ((!requestedChange && explanation) || (auditRequest && (!requestedChange || noChange))));
   if (requestedChange) mark(true, 'intent:change'); if (softwareImpact) mark(true, 'impact:software');
   if (operationalIntent) mark(true, 'intent:operational'); if (investigation) mark(true, 'intent:investigation'); if (spike) mark(true, 'intent:spike'); if (audit) mark(true, 'intent:audit');
   let selectedExplicit;
@@ -900,8 +986,17 @@ export async function stateShow(cwd, requestedRunId) {
 }
 
 export async function stateResume(cwd, requestedRunId) {
-  const summary = await stateShow(cwd, requestedRunId);
-  if (summary.status !== 'active') throw new KernelError(`Run ${summary.runId} is complete.`, 'RUN_COMPLETE');
+  const reconciliation = await reconcileActiveRuns(cwd);
+  if (reconciliation.classification === 'clean-idle') {
+    if (requestedRunId) {
+      const summary = await stateShow(cwd, requestedRunId);
+      if (summary.status !== 'active') throw new KernelError(`Run ${summary.runId} is complete.`, 'RUN_COMPLETE');
+    }
+    throw new KernelError('There is no active run.', 'NO_ACTIVE_RUN');
+  }
+  if (!reconciliation.ok || reconciliation.classification !== 'canonical-active') throw new KernelError('The active-run state is inconsistent and requires read-only reconciliation.', 'ACTIVE_RUN_INCONSISTENT', [reconciliation.classification, ...reconciliation.activeRunIds]);
+  if (requestedRunId && safeRunId(requestedRunId) !== reconciliation.pointerRunId) throw new KernelError(`Run ${requestedRunId} is not the canonical active run.`, 'NOT_ACTIVE_RUN');
+  const summary = await stateShow(cwd, reconciliation.pointerRunId);
   return { ...summary, resumePhase: summary.phase, message: `Resume ${summary.runId} at ${summary.phase}.` };
 }
 
@@ -1007,9 +1102,7 @@ async function finalizeRunUnlocked(cwd, runId, verification) {
   verification = await finalVerifyUnlocked(cwd, runId);
   if (!verification.ok) throw new KernelError('Final verification changed before commit.', 'FINAL_GATE_FAILED', verification.errors);
   const { files, state } = await verifyRun(cwd, runId); const contract = await currentContract(files, state); const evidence = await loadEvidence(files);
-  if (state.status !== 'active') throw new KernelError(`Run ${runId} is already complete.`, 'RUN_COMPLETE');
-  const active = await readJson(files.active, 'Active run pointer');
-  if (active.runId !== runId) throw new KernelError('Only the active run can be finalized.', 'NOT_ACTIVE_RUN');
+  await requireCanonicalActiveRun(cwd, state, runId);
   const currentEntries = evidence.entries.filter((entry) => entry.contractVersion === state.currentContractVersion);
   const passed = currentEntries.filter((entry) => entry.status === 'pass').length;
   const statuses = ['pass', 'fail', 'uncertain', 'pending-review', 'not-applicable'];

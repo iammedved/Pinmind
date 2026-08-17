@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { access, mkdtemp, mkdir, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
+import { access, cp, mkdtemp, mkdir, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
 import { hostname, tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, recordEvidence, redact, redactArgv, redactValue,
+  KernelError, amendContract, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, reconcileActiveRuns, recordEvidence, redact, redactArgv, redactValue,
   recordUsage, reportRun, routeTask, safeRelativePath, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from '../skills/pinmind/scripts/lib/core.mjs';
 import { main } from '../skills/pinmind/scripts/pinmind.mjs';
@@ -448,6 +448,86 @@ test('active lifecycle blocks replacement, finalizes a verified CLI run, and pre
   await rejects(() => validateAndSaveExecution(cwd, 'first-run', { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], zone: ['src'] }] }), 'RUN_COMPLETE');
   const postTurn = await recordUsage(cwd, 'first-run', { status: 'actual', source: 'codex-sdk', scope: 'task', inputTokens: 10, outputTokens: 5, capturedAt: '2026-08-16T18:00:00.000Z' }); assert.equal(postTurn.totalTokens, 15);
   await initRun(cwd, 'second-run', 'User asked for behavior.');
+});
+
+test('orphan active state is diagnosed read-only and blocks resume, mutation, capture, and replacement', async () => {
+  const cwd = await frozenRun();
+  const activeFile = path.join(cwd, '.pinmind/active.json');
+  const stateFile = path.join(cwd, '.pinmind/runs/run-one/state.json');
+  const stateBefore = await readFile(stateFile, 'utf8');
+  await unlink(activeFile);
+
+  const diagnosis = await reconcileActiveRuns(cwd);
+  assert.equal(diagnosis.ok, false);
+  assert.equal(diagnosis.classification, 'orphan-active');
+  assert.equal(diagnosis.pointerRunId, null);
+  assert.deepEqual(diagnosis.activeRunIds, ['run-one']);
+  assert.equal(await readFile(stateFile, 'utf8'), stateBefore);
+  await assert.rejects(access(activeFile));
+  await assert.rejects(() => main(['state', 'reconcile', '--dry-run'], cwd), (error) => error.code === 'ACTIVE_RUN_INCONSISTENT' && error.details[0]?.classification === 'orphan-active');
+
+  await rejects(() => stateResume(cwd, 'run-one'), 'ACTIVE_RUN_INCONSISTENT');
+  await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001')), 'ACTIVE_RUN_INCONSISTENT');
+  await rejects(() => validateAndSaveExecution(cwd, 'run-one', { units: [{ unitId: 'WU-001', obligations: ['REQ-001'], criteria: [], zone: ['src'] }] }), 'ACTIVE_RUN_INCONSISTENT');
+  const sentinel = path.join(cwd, 'capture-should-not-run.txt');
+  await rejects(() => captureEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001', { artifact: undefined, reference: 'orphan-capture' }), [process.execPath, '-e', `require('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'bad')`]), 'ACTIVE_RUN_INCONSISTENT');
+  await assert.rejects(access(sentinel));
+  await rejects(() => initRun(cwd, 'second-run', 'User asked for behavior.'), 'ACTIVE_RUN_INCONSISTENT');
+  await assert.rejects(access(path.join(cwd, '.pinmind/runs/second-run')));
+});
+
+test('split-brain active states block named resume, mutation, and finalization without changing bytes', async () => {
+  const cwd = await frozenRun(); await recordAll(cwd); const verification = await finalVerify(cwd, 'run-one'); assert.equal(verification.ok, true);
+  const donor = await workspace(); await initRun(donor, 'run-two', 'User asked for behavior.');
+  await cp(path.join(donor, '.pinmind/runs/run-two'), path.join(cwd, '.pinmind/runs/run-two'), { recursive: true });
+  const tracked = ['.pinmind/active.json', '.pinmind/runs/run-one/state.json', '.pinmind/runs/run-one/evidence.json', '.pinmind/runs/run-two/state.json'];
+  const before = await Promise.all(tracked.map((file) => readFile(path.join(cwd, file), 'utf8')));
+
+  const diagnosis = await reconcileActiveRuns(cwd);
+  assert.equal(diagnosis.ok, false);
+  assert.equal(diagnosis.classification, 'split-brain');
+  assert.equal(diagnosis.pointerRunId, 'run-one');
+  assert.deepEqual(diagnosis.activeRunIds, ['run-one', 'run-two']);
+  await rejects(() => stateResume(cwd, 'run-one'), 'ACTIVE_RUN_INCONSISTENT');
+  await rejects(() => stateResume(cwd, 'run-two'), 'ACTIVE_RUN_INCONSISTENT');
+  await rejects(() => recordEvidence(cwd, 'run-one', evidence('EV-001', 1, 'AC-001')), 'ACTIVE_RUN_INCONSISTENT');
+  await rejects(() => finalizeRun(cwd, 'run-one', verification), 'ACTIVE_RUN_INCONSISTENT');
+  const after = await Promise.all(tracked.map((file) => readFile(path.join(cwd, file), 'utf8')));
+  assert.deepEqual(after, before);
+  await assert.rejects(access(path.join(cwd, '.pinmind/runs/run-one/final.md')));
+});
+
+test('reconcile distinguishes clean idle, canonical active, and a pointer to a completed run', async () => {
+  const cwd = await workspace();
+  const idle = await main(['state', 'reconcile', '--dry-run'], cwd);
+  assert.deepEqual({ ok: idle.ok, classification: idle.classification, pointerRunId: idle.pointerRunId, activeRunIds: idle.activeRunIds }, { ok: true, classification: 'clean-idle', pointerRunId: null, activeRunIds: [] });
+  await initRun(cwd, 'run-one', 'User asked for behavior.');
+  const canonical = await main(['state', 'reconcile', '--dry-run'], cwd);
+  assert.deepEqual({ ok: canonical.ok, classification: canonical.classification, pointerRunId: canonical.pointerRunId, activeRunIds: canonical.activeRunIds }, { ok: true, classification: 'canonical-active', pointerRunId: 'run-one', activeRunIds: ['run-one'] });
+  assert.equal((await stateResume(cwd, 'run-one')).resumePhase, 'understand');
+
+  const stateFile = path.join(cwd, '.pinmind/runs/run-one/state.json');
+  const state = JSON.parse(await readFile(stateFile, 'utf8')); state.status = 'complete'; state.stateSha256 = hashWithout(state, 'stateSha256'); await writeFile(stateFile, `${JSON.stringify(state, null, 2)}\n`);
+  const pointerBefore = await readFile(path.join(cwd, '.pinmind/active.json'), 'utf8');
+  const divergent = await reconcileActiveRuns(cwd);
+  assert.equal(divergent.ok, false); assert.equal(divergent.classification, 'pointer-nonactive');
+  await rejects(() => initRun(cwd, 'run-two', 'User asked for behavior.'), 'ACTIVE_RUN_INCONSISTENT');
+  assert.equal(await readFile(path.join(cwd, '.pinmind/active.json'), 'utf8'), pointerBefore);
+});
+
+test('reconcile reports invalid and missing pointers without repairing them', async () => {
+  const invalidCwd = await workspace(); await initRun(invalidCwd, 'run-one', 'User asked for behavior.');
+  const invalidPointer = path.join(invalidCwd, '.pinmind/active.json'); await writeFile(invalidPointer, '{invalid');
+  const invalidBefore = await readFile(invalidPointer, 'utf8'); const invalid = await reconcileActiveRuns(invalidCwd);
+  assert.equal(invalid.ok, false); assert.equal(invalid.classification, 'pointer-invalid'); assert.deepEqual(invalid.activeRunIds, ['run-one']); assert.equal(await readFile(invalidPointer, 'utf8'), invalidBefore);
+  await rejects(() => initRun(invalidCwd, 'run-two', 'User asked for behavior.'), 'ACTIVE_RUN_INCONSISTENT');
+
+  const missingCwd = await workspace(); await initRun(missingCwd, 'run-one', 'User asked for behavior.');
+  const missingPointer = path.join(missingCwd, '.pinmind/active.json'); const missingValue = `${JSON.stringify({ format: 1, runId: 'missing-run' }, null, 2)}\n`; await writeFile(missingPointer, missingValue);
+  const missing = await reconcileActiveRuns(missingCwd);
+  assert.equal(missing.ok, false); assert.equal(missing.classification, 'pointer-missing-run'); assert.deepEqual(missing.activeRunIds, ['run-one']); assert.equal(await readFile(missingPointer, 'utf8'), missingValue);
+  await rejects(() => stateResume(missingCwd, 'run-one'), 'ACTIVE_RUN_INCONSISTENT');
+  await rejects(() => main(['state', 'reconcile'], missingCwd), 'DRY_RUN_REQUIRED');
 });
 
 test('workspace writer lock permits exactly one concurrent active-run initialization', async () => {
