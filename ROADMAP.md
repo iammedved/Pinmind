@@ -2,7 +2,7 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.6.2`; see [CHANGELOG.md](CHANGELOG.md). It
+The released public baseline is `v0.6.3`; see [CHANGELOG.md](CHANGELOG.md). It
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
@@ -33,24 +33,26 @@ only unfinished, measurable work; it is not implementation authority.
   integration, and the active `main` ruleset has no bypass actor.
 - The supported public upgrade path refreshes only the Pinmind repository
   marketplace, reinstalls the tagged plugin, and requires a fresh session.
-- Stable releases use full SemVer: `0.6.0`, then compatible fixes such as `0.6.1`
-  and `0.6.2`; historical experimental tags remain immutable.
+- Stable releases use full SemVer: `0.6.0`, then compatible fixes such as `0.6.1`,
+  `0.6.2`, and `0.6.3`; historical experimental tags remain immutable.
 
 ## Now
 
-The stable `0.6.2` source keeps clean displayed SemVer, hardens routing against
+The stable `0.6.3` source keeps clean displayed SemVer, hardens routing against
 conditional Git actions, quoted commands, read-only questions, and scoped
-negation, and keeps the default public install ref coherent with the manifest.
+negation, and adds a stdin bootstrap for the default read-only `codex exec`
+sandbox without putting the request in the router argv.
 
 ### 1. Fresh-host activation evidence
 
-Measure the host-selection seam separately from deterministic routing. The
-`0.6.0` release has local evidence from two fresh implicit and two fresh explicit
-Codex CLI sessions; it does not prove `0.6.2`, Codex App UI rendering, or a public
-activation ledger. After tagged `0.6.2` installation, repeat that matrix for the
-CLI and directly observe the App card/composer in a new App session, preserving
-host version, package hash, selected skill, and the first route before other task
-tools. Keep current ChatGPT distribution and selection unconfirmed until they are
+Measure the host-selection seam separately from deterministic routing. The tagged
+`0.6.2` installation has direct local evidence from two fresh implicit and two
+fresh explicit Codex CLI sessions, including host version, package tree, selected
+cache path, and the first route before task tools. That smoke also found that the
+documented default read-only sandbox could not create the mandatory temporary
+request file; `0.6.3` adds a write-free stdin route and therefore needs the same
+fresh-session replay after tagged installation. Codex App card/composer rendering
+and current ChatGPT distribution and selection remain unconfirmed until they are
 directly observed for the released version.
 
 ### 2. Make release inputs independently governed

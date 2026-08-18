@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "2bf22c1bba922131627c75f7eb99d24e96b83476e5a72f8ace017fbf951bf01b"
+      "sha256": "b518cbac517352ee76b16540dd1c2fa939f2f8351090b3d4968ac05d56235ee6"
     },
     {
       "role": "language-schema-validator",

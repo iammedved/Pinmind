@@ -9,7 +9,7 @@ Deliver substantive outcomes through one adaptive controller. Treat the user's r
 
 ## Mandatory first action
 
-Except for a higher-priority required skill-use announcement and loading this `SKILL.md`, run the bundled kernel router before the first substantive progress update, before reading any task reference or memory, before workspace inspection, and before any task tools or writes. The only permitted bootstrap work before routing is locating the bundled kernel and creating the sanitized temporary request input needed by `route --file`.
+Except for a higher-priority required skill-use announcement and loading this `SKILL.md`, run the bundled kernel router before the first substantive progress update, before reading any task reference or memory, before workspace inspection, and before any task tools or writes. The only permitted bootstrap work before routing is locating the bundled kernel and preparing the sanitized request input needed by `route --file`.
 
 The request file must contain the full sanitized user wording under the exact `text` field; do not paraphrase it, rename the field, or add inferred authority:
 
@@ -20,6 +20,20 @@ The request file must contain the full sanitized user wording under the exact `t
 ```bash
 node <skill-dir>/scripts/pinmind.mjs route --file <sanitized-request.json>
 ```
+
+Prefer a private temporary file when the sandbox allows it. When the filesystem
+is read-only, pass the exact same JSON object on standard input without creating
+state:
+
+```bash
+printf '%s' '<sanitized-request-json>' | node <skill-dir>/scripts/pinmind.mjs route --file -
+```
+
+Do not fall back to `--text` for this bootstrap: it places the request in the
+router process arguments. Standard input avoids that argv exposure but does not
+make the request invisible to the host tool or its own audit log, so sanitize it
+first in every mode. Never combine `--file` with `--text` or `--kind`; when file
+or stdin JSON is used, an optional `kind` belongs inside that JSON object.
 
 The first substantive progress update after any required skill-use announcement must begin `Route: <route> | <clarity>/<executionSpan>/<risk> — <reason>.` Preserve that machine-produced record for the current scope. Read the route-specific references and inspect the workspace only after this update. Re-run the router only after a material user amendment or discovered risk/span escalation.
 

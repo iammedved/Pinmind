@@ -1531,5 +1531,36 @@ export async function finalizeRun(cwd, runId, verification, options = {}) {
 }
 
 export async function readInputJson(file) { return readJson(path.resolve(file)); }
+const ROUTE_STDIN_MAX_BYTES = 1024 * 1024;
+const ROUTE_STDIN_TIMEOUT_MS = 5000;
+export async function readRouteInputJson(file, inputStream = process.stdin, options = {}) {
+  if (file !== '-') return readInputJson(file);
+  const maxBytes = options.maxBytes ?? ROUTE_STDIN_MAX_BYTES; const timeoutMs = options.timeoutMs ?? ROUTE_STDIN_TIMEOUT_MS;
+  const timeoutError = new KernelError(`Route standard input did not finish within ${timeoutMs}ms.`, 'ROUTE_INPUT_TIMEOUT');
+  let timer; let timedOut = false;
+  try {
+    const consume = (async () => {
+      let input = ''; let bytes = 0;
+      inputStream.setEncoding('utf8');
+      for await (const chunk of inputStream) {
+        bytes += Buffer.byteLength(chunk, 'utf8');
+        if (bytes > maxBytes) {
+          inputStream.destroy?.();
+          throw new KernelError(`Route standard input exceeds ${maxBytes} bytes.`, 'ROUTE_INPUT_TOO_LARGE');
+        }
+        input += chunk;
+      }
+      return JSON.parse(input);
+    })();
+    const deadline = new Promise((resolve, reject) => {
+      timer = setTimeout(() => { timedOut = true; inputStream.destroy?.(); reject(timeoutError); }, timeoutMs);
+    });
+    return await Promise.race([consume, deadline]);
+  } catch (error) {
+    if (timedOut) throw timeoutError;
+    if (error instanceof KernelError) throw error;
+    throw new KernelError('Route standard input is unreadable or invalid JSON.', 'INVALID_JSON', [error.message]);
+  } finally { clearTimeout(timer); }
+}
 export async function readBrief(file) { return readFile(path.resolve(file), 'utf8'); }
 export function generateRunId() { return `${new Date().toISOString().slice(0, 10)}-${randomUUID().slice(0, 8)}`; }

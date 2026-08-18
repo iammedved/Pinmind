@@ -2,7 +2,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureBaseline, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, reconcileActiveRuns, recoverTransition,
+  KernelError, amendContract, captureBaseline, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, readRouteInputJson, reconcileActiveRuns, recoverTransition,
   recordEvidence, recordUnavailableBaseline, recordUsage, reportRun, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from './lib/core.mjs';
 
@@ -50,7 +50,12 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (group === '--help' || group === '-h' || !group) return { ok: true, usage };
   validateInvocation(positionals, flags, commandArgv);
   if (group === 'init') { const run = flags.run || generateRunId(); const brief = await readBrief(requireFlag(flags, 'brief')); return initRun(cwd, run, brief); }
-  if (group === 'route') return routeTask(flags.file ? await readInputJson(flags.file) : { text: requireFlag(flags, 'text'), kind: flags.kind });
+  if (group === 'route') {
+    const hasFile = Object.hasOwn(flags, 'file'); const hasText = Object.hasOwn(flags, 'text'); const hasKind = Object.hasOwn(flags, 'kind');
+    if (hasFile && hasText) throw new KernelError('route accepts exactly one input source: --file or --text.', 'CONFLICTING_ROUTE_INPUT');
+    if (hasFile && hasKind) throw new KernelError('--kind belongs inside the JSON object when route uses --file.', 'CONFLICTING_ROUTE_INPUT');
+    return routeTask(hasFile ? await readRouteInputJson(requireFlag(flags, 'file')) : { text: requireFlag(flags, 'text'), kind: flags.kind });
+  }
   if (group === 'state' && action === 'show') return stateShow(cwd, flags.run);
   if (group === 'state' && action === 'resume') return stateResume(cwd, flags.run);
   if (group === 'state' && action === 'reconcile') {

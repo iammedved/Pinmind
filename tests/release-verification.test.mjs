@@ -98,7 +98,7 @@ test('plugin and skill validator rejects malformed metadata and symlinked skills
 
   await writePlugin({ ...plugin, version: '0.6.1+codex.test' });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
-  await writePlugin({ ...plugin, version: '0.6.2-rc.1' });
+  await writePlugin({ ...plugin, version: '0.6.3-rc.1' });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
   await writePlugin({ ...plugin, unexpected: true });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
