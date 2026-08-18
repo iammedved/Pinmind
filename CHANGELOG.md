@@ -23,7 +23,9 @@ Target version: `0.6.1`.
 - Expand the deterministic route corpus from 183 to 227 cases, retaining every
   attempted adversarial case with its pre-fix result and disposition.
 - Reject personal-provider author or committer metadata in the prospective
-  release range while leaving existing published history immutable.
+  release range; accept GitHub-authored two-parent merge metadata only when its
+  commit signature verifies against the frozen GitHub web-flow key, while leaving
+  existing published history immutable.
 
 ## [0.6.0] - 2026-08-18
 
