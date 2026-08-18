@@ -8,6 +8,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 No target version is assigned.
 
+### Fixed
+
+- Keep bounded analysis requests read-only when generic wording such as
+  `Сделай анализ` does not also request implementation.
+- Classify PR creation and merge/push execution separately from PR review and
+  merge planning, including mixed plan/execution clauses and negated actions,
+  with explicit local, remote-collaboration, shared-branch, and protected-branch
+  effects while excluding non-Git uses of merge/push.
+
+### Added
+
+- Add a minimal read-only GitHub Actions gate for pull requests and `main`, pinned
+  to Node `24.19.0` and immutable checkout/setup-node revisions.
+- Add a closed release manifest with SHA-256 digests for the router, language
+  validator, development and release corpora, and unsafe-negative route cases.
+- Add dependency-free release, workflow, plugin, and skill validators plus an
+  explicit inventory of 80 top-level test declarations and separate fixture-case
+  counts.
+
+### Security
+
+- Treat shared or protected branch mutation and unresolved remote merge/push
+  targets as high risk; explicit owner authority is recorded for the exact
+  action and target but never reduces risk.
+
 ## [0.5.0-experimental] - 2026-08-18
 
 ### Added

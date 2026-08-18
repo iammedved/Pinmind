@@ -1222,19 +1222,58 @@ export function routeTask(input = {}) {
   const signalSet = new Set(); const mark = (condition, signal) => { if (condition) signalSet.add(signal); return condition; };
   if (explicitInvocation) mark(true, 'activation:explicit');
   if (explicit) mark(true, `explicit:${explicitRoute || 'unknown'}`);
+  // External collaboration is modeled separately from software impact. A small
+  // action grammar makes the effect and target visible without turning every
+  // mention of a PR, branch, or generic verb into mutation authority.
+  const externalPlanStatementPattern = /\b(?:prepare|draft|write)\s+(?:a\s+)?plan\b|\bplan\s+(?:how\s+)?to\s+(?:create|open|submit|merge|push)\b|(?:подготов|состав|напиш)\S*\s+план\S*|план\S*\s+(?:создани|открыти|слияни|merge|push)/u;
+  const externalProceduralQuestionPattern = /\bhow\s+(?:(?:should|can|do)\s+(?:i|we)\s+|to\s+)(?:create|open|submit|merge|push)\b|\b(?:can|could|would)\s+you\s+(?:explain|describe|outline)\b[^\n]{0,100}\b(?:create|open|submit|merge|push)\b|как\s+(?:нам\s+|мне\s+)?(?:создать|открыть|отправить|смержить|слить|запушить)|нужно\s+ли\s+(?:создать|открыть|отправить|смержить|слить|запушить)/u;
+  const externalDecisionQuestion = /\bshould\s+(?:i|we)\s+(?:create|open|submit|merge|push)\b|стоит\s+ли\s+(?:создать|открыть|отправить|смержить|слить|запушить)/u.test(text);
+  const externalActionNegationPattern = /\b(?:please\s*,?\s+)?(?:do\s+not|don't|never)\s+(?:(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:git\s+)?(?:merge|push)\b)|не\s+(?:(?:создавай|открывай|отправляй|подготавливай|оформляй)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)|(?:мердж|мерж|смерж|слив|влив|запуш|пуш)\S*(?=\s|[.,;:!?]|$)|отправляй\s+(?:ветк|branch)|(?:делай|выполняй)\s+git\s+push\b)/u;
+  const externalPlanStatement = externalPlanStatementPattern.test(text);
+  const externalProceduralQuestion = externalProceduralQuestionPattern.test(text);
+  const externalActionNegation = externalActionNegationPattern.test(text);
+  const externalActionPlan = externalPlanStatement || externalProceduralQuestion || externalDecisionQuestion || externalActionNegation;
+  const externalVerb = /\b(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|\b(?:merge|push)\b|(?:создай|открой|отправь|подготовь|оформи)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)|(?:влей|слей)(?:те)?|(?:запуш|отправ)\S*\s+(?:ветк|branch)/u;
+  const externalClauses = text.split(/(?:[.;]\s*|,?\s+(?:(?:and\s+)?then|and|(?:и\s+)?(?:затем|потом|далее)|(?:и\s+)?после\s+(?:этого|чего)|и)(?:,\s*|\s+))/u);
+  const externalActionText = externalProceduralQuestion || externalDecisionQuestion
+    ? ''
+    : (externalPlanStatement || externalActionNegation
+      ? externalClauses.filter((clause) => externalVerb.test(clause) && !externalPlanStatementPattern.test(clause) && !externalActionNegationPattern.test(clause)).join('. ')
+      : text);
+  const createPrAction = /\b(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:создай|открой|отправь|подготовь|оформи)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)/u.test(externalActionText);
+  const mergeAction = /(?:^|[.!?]\s*|\b(?:first|please|then|and)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+)merge(?=\s+(?:(?:the\s+)?(?:pr|pull\s+request|this|it|#\d+)\b|(?:the|this|a)\s+(?:local\s+)?branch\b)|[^\n]{0,80}\b(?:into|to)\s+(?:(?:protected\s+)?(?:main|master)(?=\s*[.,;:!?]?$)|shared\s+branch|origin\/[a-z0-9._/-]+)|[.!?]?\s*$)|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)/u.test(externalActionText) || /(?:влей|слей)(?:те)?[^\n]{0,80}(?:\b(?:pr|main|master|branch|origin\/)\b|ветк)/u.test(externalActionText);
+  const pushAction = /(?:^|[.!?]\s*|\b(?:first|please|then|and)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+)push\b(?=[^\n]{0,80}\b(?:branches?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|remote\b|to\s+(?:main|master|protected|shared\s+branch|remote\s+branch)))|\bgit\s+push\b|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalActionText);
+  const externalActionRequested = createPrAction || mergeAction || pushAction;
+  const protectedBranchTarget = /\bprotected\s+(?:main|master|branch)\b|(?:защищенн|защищен)\S*\s+(?:main|master|ветк)/u.test(text);
+  const localRepoTarget = mergeAction && /\b(?:locally|local\s+(?:main|master|repository)|working\s+tree)\b|локальн\S*\s+(?:репозитор|main|master)|репозитор\S*\s+локальн/u.test(text);
+  const sharedBranchTarget = protectedBranchTarget || /\b(?:main|master|shared\s+branch|remote\s+branch|origin\/[a-z0-9._/-]+)\b|(?:общ|совместн|удаленн)\S*\s+ветк|(?:в|на)\s+(?:main|master)(?=\s|[.,;:!?]|$)/u.test(text);
+  const unresolvedExternalTarget = (mergeAction || pushAction) && !sharedBranchTarget && !localRepoTarget;
+  const explicitActionAuthority = externalActionRequested && !unresolvedExternalTarget && (/\b(?:i\s+am|i'm)\s+(?:(?:an?|the)\s+)?(?:owner|maintainer)\b[^\n]{0,100}\b(?:approve|authorize|confirm|allow)\b|\b(?:owner|maintainer)\b[^\n]{0,100}\b(?:approved|authorized|confirmed)\b|я\s+(?:владелец|мейнтейнер)[^\n]{0,100}(?:разрешаю|подтверждаю|одобряю)/u.test(text));
+  const protectedBranchMutation = protectedBranchTarget && (mergeAction || pushAction);
+  const sharedBranchMutation = !protectedBranchTarget && !localRepoTarget && sharedBranchTarget && (mergeAction || pushAction);
+  if (createPrAction) mark(true, 'action:create-pr');
+  if (mergeAction) mark(true, 'action:merge');
+  if (pushAction) mark(true, 'action:push');
+  if (explicitActionAuthority) mark(true, 'authority:explicit-action-target');
+  if (protectedBranchTarget && externalActionRequested) mark(true, 'target:protected-branch'); else if (localRepoTarget) mark(true, 'target:local-repository'); else if (sharedBranchTarget && externalActionRequested) mark(true, 'target:shared-branch');
+  if (unresolvedExternalTarget) mark(true, 'target:unresolved');
+  if (protectedBranchMutation) mark(true, 'effect:protected-branch-mutation');
+  else if (sharedBranchMutation) mark(true, 'effect:shared-branch-mutation');
+  else if (localRepoTarget) mark(true, 'effect:local-mutation');
+  else if (externalActionRequested) mark(true, 'effect:remote-collaboration');
   const productionContext = /\b(?:prod|production)\b|\blive\b[^\n]{0,60}\b(?:database|data|records?|credentials?|keys?)\b|\b(?:deploy|publish|release|roll\s*out|ship|migrate|wipe|delete|rotate|revoke)\b[^\n]{0,80}\blive\b|\blive\b[^\n]{0,80}\b(?:deploy|publish|release|roll\s*out|ship|migration|wipe|delete|rotation|revocation)\b|(?<![\p{L}\p{N}_])прод(?:а|е)(?![\p{L}\p{N}_])|продакшн|боев\S*(?:\s+\S+){0,3}\s+(?:баз|данн|ключ|учетн)|(?:выкат|разверн|задепло|опублик|релиз|мигрир|удал|сотр|ротац|отоз)\S*[^\n]{0,80}(?:лайв|боев\S*)/u.test(text);
   const credentialContext = /\b(?:credentials?|api[- ]?keys?|access[- ]?keys?)\b|учетн\S*\s+данн|ключ\S*\s+доступ/u.test(text);
   const destructiveDataEffect = /\b(?:wipe|purge|erase|destroy)\b[^\n]{0,80}\b(?:data|database|records?|credentials?|keys?)\b|(?:сотр|очист|уничтож)\S*[^\n]{0,80}(?:данн|баз|запис|ключ|учетн)/u.test(text);
   const credentialEffect = credentialContext && /\b(?:rotate|revoke|reset|replace|delete|remove|change)\b|ротац|отоз|отмен|смен|замен|удал/u.test(text);
-  const highRisk = mark(/\b(auth(?:entication|orization)?|password|payment|migration|delete|deletion|permission|races?|race\s+conditions?|concurrency|security|secret|production)\b|аутентификац|авторизац|парол|оплат|платеж|миграц|удален|прав.*доступ|гонк|конкурент|безопасност|секрет|продакшн/u.test(text) || productionContext || destructiveDataEffect || credentialEffect, 'risk:high');
+  const highRisk = mark(/\b(auth(?:entication|orization)?|password|payment|migration|delete|deletion|permission|races?|race\s+conditions?|concurrency|security|secret|production)\b|аутентификац|авторизац|парол|оплат|платеж|миграц|удален|прав.*доступ|гонк|конкурент|безопасност|секрет|продакшн/u.test(text) || productionContext || destructiveDataEffect || credentialEffect || protectedBranchMutation || sharedBranchMutation || unresolvedExternalTarget, 'risk:high');
   const multiSystem = /\b(payment|integration|multi-system|distributed|webhook)\b|платеж|интеграц|нескольк.*систем|вебхук/u.test(text);
   const architectural = mark(/\b(architecture|architectural|public\s+(?:api|interface)|breaking\s+change|system\s+shape|system\s+boundar(?:y|ies)|service\s+boundar(?:y|ies)|data\s+schema)\b|архитектур|публичн\S*\s+(?:api|интерфейс)|границ\S*\s+(?:сервис|систем)|схем\S*\s+обмен|перепроектир/u.test(text), 'clarity:architectural');
   const crossCutting = multiSystem || architectural || /\b(api|database|schema|shared state|canonical (?:state|mutation|change)|process group|workspace-wide|lifecycle|migration)\b|all\s+canonical\s+(?:state\s+)?(?:mutations?|changes?)|нескольк.*модул|общ.*состояни|каноническ.*(?:состояни|изменени)|жизненн.*цикл|групп.*процесс|баз\S*\s+данн|миграц|мигрир/u.test(text);
   if (multiSystem) mark(true, 'span:multi-system'); else if (crossCutting) mark(true, 'span:cross-cutting');
-  const uncertain = /\b(feasibility|research|can we|should we|unknown|explore|compare (?:the )?(?:options|approaches))\b|возможн|исследу|можем ли|неизвест|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
+  const uncertain = !externalProceduralQuestion && /\b(feasibility|research|can we|should we|unknown|explore|compare (?:the )?(?:options|approaches))\b|возможн|исследу|можем ли|неизвест|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
   const trivial = mark(/^\s*(?:hi|hello|hey|thanks|thank you|привет|здравствуй(?:те)?|спасибо)[!.,?\s]*$/u.test(text), 'intent:trivial');
   const noChangePattern = /\b(?:(?:do not|don't)\s+(?:(?:create|change|modify|edit|alter|touch)(?:\s+or\s+)?){1,2}\s+(?:any\s+)?(?:files?|code)|without\s+(?:(?:creating|changing|modifying|editing|altering|touching)(?:\s+or\s+)?){1,2}\s+(?:any\s+)?(?:files?|code)|(?:do not|don't|without)\s+(?:make\s+)?(?:any\s+)?(?:change|changes|modify|modification|edit|editing|alter|touch)|(?:report|inspect|review)\s+only|only\s+report|read[- ]only|without\s+changes?)\b|ничего\s+не\s+(?:меняй|изменяй|исправляй|трогай)|(?:пока\s+)?не\s+(?:меняй|изменяй|вноси|трогай|правь|редактируй)(?=\s|[.,;:!?]|$)|(?:в\s+)?код\S*\s+(?:пока\s+)?не\s+(?:лезь|правь|меняй|трогай)|не\s+меняя|не\s+внося\s+изменени\S*(?:\s+в\s+(?:файл\S*|код\S*))?|не\s+(?:создавая|изменяя|редактируя|удаляя|трогая)(?:\s*,?\s*(?:и|или)\s+не\s+(?:создавая|изменяя|редактируя|удаляя|трогая)){0,3}\s+(?:файл\S*|код\S*)|без\s+(?:изменени|правок)|правк\S*\s+не\s+вноси|оставь\s+код\s+как\s+есть|только\s+(?:сообщи|покажи|дай).*результат|только\s+(?:проверь|посмотри)/u;
-  const noChange = mark(noChangePattern.test(text), 'authority:no-change');
+  const noChange = mark(noChangePattern.test(text) || externalActionNegation, 'authority:no-change');
   const affirmativeText = text
     .replace(new RegExp(noChangePattern.source, 'gu'), '')
     .replace(/\bafter\s+(?:the\s+)?(?:update|change|migration)\b/gu, '')
@@ -1243,10 +1282,13 @@ export function routeTask(input = {}) {
   const directiveText = actionText
     .replace(/\bhow\s+to\s+(?:fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|improve|redesign|migrate|deploy)\b/gu, '')
     .replace(/как\s+(?:исправить|изменить|реализовать|добавить|обновить|удалить|переписать|улучшить|переработать|мигрировать|развернуть)/gu, '');
-  const changePattern = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace)\b|исправ|измен|внес|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|сделай|пофикс|почин|сотр|очист|уничтож|ротац|отоз|смен|замен|усил.*(?:защит|безопас)/u;
+  const changePattern = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace)\b|сделай\s+так,?\s+чтобы|исправ|измен|внес|правк|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|пофикс|почин|сотр|очист|уничтож|ротац|отоз|смен|замен|усил.*(?:защит|безопас)/u;
   const readOnlyDirectivePattern = /^(?:(?:please|briefly|shortly|first)\s*,?\s*){0,3}(?:explain|describe|report|tell|summari[sz]e)\b|^(?:(?:пожалуйста|кратко|сначала)\s*,?\s*){0,3}(?:объясни|расскажи|опиши|сообщи|суммируй|дай\s+отч[её]т)(?=\s|[.,;:!?]|$)/u;
-  const changeMention = changePattern.test(directiveText);
-  const planningRequest = /\b(?:plan\s+(?:how|for|to)|(?:what(?:'s| is)|propose|draft|prepare|recommend|review|critique)\s+(?:the\s+)?(?:next\s+)?(?:plan|roadmap|proposal|recommendations?))\b|(?:какой|предлож\S*|состав\S*|подготов\S*|дай|продум\S*|оцени\S*|покритику\S*|нужен)\s+(?:\S+\s+){0,3}план\S*|план\S*\s+(?:по|для|улучш|дальнейш)|критик\S*\s+(?:существ|текущ)/u.test(text);
+  const reportingDirectiveText = directiveText
+    .replace(/\b(?:make|prepare|provide)\s+(?:an?\s+)?(?:analysis|assessment|review|report)\b/gu, '')
+    .replace(/(?:^|[.!?]\s*)(?:сделай|проведи)\s+(?:анализ|обзор|оценку|отчет)(?=\s|[.,;:!?]|$)/gu, ' ');
+  const changeMention = changePattern.test(reportingDirectiveText);
+  const planningRequest = externalActionPlan || /\b(?:plan\s+(?:how|for|to)|(?:what(?:'s| is)|propose|draft|prepare|recommend|review|critique)\s+(?:the\s+)?(?:next\s+)?(?:plan|roadmap|proposal|recommendations?))\b|(?:какой|предлож\S*|состав\S*|подготов\S*|дай|продум\S*|оцени\S*|покритику\S*|нужен)\s+(?:\S+\s+){0,3}план\S*|план\S*\s+(?:по|для|улучш|дальнейш)|критик\S*\s+(?:существ|текущ)/u.test(text);
   const executionConnector = /(?:,?\s+)(?:(?:and\s+)?then|and|(?:и\s+)?(?:затем|потом|далее)|(?:и\s+)?после\s+(?:этого|чего)|и)(?:,\s*|\s+)/u.exec(directiveText);
   const executionSuffix = executionConnector ? directiveText.slice(executionConnector.index + executionConnector[0].length) : '';
   const planningAndExecution = Boolean(planningRequest && executionConnector && !readOnlyDirectivePattern.test(executionSuffix) && changePattern.test(executionSuffix));
@@ -1260,16 +1302,16 @@ export function routeTask(input = {}) {
   const boundedRewrite = /\b(?:rewrite|shorten|rephrase)\b[^\n]{0,80}\b(?:this|the)?\s*(?:sentence|phrase|paragraph|text)\b|(?:перепиш|сократ|перефразир)\S*[^\n]{0,80}(?:предложен|фраз|абзац|текст)/u.test(text) && !productLocalization && !softwareImpact;
   const boundedFormat = /\bformat\b[^\n]{0,80}\b(?:this|the)?\s*(?:short\s+)?(?:list|text|paragraph)\b|отформатир\S*[^\n]{0,80}(?:коротк\S*\s+)?(?:список|текст|абзац)/u.test(text) && !softwareImpact;
   if (translation || boundedRewrite) mark(true, 'intent:bounded-text'); if (boundedFormat) mark(true, 'intent:bounded-format');
-  const operationalIntent = /\b(copy|rename|move|fix typo|sort files?)\b|скопир|переимен|перемест|исправ.*опечат|отсортир.*файл/u.test(text) && !softwareImpact;
-  const operational = operationalIntent && !noChange;
+  const operationalIntent = externalActionRequested || (/\b(copy|rename|move|fix typo|sort files?)\b|скопир|переимен|перемест|исправ.*опечат|отсортир.*файл/u.test(text) && !softwareImpact);
+  const operational = operationalIntent && !noChange && (!externalActionRequested || !requestedChange);
   const symptom = /\b(?:errors?|fail(?:s|ed|ure|ing)?|returns?\s+[45]\d{2}|crash(?:es|ed|ing)?|broken|not\s+work(?:ing)?)\b|ошиб|падает|сломал|не\s+работает/u.test(text);
   const exploratoryQuestion = /\b(?:feasibility|compare (?:the )?(?:options|approaches)|explore (?:the )?(?:options|approaches))\b|оцен.*возможност|сравни.*(?:вариант|подход)/u.test(text);
-  const investigation = (!exploratoryQuestion && /\b(debug|diagnos\S*|investigat(?:e|es|ed|ing|ion)|root cause|reproduce|bug|find (?:the )?cause|find why)\b|диагност|расследован|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text)) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || (symptom && !requestedChange);
+  const investigation = !requestedChange && ((!exploratoryQuestion && /\b(debug|diagnos\S*|investigat(?:e|es|ed|ing|ion)|root cause|reproduce|bug|find (?:the )?cause|find why)\b|диагност|расследован|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text)) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || symptom);
   const explanation = /\b(?:explain|describe)\b|\bhow\s+(?:does|do|is|are)\b|объясн|расскаж|опиш\S*\s+как/u.test(text);
-  const auditRequest = /\b(audit|review|reviewing|pr review|security review|inspect|evaluate|check|report|look for (?:problems|issues)|find (?:problems|issues))\b|аудит|ревью|провер|посмотр|оцени|проанализир|глян|отчет|сообщи|поиск(?:ать|и).*проблем|найд\S*.*проблем/u.test(text);
-  const spike = /\b(feasibility|research|can we|should we|spike|explore|compare (?:the )?(?:options|approaches))\b|оцен.*возможност|исследу|можем ли|спайк|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
+  const auditRequest = /\b(audit|analysis|analy[sz]e|assessment|review|reviewing|pr review|security review|inspect|evaluate|check|report|look for (?:problems|issues)|find (?:problems|issues))\b|аудит|анализ|ревью|провер|посмотр|оцени|проанализир|глян|отчет|сообщи|поиск(?:ать|и).*проблем|найд\S*.*проблем/u.test(text);
+  const spike = !externalProceduralQuestion && /\b(feasibility|research|can we|should we|spike|explore|compare (?:the )?(?:options|approaches))\b|оцен.*возможност|исследу|можем ли|спайк|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
   const recognizedReadOnlyIntent = investigation || explanation || auditRequest || planningRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
-  const conflict = mark(noChange && (requestedChange || operationalIntent || !recognizedReadOnlyIntent), 'authority:conflict');
+  const conflict = mark(noChange && (requestedChange || operationalIntent || externalActionRequested || !recognizedReadOnlyIntent), 'authority:conflict');
   const vague = mark(/^(?:(?:make|fix|improve)\s+(?:it|this)(?:\s+(?:work|better|properly))?|do\s+(?:it|this)\s+(?:right|properly)|(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?)[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
   const audit = conflict || (!investigation && ((!requestedChange && (explanation || planningRequest)) || (auditRequest && (!requestedChange || noChange))));
   if (requestedChange) mark(true, 'intent:change'); if (softwareImpact) mark(true, 'impact:software');
@@ -1281,13 +1323,13 @@ export function routeTask(input = {}) {
   else if (explicitRoute === 'spike' && spike && !requestedChange && !softwareImpact && !highRisk && !architectural) selectedExplicit = explicitRoute;
   const inferredRoute = trivial || stableFact || translation || boundedRewrite || boundedFormat ? 'simple' : operational ? 'operational' : investigation ? 'investigation' : spike ? 'spike' : audit ? 'audit' : 'software-change';
   const route = selectedExplicit ?? inferredRoute;
-  const risk = highRisk ? 'high' : (route === 'operational' || route === 'simple' || route === 'spike' ? 'low' : 'medium');
+  const risk = highRisk ? 'high' : (externalActionRequested && !localRepoTarget ? 'medium' : (route === 'operational' || route === 'simple' || route === 'spike' ? 'low' : 'medium'));
   const executionSpan = multiSystem ? 'multi-system' : crossCutting ? 'cross-cutting' : 'local';
-  const clarity = input.clarity === 'architectural' || architectural ? 'architectural' : (input.clarity === 'uncertain' || uncertain || route === 'spike' || conflict || vague ? 'uncertain' : 'clear');
+  const clarity = input.clarity === 'architectural' || architectural ? 'architectural' : (input.clarity === 'uncertain' || uncertain || route === 'spike' || conflict || vague || unresolvedExternalTarget ? 'uncertain' : 'clear');
   if (signalSet.size === 0) signalSet.add('intent:default-change');
   const blockedExplicit = Boolean(explicitRoute && selectedExplicit !== explicitRoute);
-  const confidence = conflict || vague || !text.trim() ? 'low' : (blockedExplicit || signalSet.has('intent:default-change') ? 'medium' : 'high');
-  const needsHumanConfirmation = conflict || vague || !text.trim();
+  const confidence = conflict || vague || unresolvedExternalTarget || !text.trim() ? 'low' : (blockedExplicit || signalSet.has('intent:default-change') ? 'medium' : 'high');
+  const needsHumanConfirmation = conflict || vague || unresolvedExternalTarget || !text.trim();
   const reasons = {
     simple: translation ? 'A bounded translation request needs no tools or persistent workflow.' : (boundedRewrite || boundedFormat ? 'A bounded text request needs no tools or persistent workflow.' : (stableFact ? 'A single stable fact stays lightweight.' : 'An obvious trivial or explicit simple request stays lightweight.')),
     operational: 'A bounded operational action does not change software behavior.',

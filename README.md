@@ -25,6 +25,22 @@ Current source version: `0.5.0-experimental`.
 
 The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.5.0-experimental` selects this exact prerelease; omit `--ref` only when you intentionally want the latest repository state.
 
+### Codex CLI: upgrade or reinstall a reviewed revision
+
+Replace `<reviewed-tag-or-commit>` with an immutable release tag or commit that
+you have reviewed, then refresh only the Pinmind marketplace and plugin:
+
+```bash
+codex plugin remove pinmind@pinmind-project
+codex plugin marketplace remove pinmind-project
+codex plugin marketplace add iammedved/Pinmind --ref <reviewed-tag-or-commit>
+codex plugin add pinmind@pinmind-project
+```
+
+Start a new Codex session and use `/skills` to confirm that `pinmind` is
+available. The repository-local installer helper is retained only as a legacy
+recovery path; it is not the supported public upgrade path.
+
 ### Codex CLI: install only the skill from source
 
 1. Copy `https://github.com/iammedved/Pinmind`.
@@ -130,16 +146,46 @@ Release tags use `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH-PRERELEASE`. Build 
 
 ## Validation
 
+The supported local release gate uses the exact Node version in
+[`.node-version`](.node-version), validates the frozen-input manifest, and then
+runs the same fixed command list as CI:
+
+```bash
+node scripts/verify-release.mjs --run
+```
+
+The manifest records SHA-256 digests for the router, language validator,
+development corpus, held-out release corpus, and mandatory unsafe-negative route
+regressions. A digest change therefore requires an intentional manifest update
+in review. Because the manifest and inputs remain in the same repository, this is
+a review-visible tamper-evidence boundary, not a cryptographically independent
+benchmark.
+
+For an auditable inventory, Pinmind counts top-level `test(` declarations rather
+than quoting Node's runtime summary. The current manifest records 80 declarations
+across four test files, plus fixture-case counts for routes, activation, AEP, and
+language evaluation. These are separate dimensions and are not presented as one
+inflated "test count."
+
+The expanded commands executed by the gate are:
+
 ```bash
 node --test tests/kernel.test.mjs
 node scripts/validate-aep-decision-contract.mjs
 node --test tests/aep-decision-contract.test.mjs
 node scripts/evaluate-language-routing.mjs
 node --test tests/language-routing-evaluator.test.mjs
+node --test tests/release-verification.test.mjs
+node scripts/validate-plugin-skill.mjs
 node --check skills/pinmind/scripts/lib/core.mjs
 node --check skills/pinmind/scripts/pinmind.mjs
-git diff --check
+node scripts/check-repository-diff.mjs
 ```
+
+The repository workflow runs this gate for pull requests and pushes to `main`
+with read-only contents permission and immutable action revisions. A local pass
+does not prove the GitHub-hosted check passed; that evidence exists only after the
+workflow runs on GitHub.
 
 ## Limitations
 

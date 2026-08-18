@@ -47,6 +47,20 @@ The kernel also returns:
 
 These fields explain a decision; they never authorize side effects. A conflicting request such as “улучши код, но ничего не меняй” stays read-only and requests confirmation. Architectural clarity takes precedence when public boundaries or system shape change, even if the design also contains uncertainty.
 
+For repository collaboration, derive speech act, action, source/destination
+target, authority, and external effect independently. A read-only PR review,
+procedural question, negated action, or merge plan remains `audit`. When one
+request contains planning and execution clauses, classify the executable clause
+regardless of whether it appears before or after the plan.
+Creating a PR from existing work is `operational` with a
+`remote-collaboration` effect. Merging or pushing to a shared or protected
+branch is `operational/high`; a simultaneous request to change software keeps
+the primary route `software-change` while retaining the external-effect
+signals. Explicit owner or maintainer approval can resolve authority for the
+named action and target, but it never lowers inherent risk. An unresolved merge
+or push target sets `needsHumanConfirmation: true` and stays read-only until
+clarified.
+
 After Pinmind is active, use the kernel route record before route-dependent action when the kernel is available. Preserve one decision for the current scope; do not reclassify every assistant message. Re-run only after a user amendment or evidence changes route, span, or risk. When the kernel is unavailable, label model-only classification as a non-deterministic fallback.
 
 ## Route examples
@@ -57,6 +71,9 @@ After Pinmind is active, use the kernel route record before route-dependent acti
 | "Copy these six supplied images into the requested folder" | operational |
 | "Can this library parse our legacy format?" | spike |
 | "Review this PR and do not change code" / "Проверь репозиторий, ничего не меняй" | audit |
+| "Prepare a plan for the pull request merge" | audit |
+| "Create a pull request targeting main" | operational, clear/local/medium plus external-effect gate |
+| "Merge PR #12 into protected main" | operational, clear/local/high plus external-effect gate |
 | "Why does login sometimes return 500?" / "Диагностируй проблему, ничего не меняй" | investigation, no fix without authority |
 | "Fix this local validation rule" | software-change, clear/local/medium |
 | "Fix a race condition" | investigation then software-change, clear/cross-cutting/high |
