@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "b518cbac517352ee76b16540dd1c2fa939f2f8351090b3d4968ac05d56235ee6"
+      "sha256": "6e36e06598c567d5d551da85d5b45113e426348597ecc4da2b071bb6e4342bbd"
     },
     {
       "role": "language-schema-validator",
@@ -31,7 +31,7 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "88eb6daa704b7e664140312849232d59c5f36c019fccef8aabff3787a87d0a7c"
+      "sha256": "b402c70df36dbafa02e24019e170570e3d0eb757eb9a12bf60daa9c2a97082b7"
     }
   ],
   "commands": [
@@ -55,7 +55,7 @@
       { "path": "tests/release-verification.test.mjs", "topLevelDeclarations": 9 }
     ],
     "fixtureCases": {
-      "routes": 227,
+      "routes": 247,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,

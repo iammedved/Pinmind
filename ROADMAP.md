@@ -65,6 +65,11 @@ sandbox without putting the request in the router argv.
   verifier, including command invocation and status parsing. Current unit tests
   cover the decision boundary with a verifier stub, while the release gate
   exercises the real verifier only when such a merge is present in its range.
+- Model standalone tag creation, GitHub Release publication, and tagged plugin
+  installation as explicit external action classes with read-only, negated, and
+  exact-target contrasts. The current Git collaboration grammar can keep a
+  combined release request high-risk through its push/merge backbone, but does
+  not yet expose those later actions as separate route signals.
 
 ### 1. Fresh-host activation evidence
 

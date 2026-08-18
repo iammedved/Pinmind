@@ -14,6 +14,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
   route can run in the documented default read-only `codex exec` sandbox.
 - Reject conflicting route input sources instead of silently preferring
   `--file` or ignoring a command-line `--kind`.
+- Preserve confirmed push, PR, and merge action lists after a separate critical
+  preface instead of downgrading them to investigation because the preface
+  mentions an error.
+- Expand the deterministic routing regression corpus from 227 to 247 cases with
+  the exact observed failure plus English, quoted, negated, explanatory, and
+  documentary contrasts.
 
 ### Changed
 

@@ -52,6 +52,9 @@ target, authority, and external effect independently. A read-only PR review,
 procedural question, negated action, or merge plan remains `audit`. When one
 request contains planning and execution clauses, classify the executable clause
 regardless of whether it appears before or after the plan.
+An explicit confirmation or approval can make a following bounded action list
+executable even when the list uses nominal forms, but that speech act alone does
+not prove that the speaker is an owner or maintainer.
 Creating a PR from existing work is `operational` with a
 `remote-collaboration` effect. Merging or pushing to a shared or protected
 branch is `operational/high`; a simultaneous request to change software keeps
