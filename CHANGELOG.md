@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 No target version is assigned.
 
+## [0.6.0] - 2026-08-18
+
+`0.6.0` starts the stable public line. Existing experimental tags remain
+immutable history; compatible fixes follow as `0.6.1`, `0.6.2`, and so on.
+
 ### Fixed
 
 - Keep bounded analysis requests read-only when generic wording such as
@@ -26,12 +31,18 @@ No target version is assigned.
 - Add dependency-free release, workflow, plugin, and skill validators plus an
   explicit inventory of 80 top-level test declarations and separate fixture-case
   counts.
+- Add first-class remaining-boundary data to JSON reports and matching sections
+  to Markdown and finalized reports.
+- Add Codex `logo` and `composerIcon` metadata that resolves to the exact tracked
+  README hero image.
 
 ### Security
 
 - Treat shared or protected branch mutation and unresolved remote merge/push
   targets as high risk; explicit owner authority is recorded for the exact
   action and target but never reduces risk.
+- Pin the protected-main `verify` requirement to the observed GitHub Actions
+  integration while preserving pull-request, deletion, and force-push rules.
 
 ## [0.5.0-experimental] - 2026-08-18
 

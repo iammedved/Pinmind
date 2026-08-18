@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current source version: `0.5.0-experimental`.
+Current source version: `0.6.0`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -13,17 +13,17 @@ Current source version: `0.5.0-experimental`.
 
 ### Codex CLI: install the plugin from GitHub
 
-1. Add the pinned experimental repository marketplace:
+1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.5.0-experimental
+   codex plugin marketplace add iammedved/Pinmind --ref v0.6.0
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.5.0-experimental` selects this exact prerelease; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.6.0` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -95,6 +95,14 @@ Implicit selection is probabilistic. Explicit invocation is the reliable choice 
 
 `0.5.0-experimental` adds a closed-schema, dependency-free language evaluator with 32 development and 32 frozen release-gate cases. It reports route, authority, mutation boundary, pair, risk, and language-slice results without changing runtime routing. The fixed corpus is regression evidence, not a statistically independent benchmark or a claim of universal language understanding or host activation.
 
+`0.6.0` is the first stable public release line. It carries forward the reviewed
+experimental baseline, fixes the P0 routing contrasts, adds the required GitHub
+CI and frozen-input gate, exposes remaining boundaries in generated reports, and
+publishes Codex logo metadata that points to the same tracked image as this
+README. Stable refers to the release contract and versioning discipline; it does
+not claim universal implicit activation, ChatGPT directory availability, an
+independently administered corpus, or authoritative token measurement.
+
 Phase 0 does **not** select a concrete model, change `route`, start an agent, authorize an action, or store prompts and traces. It only defines how a future host adapter could choose a work shape, capability profile, escalation reason, and verification oracle. Mapping profiles to current models and reasoning levels remains a later opt-in step that requires held-out evaluation and separate authorization.
 
 ## Kernel CLI
@@ -120,7 +128,7 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 
 ## Project documentation
 
-- [CHANGELOG.md](CHANGELOG.md) — release history and the current experimental release.
+- [CHANGELOG.md](CHANGELOG.md) — stable and experimental release history.
 - [ADAPTIVE_EXECUTION_POLICY.md](ADAPTIVE_EXECUTION_POLICY.md) — provider-neutral AEP Phase 0 contract and rollout boundary.
 - [P2 architecture decision](docs/p2-architecture.md) — adapter boundaries, model handoffs, admission tests, and rejected runtime expansion.
 - [ROADMAP.md](ROADMAP.md) — evidence-backed future priorities.
@@ -143,6 +151,11 @@ Pinmind follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 - `PATCH` for backward-compatible fixes and documentation corrections.
 
 Release tags use `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH-PRERELEASE`. Build metadata such as `+codex.<cachebuster>` refreshes an installed snapshot without changing the product version.
+
+The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
+versions such as `0.6.1` and `0.6.2`; backward-compatible feature releases use a
+new minor such as `0.7.0`. Existing experimental tags are immutable history and
+are never moved to newer commits.
 
 ## Validation
 

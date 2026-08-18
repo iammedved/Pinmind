@@ -30,7 +30,7 @@ function contract(version = 1, changed = false) {
     acceptanceCriteria: [{ id: 'AC-001', given: 'a user', when: 'they act', then: ['they see the behavior'], evidence: ['EV-001'] }, { id: 'AC-002', statement: 'Optional result is present.', observation: 'The result appears in the response.', evidence: ['EV-004'] }],
     invariants: [{ id: 'INV-001', statement: 'Existing behavior remains safe.', evidence: ['EV-002'] }],
     preservation: [{ id: 'PRES-001', statement: 'Public API remains compatible.', evidence: ['EV-003'] }],
-    boundaries: { allowed: ['src'], forbidden: ['auth'] }, publicSeams: [], nonFunctional: [], assumptions: [], outOfScope: [],
+    boundaries: { allowed: ['src'], forbidden: ['auth'] }, publicSeams: [], nonFunctional: [], assumptions: ['Host rendering requires observation.'], outOfScope: ['Universal directory publication.'],
   };
 }
 function evidence(evidenceId, contractVersion, covers, extra = {}) {
@@ -187,6 +187,7 @@ test('outOfScope is canonical and its amendment diff requires OUT-OF-SCOPE', asy
   const cwd = await frozenRun(); await recordAll(cwd); const candidate = contract(2); candidate.outOfScope = ['A newly excluded concern.'];
   await rejects(() => amendContract(cwd, 'run-one', candidate, 'Clarify scope.', ['INTENT'], 'approved'), 'INVALID_AMENDMENT');
   const result = await amendContract(cwd, 'run-one', candidate, 'Clarify scope.', ['OUT-OF-SCOPE'], 'approved'); assert.deepEqual(result.invalidatedEvidence.sort(), ['EV-001', 'EV-002', 'EV-003']);
+  const report = await reportRun(cwd, 'run-one', 'json'); assert.deepEqual(report.remainingBoundaries.outOfScope, ['A newly excluded concern.']); assert.equal(JSON.stringify(report).includes('Universal directory publication.'), false);
 });
 
 test('statement-only acceptance requires an explicit observation', () => {
@@ -371,7 +372,8 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const baseVersion = manifest.version.split('+')[0];
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  assert.match(manifest.version, /^\d+\.\d+\.\d+-experimental(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.match(manifest.version, /^\d+\.\d+\.\d+(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.equal(baseVersion, '0.6.0');
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
@@ -389,6 +391,9 @@ test('public release documentation, license, metadata, evaluation guides, and he
   assert.equal(hero.readUInt32BE(16), 1672);
   assert.equal(hero.readUInt32BE(20), 941);
   assert.equal(createHash('sha256').update(hero).digest('hex'), '3219be9fc321fa58704e8594793f15c818ef15f0b8630bf80cb5f8757372f515');
+  assert.equal(manifest.interface.logo, './docs/assets/pinmind-hero.png');
+  assert.equal(manifest.interface.composerIcon, './docs/assets/pinmind-hero.png');
+  assert.deepEqual(await readFile(path.join(root, manifest.interface.logo.slice(2))), hero);
   assert.match(readme, /\[CHANGELOG\.md\]\(CHANGELOG\.md\)/);
   assert.match(readme, /\[ADAPTIVE_EXECUTION_POLICY\.md\]\(ADAPTIVE_EXECUTION_POLICY\.md\)/);
   assert.match(readme, /\[P2 architecture decision\]\(docs\/p2-architecture\.md\)/);
@@ -424,7 +429,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   assert.match(changelog, /## \[0\.3\.1-experimental\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.3\.0-experimental\] - 2026-08-17/);
   assert.match(`${readme}\n${changelog}`, /immutable baseline/);
-  assert.match(`${readme}\n${changelog}`, /experimental.*(?:maturity|marker)|(?:maturity|marker).*experimental/is);
+  assert.match(`${readme}\n${changelog}`, /experimental.*(?:history|baseline)|(?:history|baseline).*experimental/is);
   assert.match(changelog, /## \[0\.2\.4\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.3\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.2\.2\] - 2026-08-17/);
@@ -478,12 +483,12 @@ test('release installer commits a verified source and serializes concurrent swap
 
 test('usage defaults to unavailable and reports exact observed totals without estimates', async () => {
   const cwd = await frozenRun();
-  const initial = await reportRun(cwd, 'run-one', 'json'); assert.equal(initial.tokenUsage.status, 'unavailable'); assert.equal(initial.tokenUsage.totalTokens, null); assert.match(initial.tokenUsage.reason, /did not expose|not recorded/i);
+  const initial = await reportRun(cwd, 'run-one', 'json'); assert.equal(initial.tokenUsage.status, 'unavailable'); assert.equal(initial.tokenUsage.totalTokens, null); assert.match(initial.tokenUsage.reason, /did not expose|not recorded/i); assert.deepEqual(initial.remainingBoundaries, { assumptions: ['Host rendering requires observation.'], outOfScope: ['Universal directory publication.'] });
   await recordUsage(cwd, 'run-one', { status: 'unavailable', source: 'host-unavailable', scope: 'task', capturedAt: '2026-08-16T17:59:00.000Z', reason: `Authorization=demo-credential-value ${syntheticProviderToken}` }); const unavailable = await reportRun(cwd, 'run-one', 'json'); assert.equal(JSON.stringify(unavailable).includes('demo-credential-value'), false); assert.equal(JSON.stringify(unavailable).includes(syntheticProviderToken), false);
   const observed = await recordUsage(cwd, 'run-one', { status: 'actual', source: 'codex-sdk', scope: 'task', model: 'gpt-5.6', inputTokens: 1200, cachedInputTokens: 400, outputTokens: 300, reasoningOutputTokens: 50, capturedAt: '2026-08-16T18:00:00.000Z', reference: 'turn-123' });
   assert.equal(observed.totalTokens, 1500); assert.equal(observed.reference, 'turn-123');
   const report = await reportRun(cwd, 'run-one', 'json'); assert.equal(report.tokenUsage.totalTokens, 1500); assert.equal(report.tokenUsage.inputTokens, 1200); assert.equal(report.tokenUsage.outputTokens, 300); assert.equal(report.tokenUsage.cachedInputTokens, 400); assert.equal(report.tokenUsage.reasoningOutputTokens, 50); assert.equal('reference' in report.tokenUsage, false);
-  const markdown = await reportRun(cwd, 'run-one', 'md'); assert.match(markdown, /Total: 1,500/); assert.match(markdown, /Source: codex-sdk/); assert.doesNotMatch(markdown, /saved|saving|сэконом/iu);
+  const markdown = await reportRun(cwd, 'run-one', 'md'); assert.match(markdown, /Total: 1,500/); assert.match(markdown, /Source: codex-sdk/); assert.match(markdown, /## Remaining boundaries/); assert.match(markdown, /Host rendering requires observation/); assert.match(markdown, /Universal directory publication/); assert.doesNotMatch(markdown, /saved|saving|сэконом/iu);
 });
 
 test('usage rejects malformed metadata or inconsistent counts and detects accidental receipt corruption', async () => {
@@ -570,7 +575,7 @@ test('final check is read-only, final verify stays compatible, and resume stays 
   for (const [id, target] of [['EV-001', 'AC-001'], ['EV-002', 'INV-001'], ['EV-003', 'PRES-001'], ['EV-004', 'AC-002']]) { const file = path.join(cwd, `${id}.json`); await writeFile(file, JSON.stringify(evidence(id, 1, target, id === 'EV-004' ? { status: 'uncertain' } : {}))); await main(['evidence', 'record', '--run', 'first-run', '--file', file], cwd); }
   const canonical = ['.pinmind/active.json', '.pinmind/runs/first-run/state.json', '.pinmind/runs/first-run/evidence.json']; const beforeCheck = await Promise.all(canonical.map((file) => readFile(path.join(cwd, file), 'utf8')));
   const firstCheck = await main(['final', 'check', '--run', 'first-run'], cwd); const secondCheck = await main(['final', 'check', '--run', 'first-run'], cwd); assert.equal(firstCheck.verdict, 'pass'); assert.deepEqual(secondCheck, firstCheck); assert.deepEqual(await Promise.all(canonical.map((file) => readFile(path.join(cwd, file), 'utf8'))), beforeCheck); await assert.rejects(access(path.join(cwd, '.pinmind/runs/first-run/final.md')));
-  const final = await main(['final', 'verify', '--run', 'first-run'], cwd); const finalText = await readFile(final.finalPath, 'utf8'); assert.equal(final.finalized, true); assert.match(finalText, /- pass: 3/); assert.match(finalText, /- uncertain: EV-004/); assert.match(finalText, /manual\/unreplayed: EV-001, EV-002, EV-003, EV-004/); assert.match(finalText, /MUST evidence coverage: satisfied/); assert.match(finalText, /## Token usage/); assert.match(finalText, /Status: unavailable/); assert.doesNotMatch(finalText, /saved|saving|сэконом/iu); assert.doesNotMatch(finalText, /MUST verdict: pass/);
+  const final = await main(['final', 'verify', '--run', 'first-run'], cwd); const finalText = await readFile(final.finalPath, 'utf8'); assert.equal(final.finalized, true); assert.match(finalText, /- pass: 3/); assert.match(finalText, /- uncertain: EV-004/); assert.match(finalText, /manual\/unreplayed: EV-001, EV-002, EV-003, EV-004/); assert.match(finalText, /## Remaining boundaries/); assert.match(finalText, /Host rendering requires observation/); assert.match(finalText, /Universal directory publication/); assert.match(finalText, /MUST evidence coverage: satisfied/); assert.match(finalText, /## Token usage/); assert.match(finalText, /Status: unavailable/); assert.doesNotMatch(finalText, /saved|saving|сэконом/iu); assert.doesNotMatch(finalText, /MUST verdict: pass/);
   await rejects(() => stateResume(cwd), 'NO_ACTIVE_RUN'); assert.equal((await stateShow(cwd, 'first-run')).status, 'complete'); await rejects(() => stateResume(cwd, 'first-run'), 'RUN_COMPLETE');
   await rejects(() => recordEvidence(cwd, 'first-run', evidence('EV-001', 1, 'AC-001')), 'RUN_COMPLETE');
   await rejects(() => amendContract(cwd, 'first-run', contract(2, true), 'Clarification.', ['INTENT'], 'approved'), 'RUN_COMPLETE');

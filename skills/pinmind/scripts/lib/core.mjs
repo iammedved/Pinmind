@@ -1409,6 +1409,18 @@ async function usageForReport(files, fallbackCapturedAt) {
   if (await exists(files.usage)) return loadUsage(files);
   return unavailableUsage(fallbackCapturedAt, 'Authoritative token usage was not recorded for this run.');
 }
+function remainingBoundariesForReport(contract) {
+  return {
+    assumptions: Array.isArray(contract?.assumptions) ? [...contract.assumptions] : [],
+    outOfScope: Array.isArray(contract?.outOfScope) ? [...contract.outOfScope] : [],
+  };
+}
+function renderRemainingBoundaries(boundaries) {
+  const line = (value) => String(value).replace(/\s+/g, ' ').trim();
+  const assumptions = boundaries.assumptions.length ? boundaries.assumptions.map((item) => `- ${line(item)}`).join('\n') : '- none';
+  const outOfScope = boundaries.outOfScope.length ? boundaries.outOfScope.map((item) => `- ${line(item)}`).join('\n') : '- none';
+  return `## Remaining boundaries\n\n### Assumptions requiring observation\n${assumptions}\n\n### Out of scope or deferred\n${outOfScope}`;
+}
 
 export async function reportRun(cwd, runId, format = 'json') {
   const { files, state } = await verifyRun(cwd, safeRunId(runId));
@@ -1417,11 +1429,12 @@ export async function reportRun(cwd, runId, format = 'json') {
   const statuses = ['pass', 'fail', 'uncertain', 'pending-review', 'not-applicable'];
   const counts = Object.fromEntries(statuses.map((status) => [status, currentEntries.filter((entry) => entry.status === status).length]));
   const receipt = await usageForReport(files, state.createdAt); const baseline = await loadBaseline(files);
-  const summary = { format: FORMAT, runId, status: state.status, phase: state.phase, contract: contract ? { contractId: contract.contractId, version: state.currentContractVersion } : null, baseline: { status: baseline.status, observed: baseline.observed ?? null, reason: baseline.reason ?? null, capturedAt: baseline.capturedAt ?? null }, evidence: { total: currentEntries.length, counts }, tokenUsage: publicUsage(receipt), updatedAt: state.updatedAt };
+  const remainingBoundaries = remainingBoundariesForReport(contract);
+  const summary = { format: FORMAT, runId, status: state.status, phase: state.phase, contract: contract ? { contractId: contract.contractId, version: state.currentContractVersion } : null, baseline: { status: baseline.status, observed: baseline.observed ?? null, reason: baseline.reason ?? null, capturedAt: baseline.capturedAt ?? null }, evidence: { total: currentEntries.length, counts }, remainingBoundaries, tokenUsage: publicUsage(receipt), updatedAt: state.updatedAt };
   if (format === 'json') return summary;
   if (format !== 'md' && format !== 'markdown') throw new KernelError('Report format must be json or md.', 'INVALID_REPORT_FORMAT');
   const contractLine = contract ? `${contract.contractId} v${state.currentContractVersion}` : 'not frozen';
-  return `# Pinmind run report\n\n- Run: ${runId}\n- Status: ${state.status}\n- Phase: ${state.phase}\n- Contract: ${contractLine}\n- Baseline: ${baseline.status}\n- Evidence: ${counts.pass}/${currentEntries.length} passing\n\n${renderTokenUsage(receipt)}\n`;
+  return `# Pinmind run report\n\n- Run: ${runId}\n- Status: ${state.status}\n- Phase: ${state.phase}\n- Contract: ${contractLine}\n- Baseline: ${baseline.status}\n- Evidence: ${counts.pass}/${currentEntries.length} passing\n\n${renderRemainingBoundaries(remainingBoundaries)}\n\n${renderTokenUsage(receipt)}\n`;
 }
 
 async function trustworthyPassingEvidence(cwd, entry, criticalTargets = new Set()) {
@@ -1491,11 +1504,12 @@ async function finalizeRunUnlocked(cwd, runId, verification, options = {}) {
   const manual = currentEntries.filter((entry) => entry.provenance?.kind === 'manual-attestation').map((entry) => entry.evidenceId).join(', ') || 'none';
   const captured = currentEntries.filter((entry) => entry.provenance?.kind === 'captured-command').map((entry) => entry.evidenceId).join(', ') || 'none';
   const completionBasis = manual === 'none' ? 'machine-captured evidence' : 'mixed machine-captured and manual/unreplayed evidence';
+  const remainingBoundaries = remainingBoundariesForReport(contract);
   let receipt;
   const needsUsage = !(await exists(files.usage));
   if (!needsUsage) receipt = await loadUsage(files);
   else { receipt = unavailableUsage(new Date().toISOString(), 'Authoritative token usage was not recorded for this run.'); receipt.usageSha256 = usageHash(receipt); }
-  const report = `# Pinmind final report\n\n- Run: ${runId}\n- Contract: ${contract.contractId} v${state.currentContractVersion}\n- Baseline: ${baseline.status}\n- Evidence: ${passed}/${currentEntries.length} passing\n\n## Evidence status counts\n${counts}\n\n## Current evidence requiring attention\n${attention}\n\n## Evidence provenance\n- machine-captured: ${captured}\n- manual/unreplayed: ${manual}\n\n${renderTokenUsage(receipt)}\n\n- MUST evidence coverage: satisfied\n- Completion basis: ${completionBasis}\n- Replay note: stored commands were verified for captured provenance and artifact integrity, but were not replayed during finalization\n`;
+  const report = `# Pinmind final report\n\n- Run: ${runId}\n- Contract: ${contract.contractId} v${state.currentContractVersion}\n- Baseline: ${baseline.status}\n- Evidence: ${passed}/${currentEntries.length} passing\n\n## Evidence status counts\n${counts}\n\n## Current evidence requiring attention\n${attention}\n\n## Evidence provenance\n- machine-captured: ${captured}\n- manual/unreplayed: ${manual}\n\n${renderRemainingBoundaries(remainingBoundaries)}\n\n${renderTokenUsage(receipt)}\n\n- MUST evidence coverage: satisfied\n- Completion basis: ${completionBasis}\n- Replay note: stored commands were verified for captured provenance and artifact integrity, but were not replayed during finalization\n`;
   const nextState = structuredClone(state); nextState.phase = 'finalize'; nextState.status = 'complete'; nextState.updatedAt = new Date().toISOString(); setStateHash(nextState);
   const changes = [];
   if (needsUsage) changes.push({ file: files.usage, content: jsonText(receipt) });

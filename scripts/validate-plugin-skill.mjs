@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const PLUGIN_KEYS = new Set(['name', 'version', 'description', 'author', 'license', 'keywords', 'skills', 'interface']);
 const AUTHOR_KEYS = new Set(['name']);
-const INTERFACE_KEYS = new Set(['displayName', 'shortDescription', 'longDescription', 'developerName', 'category', 'capabilities', 'defaultPrompt']);
+const INTERFACE_KEYS = new Set(['displayName', 'composerIcon', 'logo', 'shortDescription', 'longDescription', 'developerName', 'category', 'capabilities', 'defaultPrompt']);
 const SKILL_FRONTMATTER_KEYS = new Set(['name', 'description']);
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -66,6 +66,13 @@ export async function validatePluginAndSkills(root) {
   string(plugin.interface.displayName, 'plugin.interface.displayName', 48); string(plugin.interface.shortDescription, 'plugin.interface.shortDescription', 80);
   string(plugin.interface.longDescription, 'plugin.interface.longDescription', 2048); string(plugin.interface.developerName, 'plugin.interface.developerName', 80);
   string(plugin.interface.category, 'plugin.interface.category', 48);
+  for (const key of ['composerIcon', 'logo']) {
+    string(plugin.interface[key], `plugin.interface.${key}`, 256);
+    if (!plugin.interface[key].startsWith('./')) fail('INVALID_PLUGIN', `plugin.interface.${key} must start with ./`);
+    const relativePath = plugin.interface[key].slice(2);
+    if (!relativePath || path.isAbsolute(relativePath) || relativePath.split('/').some((segment) => !segment || segment === '.' || segment === '..')) fail('INVALID_PATH', `plugin.interface.${key}`);
+    await regularFile(root, relativePath);
+  }
   for (const key of ['capabilities', 'defaultPrompt']) if (!Array.isArray(plugin.interface[key]) || plugin.interface[key].length === 0 || plugin.interface[key].some((item) => typeof item !== 'string' || !item.trim())) fail('INVALID_PLUGIN', `plugin.interface.${key}`);
 
   const skillsDir = path.join(root, 'skills');
