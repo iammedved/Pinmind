@@ -406,14 +406,16 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.6.1');
+  assert.equal(baseVersion, '0.6.2');
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, new RegExp(`Current source version:\\s*\`${escapedBaseVersion}\``));
+  assert.match(readme, new RegExp(`Current stable version:\\s*\`${escapedBaseVersion}\``));
+  assert.match(readme, new RegExp(`codex plugin marketplace add iammedved/Pinmind --ref v${escapedBaseVersion}`));
+  assert.doesNotMatch(readme, /Current (?:source|stable) version:[^\n]*unreleased/i);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
-  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add iammedved/Pinmind --ref v0.6.0']) assert.ok(readme.includes(term), term);
+  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |']) assert.ok(readme.includes(term), term);
   assert.match(readme, /https:\/\/github\.com\/iammedved\/Pinmind/);
   assert.match(readme, /needs no connector, external account, API key, or MCP server/);
   assert.doesNotMatch(readme, /pinmind@personal|personal marketplace|install-personal-release/iu);
@@ -456,7 +458,8 @@ test('public release documentation, license, metadata, evaluation guides, and he
   for (const term of ['workShape', 'desiredProfile', 'actualProfile', 'verificationOracle', 'provider-neutral', '16 original synthetic contrast cases']) assert.match(`${readme}\n${aepGuide}`, new RegExp(term, 'i'), term);
   for (const term of ['adapters before runtime', 'Luna / low', 'Terra / medium', 'Sol / high', 'shadow', 'idempotency', '50 deterministic']) assert.match(p2Architecture, new RegExp(term, 'i'), term);
   assert.match(changelog, /## \[Unreleased\]/);
-  assert.match(changelog, new RegExp('Target version:\\s*`' + escapedBaseVersion + '`'));
+  assert.match(changelog, new RegExp('## \\[' + escapedBaseVersion + '\\] - \\d{4}-\\d{2}-\\d{2}'));
+  assert.doesNotMatch(changelog, /Target version:\s*`[^`]+`/);
   assert.match(changelog, /## \[0\.6\.0\] - 2026-08-18/);
   assert.match(changelog, /## \[0\.4\.0-experimental\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.3\.1-experimental\] - 2026-08-17/);

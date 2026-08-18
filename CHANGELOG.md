@@ -6,7 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
-Target version: `0.6.1`.
+## [0.6.2] - 2026-08-18
+
+### Fixed
+
+- Keep the README stable-version label and default pinned marketplace command
+  coherent with the plugin manifest version.
+- Add a regression that rejects an old default release ref or an `unreleased`
+  label in stable source metadata.
+
+### Changed
+
+- Advance the clean stable plugin version to `0.6.2` without Codex cachebuster
+  build metadata; `v0.6.1` remains immutable.
+
+## [0.6.1] - 2026-08-18
 
 ### Fixed
 
