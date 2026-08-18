@@ -64,6 +64,7 @@ export const EXPECTED_COMMANDS = Object.freeze([
   Object.freeze({ id: 'plugin-skill-validator', argv: Object.freeze(['node', 'scripts/validate-plugin-skill.mjs']) }),
   Object.freeze({ id: 'core-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/core.mjs']) }),
   Object.freeze({ id: 'cli-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/pinmind.mjs']) }),
+  Object.freeze({ id: 'release-identity', argv: Object.freeze(['node', 'scripts/check-release-identity.mjs']) }),
   Object.freeze({ id: 'diff-check', argv: Object.freeze(['node', 'scripts/check-repository-diff.mjs']) }),
 ]);
 
@@ -201,6 +202,11 @@ export async function validateReleaseManifest(manifest, root, { runtimeVersion =
     const command = manifest.commands[index];
     assertClosedObject(command, COMMAND_KEYS, `commands[${index}]`);
     if (!sameJson(command, EXPECTED_COMMANDS[index])) fail('COMMAND_DRIFT', `commands[${index}]`);
+    const scriptPath = command.argv[1]?.startsWith('--') ? command.argv[2] : command.argv[1];
+    if (command.argv[0] === 'node' && typeof scriptPath === 'string' && scriptPath.endsWith('.mjs')) {
+      await assertContainedRegularFile(root, scriptPath);
+      assertTrackedFile(root, scriptPath);
+    }
   }
 
   assertClosedObject(manifest.inventory, INVENTORY_KEYS, 'inventory');

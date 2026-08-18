@@ -8,7 +8,7 @@ const PLUGIN_KEYS = new Set(['name', 'version', 'description', 'author', 'licens
 const AUTHOR_KEYS = new Set(['name']);
 const INTERFACE_KEYS = new Set(['displayName', 'composerIcon', 'logo', 'shortDescription', 'longDescription', 'developerName', 'category', 'capabilities', 'defaultPrompt']);
 const SKILL_FRONTMATTER_KEYS = new Set(['name', 'description']);
-const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class PluginValidationError extends Error {

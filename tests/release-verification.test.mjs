@@ -17,6 +17,7 @@ import {
 } from '../scripts/verify-release.mjs';
 import { PluginValidationError, validatePluginAndSkills } from '../scripts/validate-plugin-skill.mjs';
 import { RepositoryDiffError, checkRepositoryDiff } from '../scripts/check-repository-diff.mjs';
+import { ReleaseIdentityError, checkReleaseIdentity, isSafeReleaseEmail, validateIdentityRecords } from '../scripts/check-release-identity.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const clone = (value) => structuredClone(value);
@@ -30,7 +31,7 @@ test('canonical release manifest, workflow, plugin, and skill metadata validate'
   assert.equal(result.frozenInputs, 5);
   assert.equal(result.commands, EXPECTED_COMMANDS.length);
   assert.equal(result.inventory.testFiles.length, 4);
-  assert.equal(result.inventory.fixtureCases.routes, 183);
+  assert.equal(result.inventory.fixtureCases.routes, 227);
   assert.deepEqual(await validateWorkflow(root), { ok: true, nodeVersion: '24.19.0' });
   const plugin = await validatePluginAndSkills(root); assert.equal(plugin.ok, true); assert.deepEqual(plugin.skills, ['pinmind']);
 });
@@ -85,7 +86,7 @@ test('release inputs must be physical regular files tracked by Git', async (t) =
 test('plugin and skill validator rejects malformed metadata and symlinked skills', async (t) => {
   const workspace = await mkdtemp(path.join(tmpdir(), 'pinmind-plugin-validator-')); t.after(() => rm(workspace, { recursive: true, force: true }));
   const plugin = {
-    name: 'pinmind', version: '0.6.0+codex.test', description: 'Test plugin metadata.', author: { name: 'Pinmind Project' }, license: 'MIT', keywords: ['pinmind'], skills: './skills/',
+    name: 'pinmind', version: '0.6.1', description: 'Test plugin metadata.', author: { name: 'Pinmind Project' }, license: 'MIT', keywords: ['pinmind'], skills: './skills/',
     interface: { displayName: 'Pinmind', composerIcon: './docs/assets/pinmind-hero.png', logo: './docs/assets/pinmind-hero.png', shortDescription: 'Test Pinmind plugin', longDescription: 'A validator fixture for Pinmind.', developerName: 'Pinmind Project', category: 'Productivity', capabilities: ['Analysis'], defaultPrompt: ['Audit this fixture.'] },
   };
   const marketplace = { name: 'pinmind-project', plugins: [{ name: 'pinmind', source: { source: 'local', path: './' }, policy: { installation: 'AVAILABLE' } }] };
@@ -95,6 +96,10 @@ test('plugin and skill validator rejects malformed metadata and symlinked skills
   await writePlugin(plugin); await writeFile(path.join(workspace, '.agents/plugins/marketplace.json'), `${JSON.stringify(marketplace)}\n`); await writeSkill('---\nname: pinmind\ndescription: "Test controller skill."\n---\n\n# Pinmind\n');
   assert.equal((await validatePluginAndSkills(workspace)).ok, true);
 
+  await writePlugin({ ...plugin, version: '0.6.1+codex.test' });
+  await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
+  await writePlugin({ ...plugin, version: '0.6.2-rc.1' });
+  await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
   await writePlugin({ ...plugin, unexpected: true });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
   await writePlugin({ ...plugin, interface: { ...plugin.interface, logo: '../outside.png' } });
@@ -131,6 +136,25 @@ test('repository diff check covers local untracked files and GitHub commit range
   const secondHead = git('rev-parse', 'HEAD').stdout.trim();
   await assert.rejects(() => checkRepositoryDiff(workspace, { env: { PINMIND_DIFF_BASE_SHA: '0'.repeat(40), PINMIND_DIFF_HEAD_SHA: secondHead } }), (error) => error instanceof RepositoryDiffError && error.code === 'DIFF_CHECK_FAILED');
   await assert.rejects(() => checkRepositoryDiff(workspace, { env: { PINMIND_DIFF_BASE_SHA: 'bad', PINMIND_DIFF_HEAD_SHA: head } }), (error) => error instanceof RepositoryDiffError && error.code === 'INVALID_DIFF_RANGE');
+});
+
+test('release identity gate accepts project-safe metadata and rejects personal-provider identities', () => {
+  const safe = 'a'.repeat(40); const unsafe = 'b'.repeat(40);
+  assert.equal(isSafeReleaseEmail('271581472+iammedved@users.noreply.github.com'), true);
+  assert.equal(isSafeReleaseEmail('pinmind@example.invalid'), true);
+  assert.equal(isSafeReleaseEmail('maintainer@personal.example'), false);
+  assert.equal(validateIdentityRecords([{ sha: safe, authorEmail: 'pinmind@example.invalid', committerEmail: 'noreply@github.com' }]), 1);
+  assert.throws(() => validateIdentityRecords([{ sha: unsafe, authorEmail: 'maintainer@personal.example', committerEmail: 'noreply@github.com' }]), (error) => error instanceof ReleaseIdentityError && error.code === 'UNSAFE_RELEASE_IDENTITY' && !error.message.includes('personal.example'));
+
+  const calls = [];
+  const spawn = (_command, args) => {
+    calls.push(args);
+    if (args[0] === 'merge-base') return { status: 0, stdout: `${safe}\n`, stderr: '' };
+    if (args[0] === 'log') return { status: 0, stdout: `${unsafe}\tpinmind@example.invalid\tnoreply@github.com\n`, stderr: '' };
+    return { status: 1, stdout: '', stderr: 'unexpected' };
+  };
+  assert.deepEqual(checkReleaseIdentity(root, { env: { PINMIND_DIFF_BASE_SHA: safe, PINMIND_DIFF_HEAD_SHA: unsafe }, spawn }), { ok: true, mode: 'commit-range', base: safe, head: unsafe, commits: 1 });
+  assert.deepEqual(calls.map((args) => args[0]), ['merge-base', 'log']);
 });
 
 test('workflow is a single read-only CI gate with immutable action revisions', async () => {
