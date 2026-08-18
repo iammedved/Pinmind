@@ -2,7 +2,7 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.6.0`; see [CHANGELOG.md](CHANGELOG.md). It
+The released public baseline is `v0.6.2`; see [CHANGELOG.md](CHANGELOG.md). It
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
@@ -38,17 +38,16 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-The unreleased `0.6.1` source removes displayed build metadata and hardens the
-router against conditional Git actions, quoted commands, read-only questions,
-and scoped negation. It is not installed or released until the normal PR, CI,
-immutable-tag, release, and tagged-reinstall sequence completes.
+The stable `0.6.2` source keeps clean displayed SemVer, hardens routing against
+conditional Git actions, quoted commands, read-only questions, and scoped
+negation, and keeps the default public install ref coherent with the manifest.
 
 ### 1. Fresh-host activation evidence
 
 Measure the host-selection seam separately from deterministic routing. The
 `0.6.0` release has local evidence from two fresh implicit and two fresh explicit
-Codex CLI sessions; it does not prove `0.6.1`, Codex App UI rendering, or a public
-activation ledger. After tagged `0.6.1` installation, repeat that matrix for the
+Codex CLI sessions; it does not prove `0.6.2`, Codex App UI rendering, or a public
+activation ledger. After tagged `0.6.2` installation, repeat that matrix for the
 CLI and directly observe the App card/composer in a new App session, preserving
 host version, package hash, selected skill, and the first route before other task
 tools. Keep current ChatGPT distribution and selection unconfirmed until they are
@@ -90,10 +89,11 @@ or malformed trials produce no false `actual` receipt.
 
 ### 6. Prevent new public identity leakage
 
-Implemented for `0.6.1`: the release gate checks the configured identity locally
+Implemented since `0.6.1`: the release gate checks the configured identity locally
 and the prospective commit range in CI, accepting project-safe GitHub noreply or
 test-only invalid-domain identities and rejecting personal-provider metadata.
-Existing public history remains immutable and is not claimed to have been erased.
+GitHub-authored merge metadata requires a verified web-flow signature. Existing
+public history remains immutable and is not claimed to have been erased.
 
 ## Conditional
 
