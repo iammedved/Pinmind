@@ -165,4 +165,7 @@ test('workflow is a single read-only CI gate with immutable action revisions', a
   assert.match(workflow, /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/);
   assert.match(workflow, /node-version-file:\s+['"]?\.node-version/);
   assert.match(workflow, /run:\s+node scripts\/verify-release\.mjs --run/);
+  assert.match(workflow, /PINMIND_DIFF_BASE_SHA:\s+\$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
+  assert.match(workflow, /PINMIND_DIFF_HEAD_SHA:\s+\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  assert.doesNotMatch(workflow, /PINMIND_DIFF_HEAD_SHA:\s+\$\{\{ github\.sha \}\}/);
 });

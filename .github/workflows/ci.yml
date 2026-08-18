@@ -27,4 +27,4 @@ jobs:
         run: node scripts/verify-release.mjs --run
         env:
           PINMIND_DIFF_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          PINMIND_DIFF_HEAD_SHA: ${{ github.sha }}
+          PINMIND_DIFF_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
