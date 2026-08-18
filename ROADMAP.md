@@ -43,6 +43,29 @@ conditional Git actions, quoted commands, read-only questions, and scoped
 negation, and adds a stdin bootstrap for the default read-only `codex exec`
 sandbox without putting the request in the router argv.
 
+### Remaining boundaries after the 0.6.3 release
+
+- Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
+  immutable installed `v0.6.3` tag. Record the host version, package tree hash,
+  selected cache path, first route, and whether routing preceded task tools.
+- Directly inspect the Pinmind card and composer entry in a fresh Codex App
+  session. The manifest and cache can prove which tracked image is configured;
+  they cannot prove that the host rendered it correctly or did not crop the
+  wide README artwork.
+- Keep ChatGPT distribution and selection unconfirmed until a public listing or
+  supported installation plus fresh implicit and explicit ChatGPT chats are
+  directly observed. Codex installation evidence does not close this boundary.
+- Separate release-corpus approval from router and manifest approval. A digest
+  updated in the same repository and PR detects accidental drift but does not
+  provide independent governance.
+- Capture authoritative whole-task token usage from a documented host event
+  before reducing the always-loaded layer. Receipt storage alone is not token
+  measurement.
+- Add a public-seam integration test for the real GitHub web-flow signature
+  verifier, including command invocation and status parsing. Current unit tests
+  cover the decision boundary with a verifier stub, while the release gate
+  exercises the real verifier only when such a merge is present in its range.
+
 ### 1. Fresh-host activation evidence
 
 Measure the host-selection seam separately from deterministic routing. The tagged

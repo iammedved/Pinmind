@@ -15,6 +15,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 - Reject conflicting route input sources instead of silently preferring
   `--file` or ignoring a command-line `--kind`.
 
+### Changed
+
+- Consolidate the remaining fresh-host, App, ChatGPT, corpus-governance,
+  token-measurement, and provider-signature integration boundaries in the
+  public roadmap without presenting them as completed behavior.
+
 ### Security
 
 - Keep the sanitized route request out of the router process arguments when a
