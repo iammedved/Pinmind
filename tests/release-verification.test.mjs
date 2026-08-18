@@ -85,17 +85,19 @@ test('release inputs must be physical regular files tracked by Git', async (t) =
 test('plugin and skill validator rejects malformed metadata and symlinked skills', async (t) => {
   const workspace = await mkdtemp(path.join(tmpdir(), 'pinmind-plugin-validator-')); t.after(() => rm(workspace, { recursive: true, force: true }));
   const plugin = {
-    name: 'pinmind', version: '0.5.0-experimental+codex.test', description: 'Test plugin metadata.', author: { name: 'Pinmind Project' }, license: 'MIT', keywords: ['pinmind'], skills: './skills/',
-    interface: { displayName: 'Pinmind', shortDescription: 'Test Pinmind plugin', longDescription: 'A validator fixture for Pinmind.', developerName: 'Pinmind Project', category: 'Productivity', capabilities: ['Analysis'], defaultPrompt: ['Audit this fixture.'] },
+    name: 'pinmind', version: '0.6.0+codex.test', description: 'Test plugin metadata.', author: { name: 'Pinmind Project' }, license: 'MIT', keywords: ['pinmind'], skills: './skills/',
+    interface: { displayName: 'Pinmind', composerIcon: './docs/assets/pinmind-hero.png', logo: './docs/assets/pinmind-hero.png', shortDescription: 'Test Pinmind plugin', longDescription: 'A validator fixture for Pinmind.', developerName: 'Pinmind Project', category: 'Productivity', capabilities: ['Analysis'], defaultPrompt: ['Audit this fixture.'] },
   };
   const marketplace = { name: 'pinmind-project', plugins: [{ name: 'pinmind', source: { source: 'local', path: './' }, policy: { installation: 'AVAILABLE' } }] };
-  await mkdir(path.join(workspace, '.codex-plugin'), { recursive: true }); await mkdir(path.join(workspace, '.agents/plugins'), { recursive: true }); await mkdir(path.join(workspace, 'skills/pinmind'), { recursive: true });
+  await mkdir(path.join(workspace, '.codex-plugin'), { recursive: true }); await mkdir(path.join(workspace, '.agents/plugins'), { recursive: true }); await mkdir(path.join(workspace, 'skills/pinmind'), { recursive: true }); await mkdir(path.join(workspace, 'docs/assets'), { recursive: true }); await writeFile(path.join(workspace, 'docs/assets/pinmind-hero.png'), 'fixture-image');
   const writePlugin = (value) => writeFile(path.join(workspace, '.codex-plugin/plugin.json'), `${JSON.stringify(value)}\n`);
   const writeSkill = (value) => writeFile(path.join(workspace, 'skills/pinmind/SKILL.md'), value);
   await writePlugin(plugin); await writeFile(path.join(workspace, '.agents/plugins/marketplace.json'), `${JSON.stringify(marketplace)}\n`); await writeSkill('---\nname: pinmind\ndescription: "Test controller skill."\n---\n\n# Pinmind\n');
   assert.equal((await validatePluginAndSkills(workspace)).ok, true);
 
   await writePlugin({ ...plugin, unexpected: true });
+  await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
+  await writePlugin({ ...plugin, interface: { ...plugin.interface, logo: '../outside.png' } });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
   await writePlugin(plugin); await writeSkill('---\nname: pinmind\nname: pinmind\ndescription: duplicate\n---\n');
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_SKILL');

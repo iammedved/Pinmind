@@ -2,13 +2,17 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.5.0-experimental`; see the release record in
-[CHANGELOG.md](CHANGELOG.md). It provides deterministic post-activation routing,
-local run-state containment and recovery diagnostics, baseline/freshness evidence,
-read-only `final check`, and explicit `finalize`. These are local guarantees:
-they do not prove implicit host activation, resume a host process, replay external
-effects, or select a model. `v0.5.0-experimental` also provides the closed-schema
-64-case language evaluator and frozen release gate without changing runtime routing.
+The released public baseline is `v0.6.0`; see [CHANGELOG.md](CHANGELOG.md). It
+provides deterministic post-activation routing, local run-state containment and
+recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
+explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
+CI, frozen-input gate, stable release metadata, a closed-schema 64-case language
+evaluator, and first-class remaining-boundary reporting.
+
+These are local and repository-hosted guarantees. They do not by themselves prove
+implicit host activation, resume a host process, replay external effects, select a
+model, publish to ChatGPT's universal directory, or independently govern the
+release corpus.
 
 The canonical decisions are the [language-routing design](LANGUAGE_ROUTING.md),
 [Adaptive Execution Policy](ADAPTIVE_EXECUTION_POLICY.md),
@@ -16,52 +20,25 @@ The canonical decisions are the [language-routing design](LANGUAGE_ROUTING.md),
 [design notes](skills/pinmind/references/design-decisions.md). This roadmap records
 only unfinished, measurable work; it is not implementation authority.
 
+## Delivered in 0.6.0
+
+- P0 route contrasts distinguish analysis from implementation and PR/merge/push
+  planning from external execution, including negation, shared/protected targets,
+  exact authority, and non-Git false-positive controls.
+- The read-only GitHub Actions `verify` gate pins Node and action revisions and
+  runs kernel, AEP, language, plugin/skill, manifest, syntax, release-coherence,
+  and diff checks.
+- Protected `main` requires a pull request and `verify`, and blocks deletion and
+  non-fast-forward updates. The required check is pinned to its observed Actions
+  integration.
+- The supported public upgrade path refreshes only the Pinmind repository
+  marketplace, reinstalls the tagged plugin, and requires a fresh session.
+- Stable releases use full SemVer: `0.6.0`, then compatible fixes such as `0.6.1`
+  and `0.6.2`; historical experimental tags remain immutable.
+
 ## Now
 
-### 1. Close the verified router regressions
-
-Keep read-only analysis distinct from implementation, classify PR creation and
-merge/push actions by target and external effect, and never let explicit owner
-authority lower protected-branch risk.
-
-Gate: exact RED/GREEN contrasts cover analysis versus implementation, merge plan
-versus execution, local versus remote effects, PR creation, unresolved targets,
-and owner-bypass merge in RU/EN; the full kernel, AEP, and language suites remain
-green.
-
-Current local status: the contrast regressions and routing changes are implemented
-and pass the local gate. They remain unreleased and are not activation evidence.
-
-### 2. Add the first required CI gate
-
-Add one minimal GitHub Actions workflow before another release. Pin a supported
-Node LTS and run Node tests, AEP and language evaluators, plugin/skill validation,
-syntax and diff checks, version/release coherence, and the frozen-manifest check.
-
-Gate: pull requests and `main` report the same required green check from a clean
-GitHub-hosted runner; local-only success is not release evidence.
-
-Current local status: the minimal read-only workflow, exact Node pin, plugin/skill
-validator, frozen-input digest check, and documented inventory methodology are
-implemented. The gate remains incomplete until the workflow is published and a
-clean GitHub-hosted run is observed.
-
-### 3. Harden `main`
-
-Require a pull request and the CI check, retain deletion and non-fast-forward
-blocks, and keep owner bypass only as a documented emergency exception.
-
-Gate: an ordinary direct update and an unchecked merge are rejected; the
-emergency path is separately auditable and never treated as routine release flow.
-
-## Next
-
-### 4. Complete the existing 0.5.0 release record
-
-Create a GitHub prerelease for the existing `v0.5.0-experimental` tag. Do not
-create or move a tag.
-
-### 5. Fresh-host activation evidence
+### 1. Fresh-host activation evidence
 
 Measure the host-selection seam separately from deterministic routing. Run two
 fresh implicit and two fresh explicit `$pinmind` checks for each supported Codex
@@ -69,28 +46,34 @@ surface, preserving host version, package hash, selected skill, and the first
 route before other task tools. Keep ChatGPT unconfirmed until distribution and
 selection are directly observed.
 
-### 6. Make release inputs independently governed
+### 2. Make release inputs independently governed
 
-The local source now contains a reviewed release manifest with SHA-256 digests for
-the router, language schema validator, development corpus, release corpus, and
-mandatory unsafe-negative cases. CI fails when a digest changes without an
-intentional manifest update. Because the manifest still lives beside the router
-and expected answers, add separate review ownership or equivalent governance so
-they cannot be routinely tuned and approved together.
+The release manifest records SHA-256 digests for the router, language validator,
+development corpus, release corpus, and mandatory unsafe-negative cases. CI fails
+when a digest changes without an intentional manifest update. Because the manifest,
+router, and expected answers remain in one repository, add a distinct reviewer or
+an externally administered signed manifest so they cannot be routinely tuned and
+approved together. A `CODEOWNERS` entry naming the same sole maintainer would not
+create independence.
 
-### 7. Document supported upgrade and reinstall
+### 3. Keep owner break-glass technical and auditable
 
-Provide one public CLI/Codex App workflow that updates only the named marketplace,
-reinstalls Pinmind, starts a fresh session, and verifies `/skills`. Retain the
-personal installer as legacy until the public path is proven.
+`bypass_mode: always` does not encode "emergency only." The stable target is no
+always-on bypass actor in the active ruleset. If CI or GitHub itself is unavailable,
+use a separate audited ruleset-administration event as break-glass and immediately
+restore the exact protected state.
 
-### 8. Measure before reducing the always-loaded layer
+Gate: normal owner updates require PR plus the pinned CI check; ruleset readback
+contains no always-on bypass actor; any break-glass event records actor, reason,
+scope, before/after state, and restoration.
+
+### 4. Measure before reducing the always-loaded layer
 
 Collect authoritative host usage receipts first. Only then move lifecycle and
 evidence procedures from `SKILL.md` into on-demand references, remove verified
 duplication, and compare observed context cost. Offline regression corpora remain.
 
-### 9. P2A activation observation ledger
+### 5. P2A activation observation ledger
 
 Implement the opt-in adapter in the [P2 ADR](docs/p2-architecture.md) only after
 the host corpus and its observation schema are stable. It records an observation;
@@ -99,7 +82,7 @@ it does not change routing or execution.
 Gate: schema validation rejects unknown/private fields and duplicate IDs, and a
 fresh-session implicit-selection claim requires its evidence.
 
-### 10. P2B post-turn usage receipt
+### 6. P2B post-turn usage receipt
 
 Implement a foreground-only Codex terminal-event adapter that copies authoritative
 usage fields exactly, otherwise records `unavailable`.
