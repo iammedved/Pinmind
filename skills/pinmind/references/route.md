@@ -23,6 +23,8 @@ Apply the lightest route that still protects the outcome.
 
 Do not equate short wording with a simple task. Treat "fix the race," "deploy this," and "delete duplicates" as high-risk or substantive even when phrased in one sentence.
 
+Never dump unrecognized, vague, or contradictory wording into `software-change`. Those cases stay `clarity: uncertain`, `needsHumanConfirmation: true`, and a read-only `audit` route until the user confirms the outcome. Classify paraphrases by intended outcome, not by the old fixture keywords.
+
 ## Classification axes
 
 Classify independently:

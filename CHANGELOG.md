@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-19
+
+### Added
+
+- Superpowers-defining work loop in the controller: design or alternatives
+  before implementation, a failing public-seam check before a production
+  behavior change, root-cause evidence before a fix, and fresh verification
+  before any "done" claim, without copying Visual Companion, worktrees, or
+  2–5 minute plan microsteps.
+- Conservative routing for unrecognized, vague, or contradictory wording:
+  stay `uncertain` and read-only instead of dumping into `software-change`.
+- Outcome paraphrases (inspect / diagnose / mutate) that classify by intent
+  without the old fixture keywords.
+- Self-repair that re-checks evidence and searches the web or primary sources
+  when local information is not enough.
+- Grok Build user-scope install path so a newly opened Grok chat can load
+  Pinmind without a per-chat copy.
+
+### Changed
+
+- Report token usage only when the host exposes authoritative counts; omit
+  the line instead of padding simple answers with `unavailable`.
+- Keep simple and operational routes as a light no-artifact path.
+
 ## [0.6.3] - 2026-08-18
 
 ### Fixed

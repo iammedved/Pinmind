@@ -2,12 +2,13 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.6.3`; see [CHANGELOG.md](CHANGELOG.md). It
+The released public baseline is `v0.7.0`; see [CHANGELOG.md](CHANGELOG.md). It
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
 CI, frozen-input gate, stable release metadata, a closed-schema 64-case language
-evaluator, and first-class remaining-boundary reporting.
+evaluator, first-class remaining-boundary reporting, the Superpowers work loop,
+conservative unknown routing, and Grok user-scope discovery.
 
 These are local and repository-hosted guarantees. They do not by themselves prove
 implicit host activation, resume a host process, replay external effects, select a
@@ -38,15 +39,14 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-The stable `0.6.3` source keeps clean displayed SemVer, hardens routing against
-conditional Git actions, quoted commands, read-only questions, and scoped
-negation, and adds a stdin bootstrap for the default read-only `codex exec`
-sandbox without putting the request in the router argv.
+The stable `0.7.0` source keeps the 0.6 routing and evidence kernel, adds the
+Superpowers-defining work loop without copying its ceremony, refuses to dump
+unrecognized text into `software-change`, and installs into Grok user scope.
 
-### Remaining boundaries after the 0.6.3 release
+### Remaining boundaries after the 0.7.0 release
 
 - Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
-  immutable installed `v0.6.3` tag. Record the host version, package tree hash,
+  immutable installed `v0.7.0` tag. Record the host version, package tree hash,
   selected cache path, first route, and whether routing preceded task tools.
 - Directly inspect the Pinmind card and composer entry in a fresh Codex App
   session. The manifest and cache can prove which tracked image is configured;

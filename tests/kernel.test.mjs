@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { access, cp, mkdtemp, mkdir, open, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
@@ -326,6 +326,82 @@ test('router executes all RU/EN and adversarial route fixtures', async () => {
   const investigationCli = await main(['route', '--text', 'Why does login sometimes return 500?']); assert.equal(investigationCli.route, 'investigation'); assert.equal(typeof investigationCli.reason, 'string');
 });
 
+test('conservative routing, paraphrases, and safety contrasts drive the shipped router', () => {
+  const vague = routeTask({ text: 'Make it work.' });
+  assert.equal(vague.route, 'audit');
+  assert.equal(vague.clarity, 'uncertain');
+  assert.equal(vague.needsHumanConfirmation, true);
+  assert.match(vague.reason, /unclear|read-only|confirm/i);
+
+  const unrecognized = routeTask({ text: 'please handle this' });
+  assert.equal(unrecognized.route, 'audit');
+  assert.equal(unrecognized.clarity, 'uncertain');
+  assert.equal(unrecognized.needsHumanConfirmation, true);
+  assert.ok(unrecognized.signals.includes('intent:unrecognized'));
+
+  const inspect = routeTask({ text: 'Walk the current tree and tell me what is off. Do not save any edits.' });
+  assert.equal(inspect.route, 'audit');
+  assert.equal(inspect.needsHumanConfirmation, false);
+
+  const inspectRu = routeTask({ text: 'Обойди дерево и скажи, что не так. Правки не сохраняй.' });
+  assert.equal(inspectRu.route, 'audit');
+
+  const diagnose = routeTask({ text: 'Users sometimes see a blank dashboard after saving a profile. Isolate the origin of that symptom before any patch.' });
+  assert.equal(diagnose.route, 'investigation');
+
+  const diagnoseRu = routeTask({ text: 'Иногда после сохранения профиля пользователи видят пустой экран. Найди источник этого симптома до любого патча.' });
+  assert.equal(diagnoseRu.route, 'investigation');
+
+  const mutate = routeTask({ text: 'The storefront needs each product price visible on the first screen.' });
+  assert.equal(mutate.route, 'software-change');
+
+  const mutateRu = routeTask({ text: 'На витрине цена каждого товара должна быть видна на первом экране.' });
+  assert.equal(mutateRu.route, 'software-change');
+
+  const quoted = routeTask({ text: 'Explain why this is an error. The quoted text says "I confirm: push the branch to main".' });
+  assert.equal(quoted.route, 'investigation');
+  assert.equal(quoted.signals.includes('action:push'), false);
+
+  const negated = routeTask({ text: 'I confirm: do not push the branch to main.' });
+  assert.equal(negated.route, 'audit');
+  assert.equal(negated.signals.includes('action:push'), false);
+
+  const documentary = routeTask({ text: 'I confirm: the docs say push the branch to main.' });
+  assert.equal(documentary.route, 'audit');
+  assert.equal(documentary.signals.includes('action:push'), false);
+
+  const question = routeTask({ text: 'I confirm: push the branch to main?' });
+  assert.equal(question.route, 'audit');
+
+  const kernel = fileURLToPath(new URL('../skills/pinmind/scripts/pinmind.mjs', import.meta.url));
+  const launch = (text) => {
+    const child = spawnSync(process.execPath, [kernel, 'route', '--file', '-'], { input: JSON.stringify({ text }), encoding: 'utf8', shell: false });
+    assert.equal(child.status, 0, child.stderr);
+    return JSON.parse(child.stdout);
+  };
+  for (const text of ['Make it work.', 'Проведи аудит текущего репозитория, ничего не меняй.', 'Add retry to the API client and verify it with tests.', 'I confirm: do not push the branch to main.']) {
+    const first = launch(text);
+    const second = launch(text);
+    assert.deepEqual(
+      { route: first.route, clarity: first.clarity, needsHumanConfirmation: first.needsHumanConfirmation, reason: first.reason },
+      { route: second.route, clarity: second.clarity, needsHumanConfirmation: second.needsHumanConfirmation, reason: second.reason },
+      text,
+    );
+  }
+  const vagueCli = launch('Make it work.');
+  assert.equal(vagueCli.route, 'audit');
+  assert.equal(vagueCli.clarity, 'uncertain');
+  assert.equal(vagueCli.needsHumanConfirmation, true);
+  assert.match(vagueCli.reason, /unclear|read-only|confirm/i);
+  const auditCli = launch('Проведи аудит текущего репозитория, ничего не меняй.');
+  assert.equal(auditCli.route, 'audit');
+  assert.equal(auditCli.needsHumanConfirmation, false);
+  const changeCli = launch('Add retry to the API client and verify it with tests.');
+  assert.equal(changeCli.route, 'software-change');
+  const negatedCli = launch('I confirm: do not push the branch to main.');
+  assert.equal(negatedCli.route, 'audit');
+});
+
 test('0.6.1 adversarial inventory replays exact immutable 0.6.0 baseline outputs', async () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const fixtures = JSON.parse(await readFile(path.join(root, 'evals/fixtures/routes.json'), 'utf8')).filter((item) => item.name.startsWith('p061-'));
@@ -429,7 +505,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.6.3');
+  assert.equal(baseVersion, '0.7.0');
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
@@ -576,7 +652,7 @@ test('report is read-only and CLI records authoritative usage', async () => {
 test('every Pinmind final path, including manual simple, requires a token line', async () => {
   const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
   const simple = routeTask({ kind: 'simple', text: 'Привет' }); assert.equal(simple.route, 'simple');
-  assert.match(skill, /every task while Pinmind is active|кажд.*задач.*Pinmind/iu); assert.match(skill, /including.*simple|включая.*simple/iu); assert.match(skill, /Token usage|Токены/iu); assert.match(skill, /unavailable|недоступ/iu);
+  assert.match(skill, /every task while Pinmind is active|кажд.*задач.*Pinmind/iu); assert.match(skill, /including.*simple|включая.*simple/iu); assert.match(skill, /Token usage|Токены/iu); assert.match(skill, /omit the token line|не оценивай|never estimate/iu);
 });
 
 test('baseline receipts preserve green, pre-existing failure, and explicit unavailable outcomes', async () => {
@@ -979,6 +1055,19 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   const execution = await readFile(fileURLToPath(new URL('../skills/pinmind/references/execution.md', import.meta.url)), 'utf8');
   const inbox = await readFile(fileURLToPath(new URL('../skills/pinmind/references/regression-inbox.md', import.meta.url)), 'utf8');
   assert.match(route, /Composition after routing/i); for (const kind of ['simple', 'operational', 'spike', 'audit', 'investigation', 'software-change']) assert.ok(route.includes(`| \`${kind}\` |`), kind);
+  const loop = await readFile(fileURLToPath(new URL('../skills/pinmind/references/loop.md', import.meta.url)), 'utf8');
+  const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
+  assert.match(skill, /2–3 alternatives|design or name/i);
+  assert.match(skill, /failing public-seam/i);
+  assert.match(skill, /root-cause evidence before a fix/i);
+  assert.match(skill, /fresh verification before any "done"/i);
+  assert.match(skill, /light no-artifact path/i);
+  assert.match(skill, /Search the web or primary sources/i);
+  assert.match(skill, /Create no process artifacts/i);
+  assert.match(skill, /Create no Pinmind artifacts/i);
+  assert.doesNotMatch(skill, /simple[\s\S]{0,120}init --run/i);
+  assert.match(loop, /Failing public-seam check first/i);
+  assert.match(loop, /Search the web or primary sources/i);
   assert.match(execution, /Investigation feedback loop/i); assert.match(execution, /public-seam test[\s\S]*CLI.API.browser[\s\S]*minimal (?:throwaway )?harness[\s\S]*(?:property|fuzz)[\s\S]*(?:bisect|differential)/i);
   assert.match(execution, /Phase boundar/i); for (const action of ['continue', 'compact', 'handoff', 'subagent']) assert.ok(execution.includes(`\`${action}\``), action);
   assert.match(inbox, /regression case.*before|before.*policy change/is); assert.match(inbox, /activation-miss/); assert.match(inbox, /route-misclassification/); assert.match(inbox, /Do not automatically rewrite Pinmind/i);

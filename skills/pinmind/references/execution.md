@@ -83,6 +83,6 @@ Accept only a verified reusable fact with source/evidence and scope. Deduplicate
 
 ## Circuit breaker
 
-Stop the current repair strategy when the same failure class repeats, three repairs finish, scope expands materially, a new public boundary appears, context becomes unhealthy, reviewers repeat or contradict findings, failures move within one state surface, or the next action is a guess.
+Stop the current repair strategy when the same failure class repeats, three repairs finish, scope expands materially, a new public boundary appears, context becomes unhealthy, reviewers repeat or contradict findings, failures move within one state surface, or the next action is a guess. Re-check current evidence, then search the web or a primary source when the repository cannot settle the blocker.
 
 Classify the defect before continuing: contract, design, decomposition, environment, evidence, or implementation. Change the corresponding layer. For a second race or ordering symptom, model read/write/validation/reload/stale-response/cancel interleavings and ownership before any further patch.

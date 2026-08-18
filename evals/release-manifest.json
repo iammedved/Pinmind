@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "6e36e06598c567d5d551da85d5b45113e426348597ecc4da2b071bb6e4342bbd"
+      "sha256": "b207864828993253cc29792495fe52c2a27a9cc35af405063422c740c4e79a35"
     },
     {
       "role": "language-schema-validator",
@@ -21,7 +21,7 @@
     {
       "role": "development-corpus",
       "path": "evals/fixtures/language-dev.json",
-      "sha256": "c9a08924379104a7058ac6431bd544ffe4918a08c6013602bd292f2a6ff76159"
+      "sha256": "8a6eb0b86bdc5364b18d87cc57f65de33e2de4244b34691048a111022cd13f82"
     },
     {
       "role": "held-out-release-corpus",
@@ -31,7 +31,7 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "b402c70df36dbafa02e24019e170570e3d0eb757eb9a12bf60daa9c2a97082b7"
+      "sha256": "64494e26573373065437e98186721becc535e47694c749081a12880901b233e8"
     }
   ],
   "commands": [
@@ -49,13 +49,13 @@
   ],
   "inventory": {
     "testFiles": [
-      { "path": "tests/kernel.test.mjs", "topLevelDeclarations": 61 },
+      { "path": "tests/kernel.test.mjs", "topLevelDeclarations": 62 },
       { "path": "tests/aep-decision-contract.test.mjs", "topLevelDeclarations": 5 },
       { "path": "tests/language-routing-evaluator.test.mjs", "topLevelDeclarations": 7 },
       { "path": "tests/release-verification.test.mjs", "topLevelDeclarations": 9 }
     ],
     "fixtureCases": {
-      "routes": 247,
+      "routes": 254,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,

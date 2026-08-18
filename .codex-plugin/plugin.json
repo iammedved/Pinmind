@@ -1,6 +1,6 @@
 {
   "name": "pinmind",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "Adaptive RU/EN task controller with deterministic routing, outcome contracts, and verified evidence.",
   "author": {
     "name": "Pinmind Project"

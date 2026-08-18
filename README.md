@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.6.3`.
+Current stable version: `0.7.0`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current stable version: `0.6.3`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.6.3
+   codex plugin marketplace add iammedved/Pinmind --ref v0.7.0
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.6.3` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.7.0` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -50,6 +50,19 @@ recovery path; it is not the supported public upgrade path.
 5. Run `/skills` and confirm that `pinmind` is available.
 
 No extra setup is required. Pinmind is currently skills-only: it needs no connector, external account, API key, or MCP server.
+
+### Grok Build CLI: install for every new chat
+
+Copy the skill into the user-scope Grok directory, or install the repository as a trusted plugin:
+
+```bash
+mkdir -p ~/.grok/skills
+cp -a skills/pinmind ~/.grok/skills/pinmind
+# or, from this repository:
+grok plugin install . --trust
+```
+
+Start a new Grok session. Pinmind should appear in `/skills`. The host still chooses implicit activation; `$pinmind` or `@Pinmind` is the reliable trigger for critical work.
 
 Start a new Codex session and send:
 
@@ -187,7 +200,7 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 82 declarations
+than quoting Node's runtime summary. The current manifest records 83 declarations
 across four test files, plus fixture-case counts for routes, activation, AEP, and
 language evaluation. These are separate dimensions and are not presented as one
 inflated "test count."
