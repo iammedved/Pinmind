@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "7c5903be052f48a995de2f233df6e5bb00ffe151785726ab49c6c380c8a0b378"
+      "sha256": "2bf22c1bba922131627c75f7eb99d24e96b83476e5a72f8ace017fbf951bf01b"
     },
     {
       "role": "language-schema-validator",
@@ -26,7 +26,7 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "80fed22d34a9da356b0a94427a25eeb676d1b136af812f6f0dfb68da8ca6606f"
+      "sha256": "88eb6daa704b7e664140312849232d59c5f36c019fccef8aabff3787a87d0a7c"
     }
   ],
   "commands": [
@@ -39,17 +39,18 @@
     { "id": "plugin-skill-validator", "argv": ["node", "scripts/validate-plugin-skill.mjs"] },
     { "id": "core-syntax", "argv": ["node", "--check", "skills/pinmind/scripts/lib/core.mjs"] },
     { "id": "cli-syntax", "argv": ["node", "--check", "skills/pinmind/scripts/pinmind.mjs"] },
+    { "id": "release-identity", "argv": ["node", "scripts/check-release-identity.mjs"] },
     { "id": "diff-check", "argv": ["node", "scripts/check-repository-diff.mjs"] }
   ],
   "inventory": {
     "testFiles": [
-      { "path": "tests/kernel.test.mjs", "topLevelDeclarations": 60 },
+      { "path": "tests/kernel.test.mjs", "topLevelDeclarations": 61 },
       { "path": "tests/aep-decision-contract.test.mjs", "topLevelDeclarations": 5 },
       { "path": "tests/language-routing-evaluator.test.mjs", "topLevelDeclarations": 7 },
-      { "path": "tests/release-verification.test.mjs", "topLevelDeclarations": 8 }
+      { "path": "tests/release-verification.test.mjs", "topLevelDeclarations": 9 }
     ],
     "fixtureCases": {
-      "routes": 183,
+      "routes": 227,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,

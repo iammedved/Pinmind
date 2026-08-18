@@ -6,7 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
-No target version is assigned.
+Target version: `0.6.1`.
+
+### Fixed
+
+- Distinguish executable Git collaboration clauses from read-only explanations,
+  quoted commands, safety questions, explicit non-execution instructions, and
+  scoped negations.
+- Preserve high-risk shared-branch effects for conditional push or merge
+  instructions and mixed review/execute clauses.
+
+### Changed
+
+- Use the clean plugin manifest version `0.6.1` with no visible Codex
+  cachebuster build metadata.
+- Expand the deterministic route corpus from 183 to 227 cases, retaining every
+  attempted adversarial case with its pre-fix result and disposition.
+- Reject personal-provider author or committer metadata in the prospective
+  release range while leaving existing published history immutable.
 
 ## [0.6.0] - 2026-08-18
 

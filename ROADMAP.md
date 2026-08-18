@@ -30,7 +30,7 @@ only unfinished, measurable work; it is not implementation authority.
   and diff checks.
 - Protected `main` requires a pull request and `verify`, and blocks deletion and
   non-fast-forward updates. The required check is pinned to its observed Actions
-  integration.
+  integration, and the active `main` ruleset has no bypass actor.
 - The supported public upgrade path refreshes only the Pinmind repository
   marketplace, reinstalls the tagged plugin, and requires a fresh session.
 - Stable releases use full SemVer: `0.6.0`, then compatible fixes such as `0.6.1`
@@ -38,13 +38,21 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
+The unreleased `0.6.1` source removes displayed build metadata and hardens the
+router against conditional Git actions, quoted commands, read-only questions,
+and scoped negation. It is not installed or released until the normal PR, CI,
+immutable-tag, release, and tagged-reinstall sequence completes.
+
 ### 1. Fresh-host activation evidence
 
-Measure the host-selection seam separately from deterministic routing. Run two
-fresh implicit and two fresh explicit `$pinmind` checks for each supported Codex
-surface, preserving host version, package hash, selected skill, and the first
-route before other task tools. Keep ChatGPT unconfirmed until distribution and
-selection are directly observed.
+Measure the host-selection seam separately from deterministic routing. The
+`0.6.0` release has local evidence from two fresh implicit and two fresh explicit
+Codex CLI sessions; it does not prove `0.6.1`, Codex App UI rendering, or a public
+activation ledger. After tagged `0.6.1` installation, repeat that matrix for the
+CLI and directly observe the App card/composer in a new App session, preserving
+host version, package hash, selected skill, and the first route before other task
+tools. Keep current ChatGPT distribution and selection unconfirmed until they are
+directly observed for the released version.
 
 ### 2. Make release inputs independently governed
 
@@ -56,24 +64,13 @@ an externally administered signed manifest so they cannot be routinely tuned and
 approved together. A `CODEOWNERS` entry naming the same sole maintainer would not
 create independence.
 
-### 3. Keep owner break-glass technical and auditable
-
-`bypass_mode: always` does not encode "emergency only." The stable target is no
-always-on bypass actor in the active ruleset. If CI or GitHub itself is unavailable,
-use a separate audited ruleset-administration event as break-glass and immediately
-restore the exact protected state.
-
-Gate: normal owner updates require PR plus the pinned CI check; ruleset readback
-contains no always-on bypass actor; any break-glass event records actor, reason,
-scope, before/after state, and restoration.
-
-### 4. Measure before reducing the always-loaded layer
+### 3. Measure before reducing the always-loaded layer
 
 Collect authoritative host usage receipts first. Only then move lifecycle and
 evidence procedures from `SKILL.md` into on-demand references, remove verified
 duplication, and compare observed context cost. Offline regression corpora remain.
 
-### 5. P2A activation observation ledger
+### 4. P2A activation observation ledger
 
 Implement the opt-in adapter in the [P2 ADR](docs/p2-architecture.md) only after
 the host corpus and its observation schema are stable. It records an observation;
@@ -82,7 +79,7 @@ it does not change routing or execution.
 Gate: schema validation rejects unknown/private fields and duplicate IDs, and a
 fresh-session implicit-selection claim requires its evidence.
 
-### 6. P2B post-turn usage receipt
+### 5. P2B post-turn usage receipt
 
 Implement a foreground-only Codex terminal-event adapter that copies authoritative
 usage fields exactly, otherwise records `unavailable`.
@@ -90,6 +87,13 @@ usage fields exactly, otherwise records `unavailable`.
 Gate: fixture coverage rejects malformed, duplicate-terminal, failed, and truncated
 streams; 20 successful real CLI turns match terminal events exactly; 10 interrupted
 or malformed trials produce no false `actual` receipt.
+
+### 6. Prevent new public identity leakage
+
+Implemented for `0.6.1`: the release gate checks the configured identity locally
+and the prospective commit range in CI, accepting project-safe GitHub noreply or
+test-only invalid-domain identities and rejecting personal-provider metadata.
+Existing public history remains immutable and is not claimed to have been erased.
 
 ## Conditional
 

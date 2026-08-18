@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current source version: `0.6.0`.
+Current source version: `0.6.1` (unreleased).
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -150,7 +150,9 @@ Pinmind follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 - `MINOR` for backward-compatible capabilities.
 - `PATCH` for backward-compatible fixes and documentation corrections.
 
-Release tags use `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH-PRERELEASE`. Build metadata such as `+codex.<cachebuster>` refreshes an installed snapshot without changing the product version.
+Release tags and plugin manifests use the same `MAJOR.MINOR.PATCH` version.
+Changed packages always receive a new patch or minor version; Pinmind does not
+publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
 versions such as `0.6.1` and `0.6.2`; backward-compatible feature releases use a
@@ -175,7 +177,7 @@ a review-visible tamper-evidence boundary, not a cryptographically independent
 benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 80 declarations
+than quoting Node's runtime summary. The current manifest records 82 declarations
 across four test files, plus fixture-case counts for routes, activation, AEP, and
 language evaluation. These are separate dimensions and are not presented as one
 inflated "test count."
@@ -192,6 +194,7 @@ node --test tests/release-verification.test.mjs
 node scripts/validate-plugin-skill.mjs
 node --check skills/pinmind/scripts/lib/core.mjs
 node --check skills/pinmind/scripts/pinmind.mjs
+node scripts/check-release-identity.mjs
 node scripts/check-repository-diff.mjs
 ```
 
