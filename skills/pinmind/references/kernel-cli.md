@@ -1,17 +1,18 @@
 # Deterministic kernel CLI
 
-Run every command from the target workspace. Set `KERNEL` in your reasoning to the absolute path of `scripts/pinmind.mjs`; do not rely on a global installation. Create candidate brief, contract, execution, and evidence input files in an exact temporary directory, then remove that temporary directory after canonical run artifacts are safely written. Do not leave input drafts beside application code.
+Run every command from the target workspace. Set `KERNEL` in your reasoning to the absolute path of `scripts/pinmind.mjs`; do not rely on a global installation. Create candidate brief, contract, execution, and evidence input files in an exact temporary directory, then remove that temporary directory after canonical run artifacts are safely written. Do not leave input drafts beside application code. Routing also accepts `--file -` to read its JSON object from standard input when the host filesystem is read-only.
 
 ```bash
 node "$KERNEL" --help
 ```
 
-The CLI prints JSON, except `report --format md`, which prints Markdown. A failed structural gate prints JSON to stderr and exits nonzero. `route` returns `{ route, clarity, executionSpan, risk, reason, signals, confidence, needsHumanConfirmation }`; `route` is always one of `simple`, `operational`, `spike`, `audit`, `investigation`, or `software-change`, `signals` is non-empty, and `confidence` is `high`, `medium`, or `low`. Treat output as a guardrail: the RU/EN router is intentionally heuristic, classification never grants mutation authority, and low confidence should trigger safe discovery or one material clarification rather than an unsafe downgrade. For multiword or punctuation-heavy requests, prefer `--file` so shell quoting cannot truncate the route input.
+The CLI prints JSON, except `report --format md`, which prints Markdown. A failed structural gate prints JSON to stderr and exits nonzero. `route` returns `{ route, clarity, executionSpan, risk, reason, signals, confidence, needsHumanConfirmation }`; `route` is always one of `simple`, `operational`, `spike`, `audit`, `investigation`, or `software-change`, `signals` is non-empty, and `confidence` is `high`, `medium`, or `low`. Treat output as a guardrail: the RU/EN router is intentionally heuristic, classification never grants mutation authority, and low confidence should trigger safe discovery or one material clarification rather than an unsafe downgrade. For multiword or punctuation-heavy requests, prefer `--file` so shell quoting cannot truncate the route input. Use `--file -` for the same JSON contract without a filesystem write; stdin must finish within 5 seconds and is limited to 1 MiB. Reserve `--text` for short, non-sensitive manual calls because the request is then visible in the router process arguments. Do not combine `--file` with `--text` or `--kind`; place an optional `kind` inside the JSON object used by `--file`.
 
 ## Start and route
 
 ```bash
 node "$KERNEL" route --file <sanitized-request.json>
+printf '%s' '<sanitized-request-json>' | node "$KERNEL" route --file -
 node "$KERNEL" route --text "<request>" [--kind simple|operational|spike|audit|investigation|software-change]
 node "$KERNEL" init --run <safe-run-id> --brief <brief-source.md>
 node "$KERNEL" state show [--run <run-id>]

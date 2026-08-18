@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.6.2`.
+Current stable version: `0.6.3`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current stable version: `0.6.2`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.6.2
+   codex plugin marketplace add iammedved/Pinmind --ref v0.6.3
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.6.2` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.6.3` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -111,6 +111,7 @@ Run kernel commands from the target workspace with the repository-relative entry
 
 ```bash
 node skills/pinmind/scripts/pinmind.mjs route --file request.json
+printf '%s' '{"text":"Audit this repository and report only."}' | node skills/pinmind/scripts/pinmind.mjs route --file -
 node skills/pinmind/scripts/pinmind.mjs init --run <run-id> --brief brief.md
 node skills/pinmind/scripts/pinmind.mjs state reconcile --dry-run
 node skills/pinmind/scripts/pinmind.mjs state recover --apply --expected-sha256 <transition-sha256> [--expected-lock-sha256 <dead-local-lock-sha256>]
@@ -121,6 +122,13 @@ node skills/pinmind/scripts/pinmind.mjs final check --run <run-id>
 node skills/pinmind/scripts/pinmind.mjs finalize --run <run-id>
 node skills/pinmind/scripts/pinmind.mjs report --run <run-id> --format md
 ```
+
+`route --file -` reads the same JSON object from standard input and is the
+write-free bootstrap for a read-only host. Stdin must finish within 5 seconds
+and is limited to 1 MiB. Keep `--text` for short,
+non-sensitive manual checks because its value is visible in process arguments.
+Do not combine `--file` with `--text` or `--kind`; put an optional `kind` in the
+JSON object instead.
 
 New runs require an explicit baseline receipt before contract freeze. `final check` is the pure read-only gate; `finalize` is the preferred explicit completion command. The legacy `final verify` spelling remains a deprecated finalizing alias so existing automation does not silently change behavior.
 
@@ -155,7 +163,7 @@ Changed packages always receive a new patch or minor version; Pinmind does not
 publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
-versions such as `0.6.1` and `0.6.2`; backward-compatible feature releases use a
+versions such as `0.6.1`, `0.6.2`, and `0.6.3`; backward-compatible feature releases use a
 new minor such as `0.7.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 

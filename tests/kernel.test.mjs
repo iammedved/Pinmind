@@ -2,14 +2,15 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { access, cp, mkdtemp, mkdir, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
+import { access, cp, mkdtemp, mkdir, open, readFile, readdir, rename, symlink, unlink, writeFile } from 'node:fs/promises';
 import { hostname, tmpdir } from 'node:os';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import {
   KernelError, amendContract, captureBaseline, captureEvidence, finalVerify, finalizeRun, freezeContract, hashWithout, initRun, loadState, reconcileActiveRuns, recoverTransition, recordEvidence, recordUnavailableBaseline, redact, redactArgv, redactValue,
-  recordUsage, reportRun, routeTask, safeRelativePath, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
+  readRouteInputJson, recordUsage, reportRun, routeTask, safeRelativePath, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from '../skills/pinmind/scripts/lib/core.mjs';
 import { main } from '../skills/pinmind/scripts/pinmind.mjs';
 
@@ -57,6 +58,15 @@ async function runProcessResult(cwd, executable, args) {
     child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); }); child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
     child.once('error', reject); child.once('close', (code) => resolve({ code, stdout, stderr }));
   });
+}
+async function runProcessWithFileStdio(cwd, executable, args, stdinFile, stdoutFile, stderrFile) {
+  const [stdin, stdout, stderr] = await Promise.all([open(stdinFile, 'r'), open(stdoutFile, 'w'), open(stderrFile, 'w')]);
+  try {
+    return await new Promise((resolve, reject) => {
+      const child = spawn(executable, args, { cwd, shell: false, stdio: [stdin.fd, stdout.fd, stderr.fd] });
+      child.once('error', reject); child.once('close', (code, signal) => resolve({ code, signal }));
+    });
+  } finally { await Promise.all([stdin.close(), stdout.close(), stderr.close()]); }
 }
 async function frozenRun() { const cwd = await workspace(); await initRun(cwd, 'run-one', 'User asked for behavior.'); await recordTestBaseline(cwd); await freezeContract(cwd, 'run-one', contract()); return cwd; }
 async function rejects(action, code) { await assert.rejects(action, (error) => error instanceof KernelError && error.code === code); }
@@ -364,6 +374,19 @@ test('CLI rejects unknown and repeated flags without changing valid commands', a
   assert.equal(publicCli.code, 1); assert.equal(publicCli.stdout, '', 'the public CLI must not emit a successful route');
   const dividerBypass = await runProcessResult(process.cwd(), process.execPath, [cliPath, 'route', '--text', 'Hello', '--', '--unexpected-flag', 'x']);
   assert.equal(dividerBypass.code, 1); assert.equal(dividerBypass.stdout, '', 'the public CLI must reject ignored command arguments');
+  const marker = 'synthetic-stdin-route-credential'; const routeCwd = await workspace(); const ioCwd = await workspace();
+  const stdinFile = path.join(ioCwd, 'stdin.json'); const stdoutFile = path.join(ioCwd, 'stdout.json'); const stderrFile = path.join(ioCwd, 'stderr.json');
+  await writeFile(stdinFile, JSON.stringify({ text: `Why does login token=${marker} return 500?` }));
+  const stdinProcess = await runProcessWithFileStdio(routeCwd, process.execPath, [cliPath, 'route', '--file', '-'], stdinFile, stdoutFile, stderrFile);
+  const stdinStdout = await readFile(stdoutFile, 'utf8'); const stdinStderr = await readFile(stderrFile, 'utf8');
+  assert.deepEqual(stdinProcess, { code: 0, signal: null }); assert.equal(JSON.parse(stdinStdout).route, 'investigation'); assert.equal(`${stdinStdout}${stdinStderr}`.includes(marker), false); assert.deepEqual(await readdir(routeCwd), [], 'stdin routing must not create workspace state');
+  await writeFile(stdinFile, '{"text":'); const malformed = await runProcessWithFileStdio(routeCwd, process.execPath, [cliPath, 'route', '--file', '-'], stdinFile, stdoutFile, stderrFile);
+  assert.equal(malformed.code, 1); assert.equal(await readFile(stdoutFile, 'utf8'), ''); assert.equal(JSON.parse(await readFile(stderrFile, 'utf8')).code, 'INVALID_JSON');
+  await writeFile(stdinFile, ''); const empty = await runProcessWithFileStdio(routeCwd, process.execPath, [cliPath, 'route', '--file', '-'], stdinFile, stdoutFile, stderrFile);
+  assert.equal(empty.code, 1); assert.equal(JSON.parse(await readFile(stderrFile, 'utf8')).code, 'INVALID_JSON');
+  await rejects(() => readRouteInputJson('-', Readable.from([JSON.stringify({ text: 'too large' })]), { maxBytes: 4, timeoutMs: 100 }), 'ROUTE_INPUT_TOO_LARGE');
+  const openStream = new Readable({ read() {} }); await rejects(() => readRouteInputJson('-', openStream, { maxBytes: 1024, timeoutMs: 20 }), 'ROUTE_INPUT_TIMEOUT'); assert.equal(openStream.destroyed, true);
+  for (const args of [['route', '--file', '-', '--text', 'Hello'], ['route', '--file', '-', '--kind', 'audit']]) await rejects(() => main(args), 'CONFLICTING_ROUTE_INPUT');
   const routed = await main(['route', '--text', 'Hello']);
   assert.equal(routed.route, 'simple');
 });
@@ -406,7 +429,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.6.2');
+  assert.equal(baseVersion, '0.6.3');
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);

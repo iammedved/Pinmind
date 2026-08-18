@@ -1212,6 +1212,23 @@ export async function validateAndSaveExecution(cwd, runId, execution, options = 
   return withWorkspaceLock(cwd, `save-execution:${safeRunId(runId)}`, () => validateAndSaveExecutionUnlocked(cwd, runId, execution, expectedExecutionSha256));
 }
 
+function classifyConfirmedExternalStatement(text) {
+  const match = /(?:^|[.!?]\s*)(?:(?:(?:i\s+am|i'm)\s+(?:(?:an?|the)\s+)?(?:owner|maintainer)\s+(?:and\s+)|я\s+(?:владелец|мейнтейнер)\s+и\s+)?(?:(?:(?:i\s+)?(?:confirm|approve|authorize)|(?:я\s+)?(?:подтверждаю|одобряю|разрешаю))(?=\s|[-:>])[\s:>\-]*)+)/u.exec(text);
+  if (!match) return { kind: 'none', text: '' };
+  const tail = text.slice(match.index + match[0].length).trim();
+  const lead = tail.replace(/^(?:(?:first|then|please|сначала|затем)\s*,?\s*)+/u, '');
+  const readOnly = /\?\s*$/u.test(tail)
+    || /^(?:do\s+not|don't|never|не)(?=\s|[.,;:!?]|$)/u.test(lead)
+    || /^(?:explain|describe|tell|report|объясни|расскажи|опиши|сообщи)(?=\s|[.,;:!?]|$)/u.test(lead)
+    || /^(?:(?:the\s+)?docs?|documentation)\s+(?:say|says|state|states|contain|contains)\b|^(?:документац|документ)\S*\s+(?:говор|указыва|содерж)/u.test(lead)
+    || /\b(?:is|are)\s+(?:risky|dangerous|safe|documented)\b/u.test(tail)
+    || /(?:опасен|опасна|опасно|опасны|безопасен|безопасна|безопасно|безопасны)(?=\s|[.,;:!?]|$)/u.test(tail)
+    || /\b(?:pull\s+request|pr)\s+plan\b|\bplan\s+(?:for|of)\s+(?:a\s+)?(?:pull\s+request|pr)\b/u.test(tail);
+  if (readOnly) return { kind: 'read-only', text: tail };
+  const actionList = /^(?:\b(?:push|merge)\b|\b(?:create|open|submit|prepare|creating)\s+(?:a\s+)?(?:pull\s+request|pr)\b|\bcreation\s+of\s+(?:a\s+)?(?:pull\s+request|pr)\b|создани\S*\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)|(?:см[её]рдж|смердж|смерж|запуш|пуш|отправ)\S*)/u.test(lead);
+  return { kind: actionList ? 'action-list' : 'none', text: tail };
+}
+
 export function routeTask(input = {}) {
   const normalizedText = String(input.text || input.intent || input.request || '').normalize('NFKC').toLocaleLowerCase().replace(/ё/g, 'е');
   const explicitInvocation = /^\s*(?:\$pinmind|@pinmind)(?=\s|[,:;.!?]|$)/u.test(normalizedText);
@@ -1225,31 +1242,38 @@ export function routeTask(input = {}) {
   // External collaboration is modeled separately from software impact. A small
   // action grammar makes the effect and target visible without turning every
   // mention of a PR, branch, or generic verb into mutation authority.
-  const externalPlanStatementPattern = /\b(?:prepare|draft|write)\s+(?:a\s+)?plan\b|\bplan\s+(?:how\s+)?to\s+(?:create|open|submit|merge|push)\b|(?:подготов|состав|напиш)\S*\s+план\S*|план\S*\s+(?:создани|открыти|слияни|merge|push)/u;
+  const externalPlanStatementPattern = /\b(?:prepare|draft|write)\s+(?:a\s+)?plan\b|\b(?:create|draft|prepare|write)\s+(?:a\s+)?(?:pull\s+request|pr)\s+plan\b|\bplan\s+(?:how\s+)?to\s+(?:create|open|submit|merge|push)\b|(?:подготов|состав|напиш)\S*\s+план\S*|план\S*\s+(?:создани|открыти|слияни|merge|push)/u;
   const externalProceduralQuestionPattern = /\bhow\s+(?:(?:should|can|do)\s+(?:i|we)\s+|to\s+)(?:create|open|submit|merge|push)\b|\b(?:can|could|would)\s+you\s+(?:explain|describe|outline)\b[^\n]{0,100}\b(?:create|open|submit|merge|push)\b|^\s*(?:is|are)\s+["'\x60]?(?:git\s+)?(?:merge|push)\b|^\s*is\s+it\s+safe\s+to\s+(?:run|execute|perform)\b[^\n]{0,100}\b(?:git\s+)?(?:merge|push)\b|^\s*what\s+is\s+["'\x60]?(?:git\s+)?(?:merge|push)\b|^\s*(?:should|can|could|would)\s+i\s+(?:run|execute|perform)\b[^\n]{0,100}\b(?:git\s+)?(?:merge|push)\b|^\s*what\s+happens\s+if\s+i\s+(?:run|execute|perform)\b[^\n]{0,100}\b(?:git\s+)?(?:merge|push)\b|как\s+(?:нам\s+|мне\s+)?(?:создать|открыть|отправить|смержить|слить|запушить)|нужно\s+ли\s+(?:создать|открыть|отправить|смержить|слить|запушить)|^\s*можно\s+ли\s+(?:выполнить|запустить|исполнить)(?=\s|[.,;:!?]|$)[^\n]{0,100}(?:git\s+)?(?:merge|push)\b|^\s*что\s+(?:произойдет|будет),?\s+если\s+(?:выполнить|запустить|исполнить)(?=\s|[.,;:!?]|$)[^\n]{0,100}(?:git\s+)?(?:merge|push)\b/u;
   const externalCommandMention = /\b(?:git\s+)?push\b|\bgit\s+merge\b|\bmerge\s+(?:pr|pull\s+request|#\d+)\b|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)|(?:запуш|пуш)\S*/u.test(text);
   const externalSecondPersonActionQuestion = /\b(?:can|could|would|will)\s+you\s+(?:(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:merge|push)\b)|(?:^|[^\p{L}\p{N}_])(?:можешь|можете)\s+(?:создать|открыть|отправить|подготовить|оформить|смержить|слить|запушить|пушить)(?=\s|[.,;:!?]|$)/u.test(text);
   const externalDecisionQuestion = /\bshould\s+(?:i|we)\s+(?:create|open|submit|merge|push)\b|стоит\s+ли\s+(?:создать|открыть|отправить|смержить|слить|запушить)/u.test(text);
   const externalReadOnlyQuestion = /\?\s*$/u.test(text) && externalCommandMention && !externalSecondPersonActionQuestion && !externalDecisionQuestion && (/^\s*(?:what|why|how|is|are|does|do)\b/u.test(text) || /^\s*(?:should|can|could|would)\s+(?:i|we)\b/u.test(text) || /^\s*(?:что|как|почему|насколько|можно\s+ли|нужно\s+ли|стоит\s+ли)(?=\s|[.,;:!?]|$)/u.test(text) || /^\s*(?:можешь|можете)\s+(?:сказать|объяснить|рассказать)(?=\s|[.,;:!?]|$)/u.test(text));
-  const externalActionNegationPattern = /\b(?:please\s*,?\s+)?(?:do\s+not|don't|never)\s+(?:(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:git\s+)?(?:merge|push)\b)|не\s+(?:(?:создавай|открывай|отправляй|подготавливай|оформляй)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)|(?:мердж|мерж|смерж|слив|влив|запуш|пуш)\S*(?=\s|[.,;:!?]|$)|отправляй\s+(?:ветк|branch)|(?:делай|выполняй)\s+git\s+push\b)/u;
+  const externalActionNegationPattern = /\b(?:please\s*,?\s+)?(?:do\s+not|don't|never)\s+(?:(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:git\s+)?(?:merge|push)\b)|не\s+(?:(?:create|merge|push)\b|(?:создавай|открывай|отправляй|подготавливай|оформляй)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)|(?:мердж|мерж|смерж|слив|влив|запуш|пуш)\S*(?=\s|[.,;:!?]|$)|отправляй\s+(?:ветк|branch)|(?:делай|выполняй)\s+git\s+push\b)/u;
   const externalExecutionNegationPattern = /\b(?:do\s+not|don't|never)\s+(?:execute|run|perform)\b|\bwithout\s+(?:executing|running|performing)\b|не\s+(?:выполняй|запускай|исполняй)(?=\s|[.,;:!?]|$)|не\s+(?:выполняя|запуская|исполняя)(?=\s|[.,;:!?]|$)/u;
   const externalReadOnlyDirectivePattern = /^(?:(?:after|before|if|when|once)\b[^,;]{0,100},\s*)?(?:(?:please|briefly|shortly)\s*,?\s*|(?:can|could|would|will)\s+you\s+)*(?:audit|review|inspect|check|quote|output|print|show|analy[sz]e|explain|describe|tell|report|summari[sz]e)\b|^(?:(?:после|до|если|когда)\b[^,;]{0,100},\s*)?(?:(?:пожалуйста|кратко)\s*,?\s*|(?:можешь|можете)\s+)*(?:аудит|проверь|покажи|выведи|напечатай|процитируй|проанализируй|объясни|расскажи|опиши|сообщи|суммируй)(?=\s|[.,;:!?]|$)/u;
   const externalPlanStatement = externalPlanStatementPattern.test(text);
   const externalProceduralQuestion = externalProceduralQuestionPattern.test(text) || externalReadOnlyQuestion;
   const externalActionNegation = externalActionNegationPattern.test(text) || externalExecutionNegationPattern.test(text);
   const externalActionPlan = externalPlanStatement || externalProceduralQuestion || externalDecisionQuestion;
+  const confirmedExternalStatement = classifyConfirmedExternalStatement(text);
+  const externalAuthorityText = confirmedExternalStatement.text;
+  const externalAuthorityReadOnlyStatement = confirmedExternalStatement.kind === 'read-only';
+  const externalAuthorityActionList = confirmedExternalStatement.kind === 'action-list';
   const externalVerb = /\b(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|\b(?:merge|push)\b|(?:создай|открой|отправь|подготовь|оформи)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)|(?:влей|слей)(?:те)?|(?:запуш|отправ)\S*\s+(?:ветк|branch)/u;
   const externalActionContext = text.replace(/^\s*(?:(?:without\s+(?:executing|running|performing))|(?:не\s+(?:выполняя|запуская|исполняя)))(?=\s|[.,;:!?]|$)[^,]{0,160},\s*/u, '');
   const externalClauses = externalActionContext.split(/(?:[.;]\s*|,?\s+(?:(?:and\s+)?then|and|but|(?:и\s+)?(?:затем|потом|далее)|(?:и\s+)?после\s+(?:этого|чего)|и|а|но)(?:,\s*|\s+))/u);
-  const externalActionText = externalProceduralQuestion || externalDecisionQuestion
+  const externalActionText = externalProceduralQuestion || externalDecisionQuestion || externalAuthorityReadOnlyStatement
     ? ''
     : externalClauses
       .map((clause) => clause.trim())
       .filter((clause) => clause && externalVerb.test(clause) && !externalPlanStatementPattern.test(clause) && !externalActionNegationPattern.test(clause) && !externalExecutionNegationPattern.test(clause) && !externalReadOnlyDirectivePattern.test(clause))
       .join('. ');
-  const createPrAction = /\b(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:создай|открой|отправь|подготовь|оформи)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)/u.test(externalActionText);
-  const mergeAction = /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)merge(?=\s+(?:(?:the\s+)?(?:pr|pull\s+request|this|it|#\d+)\b|(?:the|this|a)\s+(?:local\s+)?branch\b)|[^\n]{0,80}\b(?:into|to)\s+(?:(?:protected\s+)?(?:main|master)(?=\s*[.,;:!?]?$)|shared\s+branch|origin\/[a-z0-9._/-]+)|[.!?]?\s*$)|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)/u.test(externalActionText) || /(?:влей|слей)(?:те)?[^\n]{0,80}(?:\b(?:pr|main|master|branch|origin\/)\b|ветк)/u.test(externalActionText);
-  const pushAction = /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)push\b(?=[^\n]{0,80}\b(?:branches?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|origin\s+[a-z0-9._/-]+|remote\b|to\s+(?:main|master|protected|shared\s+branch|remote\s+branch)))|\bgit\s+push\b|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalActionText);
+  const confirmedCreatePrAction = externalAuthorityActionList && /\b(?:create|open|submit|prepare|creating)\s+(?:a\s+)?(?:pull\s+request|pr)\b|\bcreation\s+of\s+(?:a\s+)?(?:pull\s+request|pr)\b|создани\S*\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)/u.test(externalAuthorityText);
+  const confirmedMergeAction = externalAuthorityActionList && /\bmerge\b[^\n,;]{0,80}\b(?:pr|pull\s+request)\b[^\n,;]{0,80}(?:\b(?:into|to)\s+|(?:в|на)\s+)(?:protected\s+)?(?:main|master)\b|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)[^\n,;]{0,80}(?:\b(?:pr|main|master|origin\/)\b|ветк)/u.test(externalAuthorityText);
+  const confirmedPushAction = externalAuthorityActionList && /\bpush\b[^\n,;]{0,80}(?:\b(?:branch(?:es)?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|origin\s+[a-z0-9._/-]+|remote\b)|ветк)|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalAuthorityText);
+  const createPrAction = confirmedCreatePrAction || /\b(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:создай|открой|отправь|подготовь|оформи)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)/u.test(externalActionText);
+  const mergeAction = confirmedMergeAction || /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)merge(?=\s+(?:(?:the\s+)?(?:pr|pull\s+request|this|it|#\d+)\b|(?:the|this|a)\s+(?:local\s+)?branch\b)|[^\n]{0,80}\b(?:into|to)\s+(?:(?:protected\s+)?(?:main|master)(?=\s*[.,;:!?]?$)|shared\s+branch|origin\/[a-z0-9._/-]+)|[.!?]?\s*$)|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)/u.test(externalActionText) || /(?:влей|слей)(?:те)?[^\n]{0,80}(?:\b(?:pr|main|master|branch|origin\/)\b|ветк)/u.test(externalActionText);
+  const pushAction = confirmedPushAction || /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)push\b(?=[^\n]{0,80}\b(?:branch(?:es)?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|origin\s+[a-z0-9._/-]+|remote\b|to\s+(?:main|master|protected|shared\s+branch|remote\s+branch)))|\bgit\s+push\b|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalActionText);
   const externalActionRequested = createPrAction || mergeAction || pushAction;
   const conditionalExternalAction = /^(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+(?:merge|push)\b/u.test(externalActionText);
   const protectedBranchTarget = /\bprotected\s+(?:main|master|branch)\b|(?:защищенн|защищен)\S*\s+(?:main|master|ветк)/u.test(text);
@@ -1314,8 +1338,8 @@ export function routeTask(input = {}) {
   const operational = operationalIntent && !noChange && (!externalActionRequested || !requestedChange);
   const symptom = /\b(?:errors?|fail(?:s|ed|ure|ing)?|returns?\s+[45]\d{2}|crash(?:es|ed|ing)?|broken|not\s+work(?:ing)?)\b|ошиб|падает|сломал|не\s+работает/u.test(text);
   const exploratoryQuestion = /\b(?:feasibility|compare (?:the )?(?:options|approaches)|explore (?:the )?(?:options|approaches))\b|оцен.*возможност|сравни.*(?:вариант|подход)/u.test(text);
-  const investigation = !requestedChange && !conditionalExternalAction && ((!exploratoryQuestion && /\b(debug|diagnos\S*|investigat(?:e|es|ed|ing|ion)|root cause|reproduce|bug|find (?:the )?cause|find why)\b|диагност|расследован|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text)) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || symptom);
-  const explanation = /\b(?:explain|describe)\b|\bhow\s+(?:does|do|is|are)\b|объясн|расскаж|опиш\S*\s+как/u.test(text);
+  const investigation = !requestedChange && !externalActionRequested && !conditionalExternalAction && ((!exploratoryQuestion && /\b(debug|diagnos\S*|investigat(?:e|es|ed|ing|ion)|root cause|reproduce|bug|find (?:the )?cause|find why)\b|диагност|расследован|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text)) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || symptom);
+  const explanation = externalAuthorityReadOnlyStatement || /\b(?:explain|describe)\b|\bhow\s+(?:does|do|is|are)\b|объясн|расскаж|опиш\S*\s+как/u.test(text);
   const auditRequest = /\b(audit|analysis|analy[sz]e|assessment|review|reviewing|pr review|security review|inspect|evaluate|check|report|look for (?:problems|issues)|find (?:problems|issues))\b|^\s*(?:quote|output|print|show)\b|аудит|анализ|ревью|провер|^\s*(?:покажи|выведи|напечатай|процитируй)(?=\s|[.,;:!?]|$)|посмотр|оцени|проанализир|глян|отчет|сообщи|поиск(?:ать|и).*проблем|найд\S*.*проблем/u.test(text);
   const spike = !externalProceduralQuestion && /\b(feasibility|research|can we|should we|spike|explore|compare (?:the )?(?:options|approaches))\b|оцен.*возможност|исследу|можем ли|спайк|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
   const recognizedReadOnlyIntent = investigation || explanation || auditRequest || planningRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
@@ -1531,5 +1555,36 @@ export async function finalizeRun(cwd, runId, verification, options = {}) {
 }
 
 export async function readInputJson(file) { return readJson(path.resolve(file)); }
+const ROUTE_STDIN_MAX_BYTES = 1024 * 1024;
+const ROUTE_STDIN_TIMEOUT_MS = 5000;
+export async function readRouteInputJson(file, inputStream = process.stdin, options = {}) {
+  if (file !== '-') return readInputJson(file);
+  const maxBytes = options.maxBytes ?? ROUTE_STDIN_MAX_BYTES; const timeoutMs = options.timeoutMs ?? ROUTE_STDIN_TIMEOUT_MS;
+  const timeoutError = new KernelError(`Route standard input did not finish within ${timeoutMs}ms.`, 'ROUTE_INPUT_TIMEOUT');
+  let timer; let timedOut = false;
+  try {
+    const consume = (async () => {
+      let input = ''; let bytes = 0;
+      inputStream.setEncoding('utf8');
+      for await (const chunk of inputStream) {
+        bytes += Buffer.byteLength(chunk, 'utf8');
+        if (bytes > maxBytes) {
+          inputStream.destroy?.();
+          throw new KernelError(`Route standard input exceeds ${maxBytes} bytes.`, 'ROUTE_INPUT_TOO_LARGE');
+        }
+        input += chunk;
+      }
+      return JSON.parse(input);
+    })();
+    const deadline = new Promise((resolve, reject) => {
+      timer = setTimeout(() => { timedOut = true; inputStream.destroy?.(); reject(timeoutError); }, timeoutMs);
+    });
+    return await Promise.race([consume, deadline]);
+  } catch (error) {
+    if (timedOut) throw timeoutError;
+    if (error instanceof KernelError) throw error;
+    throw new KernelError('Route standard input is unreadable or invalid JSON.', 'INVALID_JSON', [error.message]);
+  } finally { clearTimeout(timer); }
+}
 export async function readBrief(file) { return readFile(path.resolve(file), 'utf8'); }
 export function generateRunId() { return `${new Date().toISOString().slice(0, 10)}-${randomUUID().slice(0, 8)}`; }

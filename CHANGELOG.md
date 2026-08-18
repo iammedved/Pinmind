@@ -6,6 +6,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-08-18
+
+### Fixed
+
+- Add a write-free `route --file -` bootstrap so the mandatory deterministic
+  route can run in the documented default read-only `codex exec` sandbox.
+- Reject conflicting route input sources instead of silently preferring
+  `--file` or ignoring a command-line `--kind`.
+- Preserve confirmed push, PR, and merge action lists after a separate critical
+  preface instead of downgrading them to investigation because the preface
+  mentions an error.
+- Expand the deterministic routing regression corpus from 227 to 247 cases with
+  the exact observed failure plus English, quoted, negated, explanatory, and
+  documentary contrasts.
+
+### Changed
+
+- Consolidate the remaining fresh-host, App, ChatGPT, corpus-governance,
+  token-measurement, and provider-signature integration boundaries in the
+  public roadmap without presenting them as completed behavior.
+
+### Security
+
+- Keep the sanitized route request out of the router process arguments when a
+  writable temporary file is unavailable; stdin remains visible to any host
+  tool or audit layer that supplied it and is not described as secret storage.
+
 ## [0.6.2] - 2026-08-18
 
 ### Fixed

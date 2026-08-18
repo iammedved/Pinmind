@@ -31,7 +31,7 @@ test('canonical release manifest, workflow, plugin, and skill metadata validate'
   assert.equal(result.frozenInputs, 6);
   assert.equal(result.commands, EXPECTED_COMMANDS.length);
   assert.equal(result.inventory.testFiles.length, 4);
-  assert.equal(result.inventory.fixtureCases.routes, 227);
+  assert.equal(result.inventory.fixtureCases.routes, 247);
   assert.deepEqual(await validateWorkflow(root), { ok: true, nodeVersion: '24.19.0' });
   const plugin = await validatePluginAndSkills(root); assert.equal(plugin.ok, true); assert.deepEqual(plugin.skills, ['pinmind']);
 });
@@ -98,7 +98,7 @@ test('plugin and skill validator rejects malformed metadata and symlinked skills
 
   await writePlugin({ ...plugin, version: '0.6.1+codex.test' });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
-  await writePlugin({ ...plugin, version: '0.6.2-rc.1' });
+  await writePlugin({ ...plugin, version: '0.6.3-rc.1' });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');
   await writePlugin({ ...plugin, unexpected: true });
   await assert.rejects(() => validatePluginAndSkills(workspace), (error) => error instanceof PluginValidationError && error.code === 'INVALID_PLUGIN');

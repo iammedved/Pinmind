@@ -1,6 +1,6 @@
 # Language routing and activation evaluation
 
-Status: Phase A is included in the stable `0.6` line, following its experimental introduction in `0.5.0-experimental`. The current `0.6.2` source has a **227-case deterministic routing regression corpus**, **64 closed-schema language-evaluation cases** (32 development and 32 frozen release-gate cases), and **28 host-activation fixtures**. The local evaluator and release gate are implemented; fresh-host selection and end-task utility remain separate, unproven layers. The release split is a fixed regression gate, not a statistically independent benchmark. This document does not claim that ChatGPT or Codex will activate Pinmind for every possible phrase.
+Status: Phase A is included in the stable `0.6` line, following its experimental introduction in `0.5.0-experimental`. The current `0.6.3` source has a **247-case deterministic routing regression corpus**, **64 closed-schema language-evaluation cases** (32 development and 32 frozen release-gate cases), and **28 host-activation fixtures**. The local evaluator and release gate are implemented; fresh-host selection and end-task utility remain separate, unproven layers. The release split is a fixed regression gate, not a statistically independent benchmark. This document does not claim that ChatGPT or Codex will activate Pinmind for every possible phrase.
 
 ## Decision
 
@@ -137,7 +137,7 @@ Selection observations require a fresh ChatGPT chat or Codex thread and concrete
 
 ### Phase A — phrase corpus and evaluator (implemented)
 
-1. The 227-case deterministic router corpus and 28 host-activation fixtures remain compatibility and host-boundary coverage; they are not substitutes for the split language corpus.
+1. The 247-case deterministic router corpus and 28 host-activation fixtures remain compatibility and host-boundary coverage; they are not substitutes for the split language corpus.
 2. `language-dev.json` and `language-release.json` contain 64 original or sanitized cases, 32 validated pairs, closed provenance, and non-overlapping prompt hashes.
 3. `scripts/evaluate-language-routing.mjs` reports exact decisions, authority, mutation boundaries, pair agreement, unsafe downgrades, and locale/phenomenon slices. The frozen release gate requires 100% agreement.
 4. Grow only from reviewed real misses; do not generate hundreds merely to raise a count. Keep the smaller representative host subset in `activation-smoke.json`.
