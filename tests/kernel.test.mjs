@@ -51,6 +51,13 @@ async function runProcess(cwd, executable, args) {
     child.once('error', reject); child.once('close', (code) => code === 0 ? resolve(stdout) : reject(new Error(`${executable} exited ${code}: ${stderr}`)));
   });
 }
+async function runProcessResult(cwd, executable, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, args, { cwd, shell: false, stdio: ['ignore', 'pipe', 'pipe'] }); let stdout = ''; let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); }); child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.once('error', reject); child.once('close', (code) => resolve({ code, stdout, stderr }));
+  });
+}
 async function frozenRun() { const cwd = await workspace(); await initRun(cwd, 'run-one', 'User asked for behavior.'); await recordTestBaseline(cwd); await freezeContract(cwd, 'run-one', contract()); return cwd; }
 async function rejects(action, code) { await assert.rejects(action, (error) => error instanceof KernelError && error.code === code); }
 async function clonePinmindWorkspace(source) { const cwd = await workspace(); await cp(path.join(source, '.pinmind'), path.join(cwd, '.pinmind'), { recursive: true }); return cwd; }
@@ -308,6 +315,28 @@ test('router executes all RU/EN and adversarial route fixtures', async () => {
   const investigationCli = await main(['route', '--text', 'Why does login sometimes return 500?']); assert.equal(investigationCli.route, 'investigation'); assert.equal(typeof investigationCli.reason, 'string');
 });
 
+test('CLI rejects unknown and repeated flags without changing valid commands', async () => {
+  const commands = [
+    ['init'], ['route'], ['state', 'show'], ['state', 'resume'], ['state', 'reconcile'], ['state', 'recover'], ['report'],
+    ['baseline', 'capture'], ['baseline', 'unavailable'], ['contract', 'validate'], ['contract', 'freeze'], ['contract', 'amend'],
+    ['execution', 'validate'], ['evidence', 'record'], ['evidence', 'capture'], ['evidence', 'validate'], ['usage', 'record'],
+    ['final', 'check'], ['final', 'verify'], ['finalize'],
+  ];
+  for (const command of commands) await rejects(() => main([...command, '--unexpected-flag', 'x']), 'UNKNOWN_FLAG');
+  await rejects(() => main(['route', '--text', 'Hello', '--text', 'Привет']), 'DUPLICATE_FLAG');
+  await rejects(() => main(['route', 'spare-positional', '--text', 'Hello']), 'UNEXPECTED_POSITIONAL');
+  await rejects(() => main(['state', 'show', 'spare-positional', '--run', 'one']), 'UNEXPECTED_POSITIONAL');
+  await rejects(() => main(['route', '--text', 'Hello', '--', '--unexpected-flag', 'x']), 'UNEXPECTED_POSITIONAL');
+  await rejects(() => main(['route', '--text', 'Hello', '--', 'spare-positional']), 'UNEXPECTED_POSITIONAL');
+  const cliPath = fileURLToPath(new URL('../skills/pinmind/scripts/pinmind.mjs', import.meta.url));
+  const publicCli = await runProcessResult(process.cwd(), process.execPath, [cliPath, 'route', 'spare-positional', '--text', 'Hello']);
+  assert.equal(publicCli.code, 1); assert.equal(publicCli.stdout, '', 'the public CLI must not emit a successful route');
+  const dividerBypass = await runProcessResult(process.cwd(), process.execPath, [cliPath, 'route', '--text', 'Hello', '--', '--unexpected-flag', 'x']);
+  assert.equal(dividerBypass.code, 1); assert.equal(dividerBypass.stdout, '', 'the public CLI must reject ignored command arguments');
+  const routed = await main(['route', '--text', 'Hello']);
+  assert.equal(routed.route, 'simple');
+});
+
 test('discovery metadata is concise, bilingual, implicit, and keeps trivial exclusions', async () => {
   const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
   const agent = await readFile(fileURLToPath(new URL('../skills/pinmind/agents/openai.yaml', import.meta.url)), 'utf8');
@@ -318,7 +347,7 @@ test('discovery metadata is concise, bilingual, implicit, and keeps trivial excl
   assert.match(`${manifest.interface.longDescription} ${manifest.interface.defaultPrompt.join(' ')}`, /русск|Russian|RU\/EN/iu);
 });
 
-test('public 0.4.1-experimental documentation, license, metadata, evaluation guides, and hero asset stay coherent', async () => {
+test('public release documentation, license, metadata, evaluation guides, and hero asset stay coherent', async () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const readme = await readFile(path.join(root, 'README.md'), 'utf8');
   const changelog = await readFile(path.join(root, 'CHANGELOG.md'), 'utf8');
@@ -339,15 +368,17 @@ test('public 0.4.1-experimental documentation, license, metadata, evaluation gui
   const support = await readFile(path.join(root, 'SUPPORT.md'), 'utf8');
   const terms = await readFile(path.join(root, 'TERMS.md'), 'utf8');
   const description = skill.match(/^---\n[\s\S]*?^description:\s*(.+)$/m)?.[1] || '';
+  const baseVersion = manifest.version.split('+')[0];
+  const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  assert.match(manifest.version, /^0\.4\.1-experimental(?:\+codex\.[0-9A-Za-z.-]+)?$/);
+  assert.match(manifest.version, /^\d+\.\d+\.\d+-experimental(?:\+codex\.[0-9A-Za-z.-]+)?$/);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, /Current source version:\s*`0\.4\.1-experimental`/);
+  assert.match(readme, new RegExp(`Current source version:\\s*\`${escapedBaseVersion}\``));
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
-  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', 'codex plugin marketplace add iammedved/Pinmind --ref v0.4.1-experimental']) assert.ok(readme.includes(term), term);
+  for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |', `codex plugin marketplace add iammedved/Pinmind --ref v${baseVersion}`]) assert.ok(readme.includes(term), term);
   assert.match(readme, /https:\/\/github\.com\/iammedved\/Pinmind/);
   assert.match(readme, /needs no connector, external account, API key, or MCP server/);
   assert.doesNotMatch(readme, /pinmind@personal|personal marketplace|install-personal-release/iu);
@@ -376,7 +407,7 @@ test('public 0.4.1-experimental documentation, license, metadata, evaluation gui
   assert.match(pullRequestTemplate, /does not grant write or merge access/);
   assert.match(security, /Security → Report a vulnerability/);
   assert.match(privacy, /no account system, connector, MCP server, telemetry service/);
-  assert.match(privacy, /Pinmind `0\.4\.1-experimental`/);
+  assert.match(privacy, new RegExp(`Pinmind \`${escapedBaseVersion}\``));
   assert.match(support, /minimal synthetic example/);
   assert.match(terms, /MIT License/);
   const publicMetadata = `${readme}\n${changelog}\n${license}\n${roadmap}\n${p2Architecture}\n${languageGuide}\n${aepGuide}\n${JSON.stringify(manifest)}\n${JSON.stringify(marketplace)}\n${contributing}\n${pullRequestTemplate}\n${security}\n${privacy}\n${support}\n${terms}`;
@@ -388,7 +419,7 @@ test('public 0.4.1-experimental documentation, license, metadata, evaluation gui
   for (const term of ['adapters before runtime', 'Luna / low', 'Terra / medium', 'Sol / high', 'shadow', 'idempotency', '50 deterministic']) assert.match(p2Architecture, new RegExp(term, 'i'), term);
   assert.match(changelog, /## \[Unreleased\]/);
   assert.match(changelog, /No target version is assigned/);
-  assert.match(changelog, /## \[0\.4\.1-experimental\] - 2026-08-17/);
+  assert.match(changelog, new RegExp(`## \\[${escapedBaseVersion}\\] - \\d{4}-\\d{2}-\\d{2}`));
   assert.match(changelog, /## \[0\.4\.0-experimental\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.3\.1-experimental\] - 2026-08-17/);
   assert.match(changelog, /## \[0\.3\.0-experimental\] - 2026-08-17/);

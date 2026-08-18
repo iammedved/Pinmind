@@ -1,6 +1,6 @@
 # Language routing and activation evaluation
 
-Status: accepted design in `v0.2.2`; the larger corpus and evaluator are future implementation work. This document does not claim that ChatGPT or Codex will activate Pinmind for every possible Russian phrase.
+Status: accepted design. The repository currently has a **122-case deterministic routing regression corpus** and **28 host-activation fixtures**; neither is the full development/release language evaluator described below. The versioned dev/release corpus, evaluator, slice metrics, and held-out release gate remain unimplemented. This document does not claim that ChatGPT or Codex will activate Pinmind for every possible Russian phrase.
 
 ## Decision
 
@@ -127,7 +127,7 @@ Selection observations require a fresh ChatGPT chat or Codex thread and concrete
 
 ### Phase A — phrase corpus and evaluator
 
-1. Keep the existing 28 host-activation cases and 77 router cases as the compatibility baseline.
+1. Keep the existing 122-case deterministic routing regression corpus and 28 host-activation fixtures as the compatibility baseline. They are not split into development and held-out release sets and do not provide the full evaluator's pair or slice metrics.
 2. Add `evals/fixtures/language-dev.json` and `evals/fixtures/language-release.json` using the contract above.
 3. Start with minimal contrast pairs across every route and authority state, then add original RU/EN/mixed transformations. Grow toward 200–300 reviewed phrases from real misses; do not generate hundreds merely to reach a count.
 4. Add a dependency-free `scripts/evaluate-language-routing.mjs` that reports exact route results, pair accuracy, unsafe downgrades, and slice metrics.
