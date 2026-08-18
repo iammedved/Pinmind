@@ -1,6 +1,6 @@
 # Language routing and activation evaluation
 
-Status: accepted design. The repository currently has a **122-case deterministic routing regression corpus** and **28 host-activation fixtures**; neither is the full development/release language evaluator described below. The versioned dev/release corpus, evaluator, slice metrics, and held-out release gate remain unimplemented. This document does not claim that ChatGPT or Codex will activate Pinmind for every possible Russian phrase.
+Status: Phase A implemented in `0.5.0-experimental`. The repository has a **124-case deterministic routing regression corpus**, **64 closed-schema language-evaluation cases** (32 development and 32 frozen release-gate cases), and **28 host-activation fixtures**. The local evaluator and release gate are implemented; fresh-host selection and end-task utility remain separate, unproven layers. The release split is a fixed regression gate, not a statistically independent benchmark. This document does not claim that ChatGPT or Codex will activate Pinmind for every possible phrase.
 
 ## Decision
 
@@ -58,43 +58,53 @@ All Pinmind prompts must be newly written or sanitized real regressions. Externa
 
 The contrast should change one decisive property where possible: authority, effect, risk, scope, or required specialist. Avoid pairs that differ in many unrelated words because they let a classifier win on accidental cues.
 
-## Proposed fixture contract
+## Fixture contract
 
-The future corpus should preserve policy and linguistic phenomena separately:
+The corpus preserves policy and linguistic phenomena separately. Each split is a
+top-level document whose `cases` array contains the exact case schema:
 
 ```json
 {
   "schemaVersion": 1,
-  "id": "ru-authority-validation-001b",
-  "pairId": "authority-validation-001",
   "split": "release",
-  "locale": "mixed",
-  "phenomena": ["colloquial", "intrasentential-code-switch", "negation"],
-  "prompt": "Исправь validation, но пока код не трогай.",
-  "expected": {
-    "implicitEligible": true,
-    "route": "audit",
-    "clarity": "uncertain",
-    "executionSpan": "local",
-    "risk": "medium",
-    "authority": "conflict",
-    "needsHumanConfirmation": true,
-    "mustNotMutate": true
-  },
-  "provenance": {
-    "kind": "human-authored",
-    "inspiration": ["minimal-contrast", "code-switch"]
-  }
+  "cases": [{
+    "id": "ru-authority-validation-001b",
+    "pairId": "authority-validation-001",
+    "split": "release",
+    "locale": "mixed",
+    "phenomena": ["colloquial", "code-switch", "negation"],
+    "prompt": "Исправь validation, но пока код не трогай.",
+    "expected": {
+      "route": "audit",
+      "clarity": "uncertain",
+      "executionSpan": "local",
+      "risk": "medium",
+      "authority": "conflict",
+      "needsHumanConfirmation": true,
+      "mustNotMutate": true
+    },
+    "provenance": {
+      "kind": "human-authored",
+      "inspiration": ["minimal-contrast", "language-variation"]
+    }
+  }],
+  "pairReviews": [{
+    "pairId": "authority-validation-001",
+    "anchorTokens": ["validation", "код"],
+    "dimension": "authority"
+  }]
 }
 ```
 
 Required fields:
 
+- top-level `schemaVersion`, `split`, `cases`, and `pairReviews` identify one fixed split and its reviewed contrasts;
 - `pairId` binds the act/abstain or positive/negative variants;
-- `split` is `dev` or held-out `release`; a release case must not guide the rule being tuned;
+- every pair review names two to six subject anchors present in both prompts and one expected dimension that must change; this keeps a shared directive word from masquerading as a reviewed contrast;
+- `split` is `dev` or frozen `release`; a release case that exposes a router defect moves to a regression corpus before tuning and is replaced by a separately authored release case;
 - `locale` is `ru`, `en`, or `mixed`;
 - `phenomena` describes form, not policy: neutral, colloquial, typo, transliteration, code-switch position, negation, or technical noun;
-- `expected` keeps host eligibility, route axes, authority, confirmation, and mutation prohibition distinct;
+- `expected` keeps local route axes, authority, confirmation, and mutation prohibition distinct. Host eligibility is measured only by the separate fresh-host campaign;
 - `provenance` allows only a sanitized real regression, human-authored case, or reviewed synthetic case. It must never contain private chat or copied third-party prompt text.
 
 ## Evaluation metrics
@@ -125,13 +135,12 @@ Selection observations require a fresh ChatGPT chat or Codex thread and concrete
 
 ## Implementation sequence
 
-### Phase A — phrase corpus and evaluator
+### Phase A — phrase corpus and evaluator (implemented)
 
-1. Keep the existing 122-case deterministic routing regression corpus and 28 host-activation fixtures as the compatibility baseline. They are not split into development and held-out release sets and do not provide the full evaluator's pair or slice metrics.
-2. Add `evals/fixtures/language-dev.json` and `evals/fixtures/language-release.json` using the contract above.
-3. Start with minimal contrast pairs across every route and authority state, then add original RU/EN/mixed transformations. Grow toward 200–300 reviewed phrases from real misses; do not generate hundreds merely to reach a count.
-4. Add a dependency-free `scripts/evaluate-language-routing.mjs` that reports exact route results, pair accuracy, unsafe downgrades, and slice metrics.
-5. Keep a smaller representative host subset in `activation-smoke.json`; hundreds of manual desktop prompts would create noise rather than reliable evidence.
+1. The 124-case deterministic router corpus and 28 host-activation fixtures remain compatibility and host-boundary coverage; they are not substitutes for the split language corpus.
+2. `language-dev.json` and `language-release.json` contain 64 original or sanitized cases, 32 validated pairs, closed provenance, and non-overlapping prompt hashes.
+3. `scripts/evaluate-language-routing.mjs` reports exact decisions, authority, mutation boundaries, pair agreement, unsafe downgrades, and locale/phenomenon slices. The frozen release gate requires 100% agreement.
+4. Grow only from reviewed real misses; do not generate hundreds merely to raise a count. Keep the smaller representative host subset in `activation-smoke.json`.
 
 Local release gate: 100% deterministic release-fixture agreement, zero unsafe downgrade, every conflict pair read-only, unique IDs, no overlap between dev and release prompt hashes, and no third-party prompt provenance.
 

@@ -8,6 +8,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 No target version is assigned.
 
+## [0.5.0-experimental] - 2026-08-18
+
+### Added
+
+- Added 32 development and 32 frozen release-gate language-routing cases with unique prompt hashes, 32 validated contrast pairs, closed provenance, and RU/EN/mixed plus risk and authority slices.
+- Added a dependency-free evaluator that reports exact route axes, authority, confirmation, mutation boundaries, unsafe downgrades, pair agreement, and slice metrics.
+- Added fail-closed negative coverage for malformed schemas, private paths, prohibited provenance, duplicate IDs/prompts, invalid pairs, authority inconsistencies, and unsafe expectations.
+- Kept host eligibility out of the local evaluator because `routeTask` cannot observe host selection; that remains a separate fresh-host measurement.
+
+### Fixed
+
+- Treat bounded vague English change requests such as `Make it work.` as uncertain and confirmation-required instead of silently clear.
+
+### Security
+
+- Keep evaluation read-only and outside kernel state; no corpus result authorizes mutation, proves host activation, or starts a P2 adapter.
+
 ## [0.4.2-experimental] - 2026-08-18
 
 ### Fixed

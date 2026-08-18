@@ -1270,7 +1270,7 @@ export function routeTask(input = {}) {
   const spike = /\b(feasibility|research|can we|should we|spike|explore|compare (?:the )?(?:options|approaches))\b|оцен.*возможност|исследу|можем ли|спайк|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
   const recognizedReadOnlyIntent = investigation || explanation || auditRequest || planningRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
   const conflict = mark(noChange && (requestedChange || operationalIntent || !recognizedReadOnlyIntent), 'authority:conflict');
-  const vague = mark(/^(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
+  const vague = mark(/^(?:(?:make|fix|improve)\s+(?:it|this)(?:\s+(?:work|better|properly))?|do\s+(?:it|this)\s+(?:right|properly)|(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?)[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
   const audit = conflict || (!investigation && ((!requestedChange && (explanation || planningRequest)) || (auditRequest && (!requestedChange || noChange))));
   if (requestedChange) mark(true, 'intent:change'); if (softwareImpact) mark(true, 'impact:software');
   if (operationalIntent) mark(true, 'intent:operational'); if (investigation) mark(true, 'intent:investigation'); if (spike) mark(true, 'intent:spike'); if (audit) mark(true, 'intent:audit');

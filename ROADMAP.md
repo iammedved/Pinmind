@@ -2,13 +2,13 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.4.2-experimental`; see the release record in
+The released public baseline is `v0.5.0-experimental`; see the release record in
 [CHANGELOG.md](CHANGELOG.md). It provides deterministic post-activation routing,
 local run-state containment and recovery diagnostics, baseline/freshness evidence,
 read-only `final check`, and explicit `finalize`. These are local guarantees:
 they do not prove implicit host activation, resume a host process, replay external
-effects, or select a model. `v0.4.2-experimental` also distinguishes planning
-from execution, rejects unsupported CLI flags, and removes duplicated roadmap history.
+effects, or select a model. `v0.5.0-experimental` also provides the closed-schema
+64-case language evaluator and frozen release gate without changing runtime routing.
 
 The canonical decisions are the [language-routing design](LANGUAGE_ROUTING.md),
 [Adaptive Execution Policy](ADAPTIVE_EXECUTION_POLICY.md),
@@ -18,22 +18,7 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-### 1. Route safety and language-evaluation foundation
-
-Keep the existing deterministic regression corpus and 28 activation fixtures as
-compatibility coverage. Implement the separate, full development/release language
-evaluator described in [LANGUAGE_ROUTING.md](LANGUAGE_ROUTING.md).
-
-Gate:
-
-- versioned development and held-out release fixtures have unique IDs and no prompt-hash overlap;
-- release agreement is 100%, every conflict pair is read-only, and no destructive,
-  production, or credential-effect case is below `high` risk;
-- output reports route axes, authority, `mustNotMutate`, pair results, and RU/EN/mixed,
-  colloquial, typo, negation/conflict, and high-risk slices;
-- the evaluator and corpus contain only human-authored or sanitized-regression prompts.
-
-### 2. Fresh-host activation evidence
+### 1. Fresh-host activation evidence
 
 Measure the host-selection seam separately from deterministic routing. Use a fixed,
 representative subset in fresh ChatGPT/Codex sessions and retain only sanitized,
@@ -48,7 +33,7 @@ Gate:
 
 ## Next
 
-### 3. P2A activation observation ledger
+### 2. P2A activation observation ledger
 
 Implement the opt-in adapter in the [P2 ADR](docs/p2-architecture.md) only after
 the host corpus and its observation schema are stable. It records an observation;
@@ -57,7 +42,7 @@ it does not change routing or execution.
 Gate: schema validation rejects unknown/private fields and duplicate IDs, and a
 fresh-session implicit-selection claim requires its evidence.
 
-### 4. P2B post-turn usage receipt
+### 3. P2B post-turn usage receipt
 
 Implement a foreground-only Codex terminal-event adapter that copies authoritative
 usage fields exactly, otherwise records `unavailable`.
