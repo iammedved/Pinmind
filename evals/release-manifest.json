@@ -14,6 +14,11 @@
       "sha256": "29aafdd0d57afd6300d1fac9d13d76db544e10ef31dbcf4aad06101fa2a94bba"
     },
     {
+      "role": "github-web-flow-key",
+      "path": "scripts/keys/github-web-flow.gpg",
+      "sha256": "c135dfc1e3add3eb84e6119af7095dec97e0e92730a468d234f925a72bacaf74"
+    },
+    {
       "role": "development-corpus",
       "path": "evals/fixtures/language-dev.json",
       "sha256": "c9a08924379104a7058ac6431bd544ffe4918a08c6013602bd292f2a6ff76159"

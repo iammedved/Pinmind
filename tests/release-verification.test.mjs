@@ -28,7 +28,7 @@ test('canonical release manifest, workflow, plugin, and skill metadata validate'
   const result = await validateReleaseManifest(manifest, root);
   assert.equal(result.ok, true);
   assert.equal(result.nodeVersion, '24.19.0');
-  assert.equal(result.frozenInputs, 5);
+  assert.equal(result.frozenInputs, 6);
   assert.equal(result.commands, EXPECTED_COMMANDS.length);
   assert.equal(result.inventory.testFiles.length, 4);
   assert.equal(result.inventory.fixtureCases.routes, 227);
@@ -138,23 +138,36 @@ test('repository diff check covers local untracked files and GitHub commit range
   await assert.rejects(() => checkRepositoryDiff(workspace, { env: { PINMIND_DIFF_BASE_SHA: 'bad', PINMIND_DIFF_HEAD_SHA: head } }), (error) => error instanceof RepositoryDiffError && error.code === 'INVALID_DIFF_RANGE');
 });
 
-test('release identity gate accepts project-safe metadata and rejects personal-provider identities', () => {
+test('release identity gate accepts safe commits and GitHub merge metadata but rejects broader personal identities', () => {
   const safe = 'a'.repeat(40); const unsafe = 'b'.repeat(40);
+  const parentOne = 'c'.repeat(40); const parentTwo = 'd'.repeat(40);
   assert.equal(isSafeReleaseEmail('271581472+iammedved@users.noreply.github.com'), true);
   assert.equal(isSafeReleaseEmail('pinmind@example.invalid'), true);
   assert.equal(isSafeReleaseEmail('maintainer@personal.example'), false);
   assert.equal(validateIdentityRecords([{ sha: safe, authorEmail: 'pinmind@example.invalid', committerEmail: 'noreply@github.com' }]), 1);
+  assert.equal(validateIdentityRecords([{ sha: safe, parentShas: [parentOne, parentTwo], authorEmail: 'maintainer@personal.example', committerEmail: 'noreply@github.com', providerSignatureVerified: true }]), 1);
   assert.throws(() => validateIdentityRecords([{ sha: unsafe, authorEmail: 'maintainer@personal.example', committerEmail: 'noreply@github.com' }]), (error) => error instanceof ReleaseIdentityError && error.code === 'UNSAFE_RELEASE_IDENTITY' && !error.message.includes('personal.example'));
+  assert.throws(() => validateIdentityRecords([{ sha: unsafe, parentShas: [parentOne], authorEmail: 'maintainer@personal.example', committerEmail: 'noreply@github.com', providerSignatureVerified: true }]), (error) => error instanceof ReleaseIdentityError && error.code === 'UNSAFE_RELEASE_IDENTITY');
+  assert.throws(() => validateIdentityRecords([{ sha: unsafe, parentShas: [parentOne, parentTwo], authorEmail: 'maintainer@personal.example', committerEmail: 'noreply@github.com', providerSignatureVerified: false }]), (error) => error instanceof ReleaseIdentityError && error.code === 'UNSAFE_RELEASE_IDENTITY');
+  assert.throws(() => validateIdentityRecords([{ sha: unsafe, parentShas: [parentOne, parentTwo], authorEmail: 'maintainer@personal.example', committerEmail: '271581472+iammedved@users.noreply.github.com', providerSignatureVerified: true }]), (error) => error instanceof ReleaseIdentityError && error.code === 'UNSAFE_RELEASE_IDENTITY');
 
   const calls = [];
   const spawn = (_command, args) => {
     calls.push(args);
     if (args[0] === 'merge-base') return { status: 0, stdout: `${safe}\n`, stderr: '' };
-    if (args[0] === 'log') return { status: 0, stdout: `${unsafe}\tpinmind@example.invalid\tnoreply@github.com\n`, stderr: '' };
+    if (args[0] === 'log') return { status: 0, stdout: `${unsafe}\t${parentOne}\tpinmind@example.invalid\tnoreply@github.com\n`, stderr: '' };
     return { status: 1, stdout: '', stderr: 'unexpected' };
   };
   assert.deepEqual(checkReleaseIdentity(root, { env: { PINMIND_DIFF_BASE_SHA: safe, PINMIND_DIFF_HEAD_SHA: unsafe }, spawn }), { ok: true, mode: 'commit-range', base: safe, head: unsafe, commits: 1 });
   assert.deepEqual(calls.map((args) => args[0]), ['merge-base', 'log']);
+
+  const mergeSpawn = (_command, args) => {
+    if (args[0] === 'merge-base') return { status: 0, stdout: `${safe}\n`, stderr: '' };
+    if (args[0] === 'log') return { status: 0, stdout: `${unsafe}\t${parentOne} ${parentTwo}\tmaintainer@personal.example\tnoreply@github.com\n`, stderr: '' };
+    return { status: 1, stdout: '', stderr: 'unexpected' };
+  };
+  assert.deepEqual(checkReleaseIdentity(root, { env: { PINMIND_DIFF_BASE_SHA: safe, PINMIND_DIFF_HEAD_SHA: unsafe }, spawn: mergeSpawn, verifyProviderMerge: () => true }), { ok: true, mode: 'commit-range', base: safe, head: unsafe, commits: 1 });
+  assert.throws(() => checkReleaseIdentity(root, { env: { PINMIND_DIFF_BASE_SHA: safe, PINMIND_DIFF_HEAD_SHA: unsafe }, spawn: mergeSpawn, verifyProviderMerge: () => false }), (error) => error instanceof ReleaseIdentityError && error.code === 'UNSAFE_RELEASE_IDENTITY');
 });
 
 test('workflow is a single read-only CI gate with immutable action revisions', async () => {

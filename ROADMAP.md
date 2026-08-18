@@ -57,12 +57,12 @@ directly observed for the released version.
 ### 2. Make release inputs independently governed
 
 The release manifest records SHA-256 digests for the router, language validator,
-development corpus, release corpus, and mandatory unsafe-negative cases. CI fails
-when a digest changes without an intentional manifest update. Because the manifest,
-router, and expected answers remain in one repository, add a distinct reviewer or
-an externally administered signed manifest so they cannot be routinely tuned and
-approved together. A `CODEOWNERS` entry naming the same sole maintainer would not
-create independence.
+GitHub web-flow signing key, development corpus, release corpus, and mandatory
+unsafe-negative cases. CI fails when a digest changes without an intentional
+manifest update. Because the manifest, router, and expected answers remain in one
+repository, add a distinct reviewer or an externally administered signed manifest
+so they cannot be routinely tuned and approved together. A `CODEOWNERS` entry
+naming the same sole maintainer would not create independence.
 
 ### 3. Measure before reducing the always-loaded layer
 

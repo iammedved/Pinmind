@@ -49,6 +49,7 @@ const TEST_FILE_KEYS = new Set(['path', 'topLevelDeclarations']);
 export const EXPECTED_FROZEN_INPUTS = Object.freeze([
   ['router', 'skills/pinmind/scripts/lib/core.mjs'],
   ['language-schema-validator', 'scripts/evaluate-language-routing.mjs'],
+  ['github-web-flow-key', 'scripts/keys/github-web-flow.gpg'],
   ['development-corpus', 'evals/fixtures/language-dev.json'],
   ['held-out-release-corpus', 'evals/fixtures/language-release.json'],
   ['unsafe-negative-regressions', 'evals/fixtures/routes.json'],

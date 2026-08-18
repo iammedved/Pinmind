@@ -170,11 +170,13 @@ node scripts/verify-release.mjs --run
 ```
 
 The manifest records SHA-256 digests for the router, language validator,
-development corpus, held-out release corpus, and mandatory unsafe-negative route
-regressions. A digest change therefore requires an intentional manifest update
-in review. Because the manifest and inputs remain in the same repository, this is
-a review-visible tamper-evidence boundary, not a cryptographically independent
-benchmark.
+GitHub web-flow signing key, development corpus, held-out release corpus, and
+mandatory unsafe-negative route regressions. The identity gate permits
+provider-authored merge metadata only after local signature verification against
+that frozen key. A digest change therefore requires an intentional manifest
+update in review. Because the manifest and inputs remain in the same repository,
+this is a review-visible tamper-evidence boundary, not a cryptographically
+independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
 than quoting Node's runtime summary. The current manifest records 82 declarations
