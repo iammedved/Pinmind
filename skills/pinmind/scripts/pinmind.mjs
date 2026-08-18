@@ -10,10 +10,35 @@ function parse(argv) {
   const positionals = []; const flags = {};
   for (let i = 0; i < argv.length; i += 1) {
     const value = argv[i];
-    if (value.startsWith('--')) flags[value.slice(2)] = argv[i + 1]?.startsWith('--') || argv[i + 1] === undefined ? true : argv[++i];
+    if (value.startsWith('--')) {
+      const name = value.slice(2);
+      if (Object.hasOwn(flags, name)) throw new KernelError(`--${name} may be provided only once.`, 'DUPLICATE_FLAG');
+      flags[name] = argv[i + 1]?.startsWith('--') || argv[i + 1] === undefined ? true : argv[++i];
+    }
     else positionals.push(value);
   }
   return { positionals, flags };
+}
+const COMMAND_FLAGS = new Map([
+  ['init', ['run', 'brief']], ['route', ['file', 'text', 'kind']], ['state show', ['run']], ['state resume', ['run']], ['state reconcile', ['dry-run']],
+  ['state recover', ['apply', 'expected-sha256', 'expected-lock-sha256']], ['report', ['run', 'format']], ['baseline capture', ['run', 'file', 'cwd', 'timeout-ms']],
+  ['baseline unavailable', ['run', 'file']], ['contract validate', ['run', 'file']], ['contract freeze', ['run', 'file']], ['contract amend', ['run', 'file', 'reason', 'affects', 'authority']],
+  ['execution validate', ['run', 'file']], ['evidence record', ['run', 'file']], ['evidence capture', ['run', 'file', 'cwd', 'timeout-ms']], ['evidence validate', ['run']],
+  ['usage record', ['run', 'file']], ['final check', ['run']], ['final verify', ['run']], ['finalize', ['run']],
+]);
+function validateInvocation(positionals, flags, commandArgv = []) {
+  const [group, action, ...extra] = positionals;
+  const groupedKey = [group, action].filter(Boolean).join(' ');
+  const key = COMMAND_FLAGS.has(group) ? group : COMMAND_FLAGS.has(groupedKey) ? groupedKey : null;
+  if (!key) return;
+  const allowed = COMMAND_FLAGS.get(key);
+  const unknown = Object.keys(flags).filter((name) => !allowed.includes(name));
+  if (unknown.length) throw new KernelError(`Unknown flag for ${key}: --${unknown[0]}.`, 'UNKNOWN_FLAG', unknown.map((name) => `--${name}`));
+  const unexpected = COMMAND_FLAGS.has(group) ? positionals.slice(1) : extra;
+  if (unexpected.length) throw new KernelError(`Unexpected positional argument for ${key}: ${unexpected[0]}.`, 'UNEXPECTED_POSITIONAL', unexpected);
+  if (commandArgv.length && key !== 'baseline capture' && key !== 'evidence capture') {
+    throw new KernelError(`Unexpected command argument for ${key}: ${commandArgv[0]}.`, 'UNEXPECTED_POSITIONAL', commandArgv);
+  }
 }
 function requireFlag(flags, name) { if (typeof flags[name] !== 'string') throw new KernelError(`--${name} is required.`, 'MISSING_ARGUMENT'); return flags[name]; }
 function print(value) { process.stdout.write(typeof value === 'string' ? `${value.replace(/\n?$/, '\n')}` : `${JSON.stringify(value, null, 2)}\n`); }
@@ -23,6 +48,7 @@ function requirePassing(result, code, message) { if (!result.ok) throw new Kerne
 export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   const divider = argv.indexOf('--'); const commandArgv = divider === -1 ? [] : argv.slice(divider + 1); const { positionals, flags } = parse(divider === -1 ? argv : argv.slice(0, divider)); const [group, action] = positionals;
   if (group === '--help' || group === '-h' || !group) return { ok: true, usage };
+  validateInvocation(positionals, flags, commandArgv);
   if (group === 'init') { const run = flags.run || generateRunId(); const brief = await readBrief(requireFlag(flags, 'brief')); return initRun(cwd, run, brief); }
   if (group === 'route') return routeTask(flags.file ? await readInputJson(flags.file) : { text: requireFlag(flags, 'text'), kind: flags.kind });
   if (group === 'state' && action === 'show') return stateShow(cwd, flags.run);

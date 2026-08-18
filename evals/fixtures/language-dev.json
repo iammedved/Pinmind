@@ -1,0 +1,1014 @@
+{
+  "schemaVersion": 1,
+  "split": "dev",
+  "cases": [
+    {
+      "id": "dev-01a",
+      "pairId": "dev-01",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Объясни проблему падения сборки.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-01b",
+      "pairId": "dev-01",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "colloquial"
+      ],
+      "prompt": "Разберись в проблеме падения сборки.",
+      "expected": {
+        "route": "investigation",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-02a",
+      "pairId": "dev-02",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Rename NOTES.md to ARCHIVE.md.",
+      "expected": {
+        "route": "operational",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "operational",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-02b",
+      "pairId": "dev-02",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Rename NOTES.md to ARCHIVE.md, but do not change files.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-03a",
+      "pairId": "dev-03",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Предложи план улучшения локальной документации.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-03b",
+      "pairId": "dev-03",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Предложи план улучшения локальной документации, потом обнови её.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-04a",
+      "pairId": "dev-04",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Research whether a plan for offline export is feasible.",
+      "expected": {
+        "route": "spike",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-04b",
+      "pairId": "dev-04",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Propose a plan for offline export, then implement it.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-05a",
+      "pairId": "dev-05",
+      "split": "dev",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch",
+        "reporting",
+        "negation"
+      ],
+      "prompt": "Review этот модуль, only report, ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-05b",
+      "pairId": "dev-05",
+      "split": "dev",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch"
+      ],
+      "prompt": "Review этот модуль и добавь retry в API client.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-06a",
+      "pairId": "dev-06",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "typo",
+        "colloquial"
+      ],
+      "prompt": "Разберись пачему сервис падает после релиза.",
+      "expected": {
+        "route": "investigation",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "sanitized-regression",
+        "inspiration": [
+          "sanitized-router-regression",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-06b",
+      "pairId": "dev-06",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "typo",
+        "negation"
+      ],
+      "prompt": "Разберись пачему сервис падает после релиза, но код не меняй.",
+      "expected": {
+        "route": "investigation",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "sanitized-regression",
+        "inspiration": [
+          "sanitized-router-regression",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-07a",
+      "pairId": "dev-07",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "production"
+      ],
+      "prompt": "Deploy the release to live.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-07b",
+      "pairId": "dev-07",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "production",
+        "negation",
+        "reporting"
+      ],
+      "prompt": "Review the live release plan and report only; do not change code.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-08a",
+      "pairId": "dev-08",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "high-risk",
+        "credential"
+      ],
+      "prompt": "Отзови ключи доступа в проде.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-08b",
+      "pairId": "dev-08",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "high-risk",
+        "credential",
+        "negation"
+      ],
+      "prompt": "Проверь ключи доступа в проде, ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-09a",
+      "pairId": "dev-09",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "destructive",
+        "production"
+      ],
+      "prompt": "Wipe stale records from the production database.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-09b",
+      "pairId": "dev-09",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "destructive",
+        "production",
+        "negation"
+      ],
+      "prompt": "Inspect stale records in the production database, read-only.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-10a",
+      "pairId": "dev-10",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "transliteration",
+        "colloquial"
+      ],
+      "prompt": "Задеплой тестовый сервис после проверки.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-10b",
+      "pairId": "dev-10",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "transliteration",
+        "negation"
+      ],
+      "prompt": "Задеплой тестовый сервис после проверки, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-11a",
+      "pairId": "dev-11",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Translate this sentence into Spanish.",
+      "expected": {
+        "route": "simple",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-11b",
+      "pairId": "dev-11",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "negation"
+      ],
+      "prompt": "Translate this sentence into Spanish; do not change files.",
+      "expected": {
+        "route": "simple",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-12a",
+      "pairId": "dev-12",
+      "split": "dev",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch",
+        "high-risk"
+      ],
+      "prompt": "Fix гонку в shared state between modules.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-12b",
+      "pairId": "dev-12",
+      "split": "dev",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch",
+        "high-risk",
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Fix гонку в shared state between modules, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-13a",
+      "pairId": "dev-13",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Скопируй три файла в папку backup.",
+      "expected": {
+        "route": "operational",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "operational",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-13b",
+      "pairId": "dev-13",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Скопируй три файла в папку backup, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-14a",
+      "pairId": "dev-14",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "reporting"
+      ],
+      "prompt": "Explain how the route selection works.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-14b",
+      "pairId": "dev-14",
+      "split": "dev",
+      "locale": "en",
+      "phenomena": [
+        "reporting",
+        "negation"
+      ],
+      "prompt": "Explain how the route selection works; do not modify code.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-15a",
+      "pairId": "dev-15",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Сделай нормально.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "sanitized-regression",
+        "inspiration": [
+          "sanitized-router-regression",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-15b",
+      "pairId": "dev-15",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Сделай нормально, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "sanitized-regression",
+        "inspiration": [
+          "sanitized-router-regression",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-16a",
+      "pairId": "dev-16",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Составь план нового публичного API между модулями.",
+      "expected": {
+        "route": "audit",
+        "clarity": "architectural",
+        "executionSpan": "cross-cutting",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "dev-16b",
+      "pairId": "dev-16",
+      "split": "dev",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Составь план нового публичного API между модулями, затем реализуй его.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "architectural",
+        "executionSpan": "cross-cutting",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    }
+  ],
+  "pairReviews": [
+    {
+      "pairId": "dev-01",
+      "anchorTokens": [
+        "падения",
+        "сборки"
+      ],
+      "dimension": "route"
+    },
+    {
+      "pairId": "dev-02",
+      "anchorTokens": [
+        "rename",
+        "notes",
+        "archive"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-03",
+      "anchorTokens": [
+        "план",
+        "улучшения",
+        "локальной",
+        "документации"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-04",
+      "anchorTokens": [
+        "plan",
+        "offline",
+        "export"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-05",
+      "anchorTokens": [
+        "review",
+        "этот",
+        "модуль"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-06",
+      "anchorTokens": [
+        "разберись",
+        "пачему",
+        "сервис",
+        "падает"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-07",
+      "anchorTokens": [
+        "the",
+        "release",
+        "live"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-08",
+      "anchorTokens": [
+        "ключи",
+        "доступа",
+        "проде"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-09",
+      "anchorTokens": [
+        "stale",
+        "records",
+        "production",
+        "database"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-10",
+      "anchorTokens": [
+        "задеплой",
+        "тестовый",
+        "сервис"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-11",
+      "anchorTokens": [
+        "translate",
+        "sentence",
+        "spanish"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-12",
+      "anchorTokens": [
+        "fix",
+        "гонку",
+        "shared",
+        "state"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-13",
+      "anchorTokens": [
+        "скопируй",
+        "три",
+        "файла",
+        "backup"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-14",
+      "anchorTokens": [
+        "explain",
+        "route",
+        "selection"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-15",
+      "anchorTokens": [
+        "сделай",
+        "нормально"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "dev-16",
+      "anchorTokens": [
+        "план",
+        "публичного",
+        "api",
+        "модулями"
+      ],
+      "dimension": "authority"
+    }
+  ]
+}

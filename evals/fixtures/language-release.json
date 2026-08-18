@@ -1,0 +1,1016 @@
+{
+  "schemaVersion": 1,
+  "split": "release",
+  "cases": [
+    {
+      "id": "release-01a",
+      "pairId": "release-01",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Explain how the worker pool works.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-01b",
+      "pairId": "release-01",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Investigate why the worker pool stalls.",
+      "expected": {
+        "route": "investigation",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-02a",
+      "pairId": "release-02",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Переименуй GUIDE.md в HANDBOOK.md.",
+      "expected": {
+        "route": "operational",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "operational",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-02b",
+      "pairId": "release-02",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Переименуй GUIDE.md в HANDBOOK.md, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-03a",
+      "pairId": "release-03",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Draft a plan for improving local documentation.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-03b",
+      "pairId": "release-03",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Draft a plan for improving local documentation, then implement it.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-04a",
+      "pairId": "release-04",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Исследуй, можно ли добавить офлайн-экспорт.",
+      "expected": {
+        "route": "spike",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-04b",
+      "pairId": "release-04",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Составь план: добавить офлайн-экспорт, затем реализуй его.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-05a",
+      "pairId": "release-05",
+      "split": "release",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch",
+        "reporting",
+        "negation"
+      ],
+      "prompt": "Проверь this module, report only, без изменений.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-05b",
+      "pairId": "release-05",
+      "split": "release",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch"
+      ],
+      "prompt": "Проверь this module и добавь retry в API client.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-06a",
+      "pairId": "release-06",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "typo",
+        "colloquial"
+      ],
+      "prompt": "Проверь пачему воркер не работает.",
+      "expected": {
+        "route": "investigation",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "sanitized-regression",
+        "inspiration": [
+          "sanitized-router-regression",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-06b",
+      "pairId": "release-06",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "typo",
+        "negation"
+      ],
+      "prompt": "Проверь пачему воркер не работает, не внося изменений в код.",
+      "expected": {
+        "route": "investigation",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "sanitized-regression",
+        "inspiration": [
+          "sanitized-router-regression",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-07a",
+      "pairId": "release-07",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "production"
+      ],
+      "prompt": "Publish the live release.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-07b",
+      "pairId": "release-07",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "production",
+        "negation",
+        "reporting"
+      ],
+      "prompt": "Review the production live release and report only; do not change code.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-08a",
+      "pairId": "release-08",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "credential"
+      ],
+      "prompt": "Rotate access keys.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-08b",
+      "pairId": "release-08",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "high-risk",
+        "credential",
+        "production",
+        "negation"
+      ],
+      "prompt": "Inspect production access keys, read-only.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "high",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-09a",
+      "pairId": "release-09",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "high-risk",
+        "destructive",
+        "production"
+      ],
+      "prompt": "Очисти старые записи из боевой базы данных.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-09b",
+      "pairId": "release-09",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "high-risk",
+        "destructive",
+        "production",
+        "negation"
+      ],
+      "prompt": "Проверь старые записи в боевой базе данных, ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-10a",
+      "pairId": "release-10",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "transliteration",
+        "colloquial"
+      ],
+      "prompt": "Зарелизь новую версию после тестов.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-10b",
+      "pairId": "release-10",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "transliteration",
+        "negation"
+      ],
+      "prompt": "Зарелизь новую версию после тестов, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-11a",
+      "pairId": "release-11",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Перефразируй этот абзац короче.",
+      "expected": {
+        "route": "simple",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-11b",
+      "pairId": "release-11",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "negation"
+      ],
+      "prompt": "Перефразируй этот абзац короче, ничего не меняя.",
+      "expected": {
+        "route": "simple",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-12a",
+      "pairId": "release-12",
+      "split": "release",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch",
+        "high-risk"
+      ],
+      "prompt": "Исправь race condition в shared state между модулями.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-12b",
+      "pairId": "release-12",
+      "split": "release",
+      "locale": "mixed",
+      "phenomena": [
+        "code-switch",
+        "high-risk",
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Исправь race condition в shared state между модулями, но ничего не меняй.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "cross-cutting",
+        "risk": "high",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-13a",
+      "pairId": "release-13",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Sort files by name.",
+      "expected": {
+        "route": "operational",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "low",
+        "authority": "operational",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-13b",
+      "pairId": "release-13",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Sort files by name, but do not make changes.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-14a",
+      "pairId": "release-14",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "reporting"
+      ],
+      "prompt": "Объясни, как работает выбор маршрута.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-14b",
+      "pairId": "release-14",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "reporting",
+        "negation"
+      ],
+      "prompt": "Объясни, как работает выбор маршрута, ничего не меняя.",
+      "expected": {
+        "route": "audit",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "no-change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-15a",
+      "pairId": "release-15",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "neutral"
+      ],
+      "prompt": "Change the empty-state message on the import screen.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "clear",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-15b",
+      "pairId": "release-15",
+      "split": "release",
+      "locale": "en",
+      "phenomena": [
+        "negation",
+        "conflict"
+      ],
+      "prompt": "Change the empty-state message on the import screen, but do not change files.",
+      "expected": {
+        "route": "audit",
+        "clarity": "uncertain",
+        "executionSpan": "local",
+        "risk": "medium",
+        "authority": "conflict",
+        "needsHumanConfirmation": true,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-16a",
+      "pairId": "release-16",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Составь план для публичного API между сервисами.",
+      "expected": {
+        "route": "audit",
+        "clarity": "architectural",
+        "executionSpan": "cross-cutting",
+        "risk": "medium",
+        "authority": "none",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": true
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    },
+    {
+      "id": "release-16b",
+      "pairId": "release-16",
+      "split": "release",
+      "locale": "ru",
+      "phenomena": [
+        "planning"
+      ],
+      "prompt": "Составь план для публичного API между сервисами, затем реализуй его.",
+      "expected": {
+        "route": "software-change",
+        "clarity": "architectural",
+        "executionSpan": "cross-cutting",
+        "risk": "medium",
+        "authority": "change",
+        "needsHumanConfirmation": false,
+        "mustNotMutate": false
+      },
+      "provenance": {
+        "kind": "human-authored",
+        "inspiration": [
+          "human-authored-contrast",
+          "minimal-contrast"
+        ]
+      }
+    }
+  ],
+  "pairReviews": [
+    {
+      "pairId": "release-01",
+      "anchorTokens": [
+        "worker",
+        "pool"
+      ],
+      "dimension": "route"
+    },
+    {
+      "pairId": "release-02",
+      "anchorTokens": [
+        "переименуй",
+        "guide",
+        "handbook"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-03",
+      "anchorTokens": [
+        "plan",
+        "improving",
+        "local",
+        "documentation"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-04",
+      "anchorTokens": [
+        "добавить",
+        "офлайн",
+        "экспорт"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-05",
+      "anchorTokens": [
+        "проверь",
+        "this",
+        "module"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-06",
+      "anchorTokens": [
+        "проверь",
+        "пачему",
+        "воркер"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-07",
+      "anchorTokens": [
+        "live",
+        "release"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-08",
+      "anchorTokens": [
+        "access",
+        "keys"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-09",
+      "anchorTokens": [
+        "старые",
+        "записи",
+        "боевой",
+        "данных"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-10",
+      "anchorTokens": [
+        "зарелизь",
+        "новую",
+        "версию"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-11",
+      "anchorTokens": [
+        "перефразируй",
+        "этот",
+        "абзац"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-12",
+      "anchorTokens": [
+        "race",
+        "condition",
+        "shared",
+        "state"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-13",
+      "anchorTokens": [
+        "sort",
+        "files",
+        "name"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-14",
+      "anchorTokens": [
+        "объясни",
+        "работает",
+        "выбор",
+        "маршрута"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-15",
+      "anchorTokens": [
+        "change",
+        "empty",
+        "state",
+        "message",
+        "import",
+        "screen"
+      ],
+      "dimension": "authority"
+    },
+    {
+      "pairId": "release-16",
+      "anchorTokens": [
+        "план",
+        "публичного",
+        "api",
+        "сервисами"
+      ],
+      "dimension": "authority"
+    }
+  ]
+}

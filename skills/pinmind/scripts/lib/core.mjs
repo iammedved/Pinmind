@@ -455,7 +455,6 @@ export async function loadState(cwd, runId) {
   return { files, state };
 }
 
-async function saveState(files, state) { state.updatedAt = new Date().toISOString(); await writeJsonAtomic(files.state, setStateHash(state)); }
 function requireActiveRun(state, runId) { if (state.status !== 'active') throw new KernelError(`Run ${runId} is complete.`, 'RUN_COMPLETE'); }
 
 function reconciliationResult(classification, pointerRunId, activeRunIds, runIds, issues = [], pendingTransition = null) {
@@ -754,8 +753,6 @@ async function loadEvidence(files) {
   }
   return store;
 }
-async function writeEvidence(files, store) { store.storeSha256 = evidenceStoreHash(store); await writeJsonAtomic(files.evidence, store); }
-
 function nonEmptyText(value) { return typeof value === 'string' && value.trim().length > 0; }
 
 function usageHash(receipt) { return hashWithout(receipt, 'usageSha256'); }
@@ -1236,7 +1233,7 @@ export function routeTask(input = {}) {
   if (multiSystem) mark(true, 'span:multi-system'); else if (crossCutting) mark(true, 'span:cross-cutting');
   const uncertain = /\b(feasibility|research|can we|should we|unknown|explore|compare (?:the )?(?:options|approaches))\b|возможн|исследу|можем ли|неизвест|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
   const trivial = mark(/^\s*(?:hi|hello|hey|thanks|thank you|привет|здравствуй(?:те)?|спасибо)[!.,?\s]*$/u.test(text), 'intent:trivial');
-  const noChangePattern = /\b(?:(?:do not|don't)\s+(?:(?:create|change|modify|edit|alter|touch)(?:\s+or\s+)?){1,2}\s+(?:any\s+)?(?:files?|code)|without\s+(?:(?:creating|changing|modifying|editing|altering|touching)(?:\s+or\s+)?){1,2}\s+(?:any\s+)?(?:files?|code)|(?:do not|don't|without)\s+(?:make\s+)?(?:any\s+)?(?:change|changes|modify|modification|edit|editing|alter|touch)|(?:report|inspect|review)\s+only|only\s+report|read[- ]only|without\s+changes?)\b|ничего\s+не\s+(?:меняй|изменяй|исправляй|трогай)|(?:пока\s+)?не\s+(?:меняй|изменяй|вноси|трогай|правь|редактируй)(?=\s|[.,;:!?]|$)|(?:в\s+)?код\S*\s+(?:пока\s+)?не\s+(?:лезь|правь|меняй|трогай)|не\s+меняя|без\s+(?:изменени|правок)|правк\S*\s+не\s+вноси|оставь\s+код\s+как\s+есть|только\s+(?:сообщи|покажи|дай).*результат|только\s+(?:проверь|посмотри)/u;
+  const noChangePattern = /\b(?:(?:do not|don't)\s+(?:(?:create|change|modify|edit|alter|touch)(?:\s+or\s+)?){1,2}\s+(?:any\s+)?(?:files?|code)|without\s+(?:(?:creating|changing|modifying|editing|altering|touching)(?:\s+or\s+)?){1,2}\s+(?:any\s+)?(?:files?|code)|(?:do not|don't|without)\s+(?:make\s+)?(?:any\s+)?(?:change|changes|modify|modification|edit|editing|alter|touch)|(?:report|inspect|review)\s+only|only\s+report|read[- ]only|without\s+changes?)\b|ничего\s+не\s+(?:меняй|изменяй|исправляй|трогай)|(?:пока\s+)?не\s+(?:меняй|изменяй|вноси|трогай|правь|редактируй)(?=\s|[.,;:!?]|$)|(?:в\s+)?код\S*\s+(?:пока\s+)?не\s+(?:лезь|правь|меняй|трогай)|не\s+меняя|не\s+внося\s+изменени\S*(?:\s+в\s+(?:файл\S*|код\S*))?|не\s+(?:создавая|изменяя|редактируя|удаляя|трогая)(?:\s*,?\s*(?:и|или)\s+не\s+(?:создавая|изменяя|редактируя|удаляя|трогая)){0,3}\s+(?:файл\S*|код\S*)|без\s+(?:изменени|правок)|правк\S*\s+не\s+вноси|оставь\s+код\s+как\s+есть|только\s+(?:сообщи|покажи|дай).*результат|только\s+(?:проверь|посмотри)/u;
   const noChange = mark(noChangePattern.test(text), 'authority:no-change');
   const affirmativeText = text
     .replace(new RegExp(noChangePattern.source, 'gu'), '')
@@ -1246,7 +1243,14 @@ export function routeTask(input = {}) {
   const directiveText = actionText
     .replace(/\bhow\s+to\s+(?:fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|improve|redesign|migrate|deploy)\b/gu, '')
     .replace(/как\s+(?:исправить|изменить|реализовать|добавить|обновить|удалить|переписать|улучшить|переработать|мигрировать|развернуть)/gu, '');
-  const requestedChange = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace)\b|исправ|измен|внес|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|сделай|пофикс|почин|сотр|очист|уничтож|ротац|отоз|смен|замен|усил.*(?:защит|безопас)/u.test(directiveText);
+  const changePattern = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace)\b|исправ|измен|внес|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|сделай|пофикс|почин|сотр|очист|уничтож|ротац|отоз|смен|замен|усил.*(?:защит|безопас)/u;
+  const readOnlyDirectivePattern = /^(?:(?:please|briefly|shortly|first)\s*,?\s*){0,3}(?:explain|describe|report|tell|summari[sz]e)\b|^(?:(?:пожалуйста|кратко|сначала)\s*,?\s*){0,3}(?:объясни|расскажи|опиши|сообщи|суммируй|дай\s+отч[её]т)(?=\s|[.,;:!?]|$)/u;
+  const changeMention = changePattern.test(directiveText);
+  const planningRequest = /\b(?:plan\s+(?:how|for|to)|(?:what(?:'s| is)|propose|draft|prepare|recommend|review|critique)\s+(?:the\s+)?(?:next\s+)?(?:plan|roadmap|proposal|recommendations?))\b|(?:какой|предлож\S*|состав\S*|подготов\S*|дай|продум\S*|оцени\S*|покритику\S*|нужен)\s+(?:\S+\s+){0,3}план\S*|план\S*\s+(?:по|для|улучш|дальнейш)|критик\S*\s+(?:существ|текущ)/u.test(text);
+  const executionConnector = /(?:,?\s+)(?:(?:and\s+)?then|and|(?:и\s+)?(?:затем|потом|далее)|(?:и\s+)?после\s+(?:этого|чего)|и)(?:,\s*|\s+)/u.exec(directiveText);
+  const executionSuffix = executionConnector ? directiveText.slice(executionConnector.index + executionConnector[0].length) : '';
+  const planningAndExecution = Boolean(planningRequest && executionConnector && !readOnlyDirectivePattern.test(executionSuffix) && changePattern.test(executionSuffix));
+  const requestedChange = changeMention && (!planningRequest || planningAndExecution);
   const softwareImpact = /\b(add|render|use|build|component|page|ui|catalog|asset|assets|code|implement|api|database|schema|client)\b|добав|рендер|использ.*(?:изображ|asset|ресурс)|страниц|компонент|интерфейс|каталог|код|баз\S*\s+данн|схем/u.test(text);
   const translationIntent = /\b(?:translate|translation)\b|перевед/u.test(text);
   const boundedText = /\b(?:translate\s+(?:this|it)|(?:this|the)?\s*(?:sentence|phrase|word|paragraph|text))\b|перевед\S*\s+(?:это|этот|эту|его|её|ее)|(?:это|этот|эту|данн\S*)?\s*(?:предложен|фраз|слов|абзац|текст)/u.test(text);
@@ -1264,10 +1268,10 @@ export function routeTask(input = {}) {
   const explanation = /\b(?:explain|describe)\b|\bhow\s+(?:does|do|is|are)\b|объясн|расскаж|опиш\S*\s+как/u.test(text);
   const auditRequest = /\b(audit|review|reviewing|pr review|security review|inspect|evaluate|check|report|look for (?:problems|issues)|find (?:problems|issues))\b|аудит|ревью|провер|посмотр|оцени|проанализир|глян|отчет|сообщи|поиск(?:ать|и).*проблем|найд\S*.*проблем/u.test(text);
   const spike = /\b(feasibility|research|can we|should we|spike|explore|compare (?:the )?(?:options|approaches))\b|оцен.*возможност|исследу|можем ли|спайк|стоит ли|погугл|сравни.*(?:вариант|подход)/u.test(text);
-  const recognizedReadOnlyIntent = investigation || explanation || auditRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
+  const recognizedReadOnlyIntent = investigation || explanation || auditRequest || planningRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat;
   const conflict = mark(noChange && (requestedChange || operationalIntent || !recognizedReadOnlyIntent), 'authority:conflict');
-  const vague = mark(/^(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
-  const audit = conflict || (!investigation && ((!requestedChange && explanation) || (auditRequest && (!requestedChange || noChange))));
+  const vague = mark(/^(?:(?:make|fix|improve)\s+(?:it|this)(?:\s+(?:work|better|properly))?|do\s+(?:it|this)\s+(?:right|properly)|(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?)[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
+  const audit = conflict || (!investigation && ((!requestedChange && (explanation || planningRequest)) || (auditRequest && (!requestedChange || noChange))));
   if (requestedChange) mark(true, 'intent:change'); if (softwareImpact) mark(true, 'impact:software');
   if (operationalIntent) mark(true, 'intent:operational'); if (investigation) mark(true, 'intent:investigation'); if (spike) mark(true, 'intent:spike'); if (audit) mark(true, 'intent:audit');
   let selectedExplicit;
