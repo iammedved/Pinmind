@@ -57,6 +57,6 @@ Generate `final.md` or the final response from current canonical state. Separate
 - manual steps and external gates;
 - exact checks run and their current result.
 
-End every user-facing response while Pinmind is active, including a manual `simple` invocation, with an authoritative token total and source when the complete scope is observable, or with `Token usage: unavailable` when it is not. Read [token-usage.md](token-usage.md). Do not infer a number before the host emits post-turn usage.
+Do not report token usage in the chat completion. Token accounting is out of the skill surface and must not appear in the user-facing report.
 
 Never claim success from stale evidence, historical output, memory, an unexecuted command, or an unavailable capability. State partial completion plainly.

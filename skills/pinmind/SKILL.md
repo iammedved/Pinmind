@@ -1,6 +1,6 @@
 ---
 name: pinmind
-description: "Default RU/EN controller for non-trivial Russian or English tasks (задачи на русском или английском) requiring tools/files, multi-step reasoning, research/исследование, audit/аудит, diagnosis/диагностику, planning/планирование, implementation, or changes to code, UI, documents, data, integrations, or tests. Use implicitly alongside required domain skills; after selection, load only this SKILL.md and immediately run the bundled route before memory, references, workspace inspection, or task tools. Do not use for greetings, one stable fact, tiny translation/rewrite, trivial formatting, or other obvious one-step low-risk requests."
+description: "Default RU/EN controller for every new Grok, Codex, or ChatGPT chat on non-trivial Russian or English tasks (задачи на русском или английском, including colloquial RU) requiring tools/files, multi-step reasoning, research/исследование, audit/аудит, diagnosis/диагностику, planning/планирование, implementation, or changes to code, UI, documents, data, integrations, or tests. Use implicitly at session start alongside required domain skills; after selection, load only this SKILL.md and immediately run the bundled route before memory, references, workspace inspection, or task tools. Do not use for greetings, one stable fact, tiny translation/rewrite, or trivial formatting."
 ---
 
 # Pinmind
@@ -42,12 +42,12 @@ If Node.js or the kernel is unavailable, make the first update begin `Route: non
 ## Start every triggered run
 
 1. Preserve all higher-priority instructions, repository `AGENTS.md` rules, user permissions, and mandatory domain-skill workflows.
-2. Use this skill as the controller around required domain skills; never replace a specialized workflow such as PDF, security, Figma, or spreadsheet handling.
-3. When the route is `simple`, answer directly without further reference or workspace reads. Otherwise read [route.md](references/route.md) after the mandatory router update, then compose only the capabilities and evidence required by the selected route.
+2. Use this skill as the controller around required domain skills; never replace a specialized workflow such as PDF, security, Figma, spreadsheet handling, Superpowers, or Grok `design` / `execute-plan`.
+3. When the route is `simple`, answer directly without further reference or workspace reads. Otherwise read [route.md](references/route.md) after the mandatory router update, then compose only the capabilities and evidence required by the selected route. For `software-change` and `investigation`, also read [loop.md](references/loop.md).
 4. Check for `.pinmind/active.json` in the active workspace before starting a new persistent run. Resume a matching unfinished run after validating its state; never rely on chat memory alone. The MVP permits one active run per workspace and blocks silent replacement.
 5. Ask only about an unresolved choice that changes observable outcome, safety, authority, or a hard-to-reverse boundary. Otherwise record a reasonable assumption and continue.
 
-Router fields explain handling but never grant authority. When `needsHumanConfirmation` is true, remain read-only until the contradiction or target is resolved.
+Router fields explain handling but never grant authority. When `needsHumanConfirmation` is true, remain read-only until the contradiction or target is resolved. When `effect:external-side-effect` is present, remain read-only until the user gives exact current authority for that concrete target and effect. The signal does not set `needsHumanConfirmation` by itself and does not grant authority.
 
 When changing discovery metadata, installation, or activation behavior, read [host-smoke.md](references/host-smoke.md) and keep host selection evidence separate from deterministic router evidence.
 
@@ -64,7 +64,18 @@ Use exactly one primary route:
 
 Apply safety and authority gates before route convenience. An operational classification never authorizes a shared push, deployment, message, deletion, production migration, payment, credential change, or other external effect by itself.
 
-For non-simple routes, record three independent axes in working state: `clarity` (`clear`, `uncertain`, `architectural`), `span` (`local`, `cross-cutting`, `multi-system`), and `risk` (`low`, `medium`, `high`). Escalate the route when new evidence requires it; never silently downgrade risk.
+For non-simple routes, record three independent axes in working state: `clarity` (`clear`, `uncertain`, `architectural`), `span` (`local`, `cross-cutting`, `multi-system`), and `risk` (`low`, `medium`, `high`). Escalate the route when new evidence requires it; never silently downgrade risk. Unclear, unrecognized, or contradictory wording stays `uncertain` and read-only until confirmed; never dump it into `software-change`.
+
+## Work loop
+
+After the route line, keep Superpowers' defining loop without extra artifacts on light routes:
+
+- Design or name 2–3 alternatives before implementing a behavior change. A bounded change can be two sentences in chat; still stop for approval when the outcome is reversible only with effort.
+- Observe a failing public-seam check before a production behavior change.
+- Collect root-cause evidence before a fix.
+- Run fresh verification before any "done" claim.
+
+`simple` and `operational` stay a light no-artifact path: no `.pinmind` contract, no evidence store, no process files. Authority gates still block shared-branch push, deployment, deletion, production migration, payment, and credential changes.
 
 ## Build and freeze the outcome contract
 
@@ -123,6 +134,8 @@ Use one integrated fresh-eyes pass, never a review fan-out per file, obligation,
 
 Stop repeating the same strategy when the same failure class occurs twice, three repair rounds finish, scope expands materially, a new public boundary appears, evidence cannot distinguish success from failure, or the next action would be a guess.
 
+Re-check the original request and current evidence. Search the web or primary sources when local docs and the repo cannot settle the blocker. Then change strategy or report the real gap.
+
 Classify the blocker as a contract, design, decomposition, environment, evidence, or implementation defect. Rebuild the relevant invariant/state matrix, recut the work, amend the contract, change strategy, or report a real blocker. After a second concurrency or ordering symptom, stop symptom patches and model the full interleaving surface.
 
 When Pinmind itself misses activation, misroutes, downgrades unsafely, composes the wrong capability, or produces defective evidence/receipts, read [regression-inbox.md](references/regression-inbox.md). Preserve a sanitized reproducible case before changing metadata or policy; never self-edit merely because one task felt awkward.
@@ -135,13 +148,8 @@ Never erase a dirty tree, expose secrets in artifacts, weaken acceptance to make
 
 ## Finalize honestly
 
-Read [token-usage.md](references/token-usage.md). Generate the final report from current artifacts and fresh evidence, not memory. Separate completed, failed, unproven, pending, assumed, amended, added, and manual items. Include exact verification commands and material limitations. Curate only stable reusable facts into durable project memory; never turn a session log or assumption into project truth.
+Generate the final report from current artifacts and fresh evidence, not memory. Separate completed, failed, unproven, pending, assumed, amended, added, and manual items. Include exact verification commands and material limitations. Curate only stable reusable facts into durable project memory; never turn a session log or assumption into project truth.
 
-For every task while Pinmind is active, including an explicitly or manually invoked `simple` route, end the user-facing final response with one token line:
-
-- `Token usage: <observed total> (<source and available input/output breakdown>)` only when an authoritative host, SDK, CLI JSON event, App Server event, or API response exposed usage for the whole reported scope;
-- `Token usage: unavailable — this surface did not expose authoritative usage for the whole task` otherwise.
-
-Never estimate the number or substitute zero. The assistant's own final-response tokens normally become known only after that response completes, so an instruction-only ChatGPT/Codex skill will usually report `unavailable`. For persistent runs, keep the hash-checked receipt in `usage.json`; a supported post-turn observer may record actual usage later and `report` will render it without modifying the run.
+Do not report token usage and do not read token-accounting references while finishing a task. Token counting is out of the skill and plugin surface so it cannot displace routing, contracts, or verification.
 
 Use the bundled kernel for state, schema, trace, evidence, and freeze checks; see [kernel-cli.md](references/kernel-cli.md) for exact commands. Treat kernel validation as necessary but not sufficient: deterministic structure cannot replace product judgment or a real user journey.

@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "6e36e06598c567d5d551da85d5b45113e426348597ecc4da2b071bb6e4342bbd"
+      "sha256": "f4f0bdcba39af3f95c7257b38ec5587ea49aa8f52e147a547b1046b0b8160840"
     },
     {
       "role": "language-schema-validator",
@@ -21,7 +21,7 @@
     {
       "role": "development-corpus",
       "path": "evals/fixtures/language-dev.json",
-      "sha256": "c9a08924379104a7058ac6431bd544ffe4918a08c6013602bd292f2a6ff76159"
+      "sha256": "8a6eb0b86bdc5364b18d87cc57f65de33e2de4244b34691048a111022cd13f82"
     },
     {
       "role": "held-out-release-corpus",
@@ -31,31 +31,115 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "b402c70df36dbafa02e24019e170570e3d0eb757eb9a12bf60daa9c2a97082b7"
+      "sha256": "892f0a16a175df5598684e2b9c8350b88a59f241c3f40ffc3581ba0450c3646c"
     }
   ],
   "commands": [
-    { "id": "kernel-tests", "argv": ["node", "--test", "tests/kernel.test.mjs"] },
-    { "id": "aep-validator", "argv": ["node", "scripts/validate-aep-decision-contract.mjs"] },
-    { "id": "aep-tests", "argv": ["node", "--test", "tests/aep-decision-contract.test.mjs"] },
-    { "id": "language-evaluator", "argv": ["node", "scripts/evaluate-language-routing.mjs"] },
-    { "id": "language-tests", "argv": ["node", "--test", "tests/language-routing-evaluator.test.mjs"] },
-    { "id": "release-tests", "argv": ["node", "--test", "tests/release-verification.test.mjs"] },
-    { "id": "plugin-skill-validator", "argv": ["node", "scripts/validate-plugin-skill.mjs"] },
-    { "id": "core-syntax", "argv": ["node", "--check", "skills/pinmind/scripts/lib/core.mjs"] },
-    { "id": "cli-syntax", "argv": ["node", "--check", "skills/pinmind/scripts/pinmind.mjs"] },
-    { "id": "release-identity", "argv": ["node", "scripts/check-release-identity.mjs"] },
-    { "id": "diff-check", "argv": ["node", "scripts/check-repository-diff.mjs"] }
+    {
+      "id": "kernel-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/kernel.test.mjs"
+      ]
+    },
+    {
+      "id": "aep-validator",
+      "argv": [
+        "node",
+        "scripts/validate-aep-decision-contract.mjs"
+      ]
+    },
+    {
+      "id": "aep-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/aep-decision-contract.test.mjs"
+      ]
+    },
+    {
+      "id": "language-evaluator",
+      "argv": [
+        "node",
+        "scripts/evaluate-language-routing.mjs"
+      ]
+    },
+    {
+      "id": "language-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/language-routing-evaluator.test.mjs"
+      ]
+    },
+    {
+      "id": "release-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/release-verification.test.mjs"
+      ]
+    },
+    {
+      "id": "plugin-skill-validator",
+      "argv": [
+        "node",
+        "scripts/validate-plugin-skill.mjs"
+      ]
+    },
+    {
+      "id": "core-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/core.mjs"
+      ]
+    },
+    {
+      "id": "cli-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/pinmind.mjs"
+      ]
+    },
+    {
+      "id": "release-identity",
+      "argv": [
+        "node",
+        "scripts/check-release-identity.mjs"
+      ]
+    },
+    {
+      "id": "diff-check",
+      "argv": [
+        "node",
+        "scripts/check-repository-diff.mjs"
+      ]
+    }
   ],
   "inventory": {
     "testFiles": [
-      { "path": "tests/kernel.test.mjs", "topLevelDeclarations": 61 },
-      { "path": "tests/aep-decision-contract.test.mjs", "topLevelDeclarations": 5 },
-      { "path": "tests/language-routing-evaluator.test.mjs", "topLevelDeclarations": 7 },
-      { "path": "tests/release-verification.test.mjs", "topLevelDeclarations": 9 }
+      {
+        "path": "tests/kernel.test.mjs",
+        "topLevelDeclarations": 62
+      },
+      {
+        "path": "tests/aep-decision-contract.test.mjs",
+        "topLevelDeclarations": 5
+      },
+      {
+        "path": "tests/language-routing-evaluator.test.mjs",
+        "topLevelDeclarations": 7
+      },
+      {
+        "path": "tests/release-verification.test.mjs",
+        "topLevelDeclarations": 9
+      }
     ],
     "fixtureCases": {
-      "routes": 247,
+      "routes": 441,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,

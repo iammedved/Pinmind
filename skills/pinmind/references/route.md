@@ -23,6 +23,8 @@ Apply the lightest route that still protects the outcome.
 
 Do not equate short wording with a simple task. Treat "fix the race," "deploy this," and "delete duplicates" as high-risk or substantive even when phrased in one sentence.
 
+Never dump unrecognized, vague, or contradictory wording into `software-change`. Those cases stay `clarity: uncertain`, `needsHumanConfirmation: true`, and a read-only `audit` route until the user confirms the outcome. Classify paraphrases by intended outcome, not by the old fixture keywords.
+
 ## Classification axes
 
 Classify independently:
@@ -71,15 +73,19 @@ After Pinmind is active, use the kernel route record before route-dependent acti
 | Request | Expected route |
 |---|---|
 | "Translate this sentence" / "Переведи это предложение" | simple |
+| "Translate this sentence: The build is green." | simple; payload words do not create software impact |
 | "Copy these six supplied images into the requested folder" | operational |
 | "Can this library parse our legacy format?" | spike |
 | "Review this PR and do not change code" / "Проверь репозиторий, ничего не меняй" | audit |
+| "Compare Pinmind and Superpowers" / "кто лучше?" | audit; not unrecognized |
+| "так и какие теперь мысли по поводу pinmind?" | audit; colloquial status question, not unrecognized |
+| "выпили подсчет токенов" / "пуш на гитхаб" | software-change or operational by outcome; "пуш на гитхаб" is a remote push |
 | "Prepare a plan for the pull request merge" | audit |
 | "Create a pull request targeting main" | operational, clear/local/medium plus external-effect gate |
 | "Merge PR #12 into protected main" | operational, clear/local/high plus external-effect gate |
 | "Why does login sometimes return 500?" / "Диагностируй проблему, ничего не меняй" | investigation, no fix without authority |
 | "Fix this local validation rule" | software-change, clear/local/medium |
-| "Fix a race condition" | investigation then software-change, clear/cross-cutting/high |
+| "Fix a race condition" | software-change, high; work loop still requires root-cause before the fix |
 | "Build this landing page" | software-change, uncertain/local/medium |
 | "Add payment processing" | software-change, uncertain/multi-system/high |
 | "Run a production migration" | operational or substantive/high plus explicit side-effect gate |

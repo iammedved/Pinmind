@@ -6,6 +6,64 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-19
+
+### Removed
+
+- Token counting from the skill and plugin surface. The controller no longer
+  reads token-accounting references or prints a chat token line, so that work
+  cannot displace routing, contracts, or verification. Optional kernel
+  receipts remain host-adapter infrastructure only.
+
+### Added
+
+- Compact recognition of colloquial Russian and mixed RU/EN user voice:
+  product desire, feature removal, eval/test harness work, opinion questions,
+  GitHub push without a required `ветку`, and host install phrasing.
+- 92 human-authored user-voice routing cases plus the previous 95
+  word-latching, race/token, comparison, and external-effect regressions.
+  The deterministic route corpus is now 441 cases.
+- `effect:external-side-effect` for delete, deploy, rotate, migrate, and
+  similar production actions. The signal does not set
+  `needsHumanConfirmation` and does not grant authority.
+
+### Fixed
+
+- Bounded translation no longer becomes `software-change` because the
+  translated sentence contains words such as `build`, `code`, or `deploy`.
+- Typo-only edits accept `fix the typo`, `поправь опечатку`, and
+  `correct the typo`, not only the exact phrase `fix typo`.
+- Comparison, critique, and next-step questions are recognized `audit` work
+  instead of `intent:unrecognized`.
+- Quoted or listed production verbs inside a planning or translation request
+  no longer raise an executable external effect.
+- `Сопоставь pinmind` no longer looks like an install because `поставь` is
+  matched only at a word boundary.
+
+## [0.7.0] - 2026-08-19
+
+### Added
+
+- Superpowers-defining work loop in the controller: design or alternatives
+  before implementation, a failing public-seam check before a production
+  behavior change, root-cause evidence before a fix, and fresh verification
+  before any "done" claim, without copying Visual Companion, worktrees, or
+  2–5 minute plan microsteps.
+- Conservative routing for unrecognized, vague, or contradictory wording:
+  stay `uncertain` and read-only instead of dumping into `software-change`.
+- Outcome paraphrases (inspect / diagnose / mutate) that classify by intent
+  without the old fixture keywords.
+- Self-repair that re-checks evidence and searches the web or primary sources
+  when local information is not enough.
+- Grok Build user-scope install path so a newly opened Grok chat can load
+  Pinmind without a per-chat copy.
+
+### Changed
+
+- Report token usage only when the host exposes authoritative counts; omit
+  the line instead of padding simple answers with `unavailable`.
+- Keep simple and operational routes as a light no-artifact path.
+
 ## [0.6.3] - 2026-08-18
 
 ### Fixed
