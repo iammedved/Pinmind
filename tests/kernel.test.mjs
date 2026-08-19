@@ -1100,6 +1100,10 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   assert.doesNotMatch(skill, /simple[\s\S]{0,120}init --run/i);
   assert.match(loop, /Failing public-seam check first/i);
   assert.match(loop, /Search the web or primary sources/i);
+  assert.match(loop, /When to compose which skill/i);
+  assert.match(loop, /Superpowers TDD/i);
+  assert.match(loop, /\/design/i);
+  assert.match(loop, /Inline/i);
   assert.match(execution, /Investigation feedback loop/i); assert.match(execution, /public-seam test[\s\S]*CLI.API.browser[\s\S]*minimal (?:throwaway )?harness[\s\S]*(?:property|fuzz)[\s\S]*(?:bisect|differential)/i);
   assert.match(execution, /Phase boundar/i); for (const action of ['continue', 'compact', 'handoff', 'subagent']) assert.ok(execution.includes(`\`${action}\``), action);
   assert.match(inbox, /regression case.*before|before.*policy change/is); assert.match(inbox, /activation-miss/); assert.match(inbox, /route-misclassification/); assert.match(inbox, /Do not automatically rewrite Pinmind/i);

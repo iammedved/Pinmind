@@ -20,6 +20,17 @@ Simple and operational work stays inline and creates no Pinmind artifacts.
 Authority gates still apply: do not deploy, push to a shared branch, delete,
 migrate production, or rotate credentials without the user's exact authority.
 
+## When to compose which skill
+
+Pinmind is the controller. Load a specialist only when that specialist owns
+the seam. Do not grow a second skill library.
+
+| Situation | Compose |
+|---|---|
+| Behavior, API, data, or UX change with an executable public seam | Superpowers TDD under this controller: observe a failing public-seam check, then implement the minimum change |
+| New public shape, architecture, or a multi-PR design the user asked to design | Grok `/design` (writer/reviewer loop). Keep Pinmind as the controller; do not replace `/design` |
+| Local already-specified work; `simple` or `operational`; a two-sentence design is enough | Inline. Do not load Superpowers, `/design`, or another workflow pack |
+
 ## Self-repair
 
 Stop repeating the same strategy after two failures of the same class, three
