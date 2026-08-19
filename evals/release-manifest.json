@@ -5,8 +5,8 @@
   "frozenInputs": [
     {
       "role": "router",
-      "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "8bffc441e4921c2842c056d11feac9cf2b88181ab3861f5c033eaebe6891794d"
+      "path": "skills/pinmind/scripts/lib/route.mjs",
+      "sha256": "13afa103911b8b3ac41f683bc7540d84c58bbde6158d6af15082a309eb1ecbed"
     },
     {
       "role": "language-schema-validator",
@@ -31,7 +31,7 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "84022417631cf34eaa19956b95547b9ebf667998a963010c7746082ec1075134"
+      "sha256": "bbe14873c7c41c4b8ee59a58dadef5bf7a589288e6f78edd1a8b3b4007deb6d0"
     }
   ],
   "commands": [
@@ -112,6 +112,14 @@
       ]
     },
     {
+      "id": "route-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/route.mjs"
+      ]
+    },
+    {
       "id": "cli-syntax",
       "argv": [
         "node",
@@ -158,7 +166,7 @@
       }
     ],
     "fixtureCases": {
-      "routes": 447,
+      "routes": 455,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,

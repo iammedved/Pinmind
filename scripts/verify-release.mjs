@@ -47,7 +47,7 @@ const INVENTORY_KEYS = new Set(['testFiles', 'fixtureCases']);
 const TEST_FILE_KEYS = new Set(['path', 'topLevelDeclarations']);
 
 export const EXPECTED_FROZEN_INPUTS = Object.freeze([
-  ['router', 'skills/pinmind/scripts/lib/core.mjs'],
+  ['router', 'skills/pinmind/scripts/lib/route.mjs'],
   ['language-schema-validator', 'scripts/evaluate-language-routing.mjs'],
   ['github-web-flow-key', 'scripts/keys/github-web-flow.gpg'],
   ['development-corpus', 'evals/fixtures/language-dev.json'],
@@ -66,6 +66,7 @@ export const EXPECTED_COMMANDS = Object.freeze([
   Object.freeze({ id: 'release-tests', argv: Object.freeze(['node', '--test', 'tests/release-verification.test.mjs']) }),
   Object.freeze({ id: 'plugin-skill-validator', argv: Object.freeze(['node', 'scripts/validate-plugin-skill.mjs']) }),
   Object.freeze({ id: 'core-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/core.mjs']) }),
+  Object.freeze({ id: 'route-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/route.mjs']) }),
   Object.freeze({ id: 'cli-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/pinmind.mjs']) }),
   Object.freeze({ id: 'release-identity', argv: Object.freeze(['node', 'scripts/check-release-identity.mjs']) }),
   Object.freeze({ id: 'diff-check', argv: Object.freeze(['node', 'scripts/check-repository-diff.mjs']) }),

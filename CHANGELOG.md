@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-19
+
+### Removed
+
+- Token-usage receipts, `usage record`, `usage.json`, `token-usage.md`, and
+  token sections in reports. The kernel no longer stores or prints token
+  counts.
+
+### Changed
+
+- Router classifies by speech act before nouns. Critique, inspection, and
+  "think about" stay `audit` even when the sentence mentions code or
+  optimization. `чтобы он был более человечный` is not product-desire.
+- Always-loaded `SKILL.md` is one screen. Work-loop and routing essays stay in
+  their reference files.
+- Kernel router lives in `scripts/lib/route.mjs`. `core.mjs` re-exports it.
+
+### Added
+
+- Eight speech-act routing regressions. The deterministic route corpus is now
+  455 cases.
+
 ## [0.8.2] - 2026-08-19
 
 ### Added

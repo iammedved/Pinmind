@@ -19,7 +19,6 @@ Use this layout for a persistent run:
     brief.md
     contracts/contract-v001.json
     evidence.json
-    usage.json            # actual host usage or explicit unavailable receipt
     state.json
     execution.json        # only when work units pay back
     discoveries.md       # only for reusable verified facts
@@ -28,7 +27,7 @@ Use this layout for a persistent run:
     final.md
 ```
 
-Treat the sanitized immutable `brief.md`, dated user additions stored as amendment authority, the current frozen contract JSON, `evidence.json`, `usage.json`, and `state.json` as canonical. Generate human-readable summaries from them; do not hand-edit generated views. State explicitly when redaction means the stored brief is not byte-for-byte identical to chat input. Token usage is informational and cannot change a contract or evidence verdict.
+Treat the sanitized immutable `brief.md`, dated user additions stored as amendment authority, the current frozen contract JSON, `evidence.json`, and `state.json` as canonical. Generate human-readable summaries from them; do not hand-edit generated views. State explicitly when redaction means the stored brief is not byte-for-byte identical to chat input.
 
 ## Contract contents
 

@@ -2,7 +2,7 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.8.2`; see [CHANGELOG.md](CHANGELOG.md). It
+The released public baseline is `v0.9.0`; see [CHANGELOG.md](CHANGELOG.md). It
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
