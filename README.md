@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.8.1`.
+Current stable version: `0.8.2`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current stable version: `0.8.1`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.8.1
+   codex plugin marketplace add iammedved/Pinmind --ref v0.8.2
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.8.1` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.8.2` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -176,7 +176,7 @@ Changed packages always receive a new patch or minor version; Pinmind does not
 publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
-versions such as `0.6.1`, `0.6.2`, `0.6.3`, and `0.8.1`; backward-compatible feature releases use a
+versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, and `0.8.2`; backward-compatible feature releases use a
 new minor such as `0.7.0` or `0.8.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 
@@ -200,10 +200,10 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 83 declarations
-across four test files, plus fixture-case counts for routes, activation, AEP, and
-language evaluation. These are separate dimensions and are not presented as one
-inflated "test count."
+than quoting Node's runtime summary. The current manifest records 88 declarations
+across five test files, plus fixture-case counts for routes, activation, AEP,
+parallel admission, and language evaluation. These are separate dimensions and
+are not presented as one inflated "test count."
 
 The expanded commands executed by the gate are:
 
@@ -211,6 +211,8 @@ The expanded commands executed by the gate are:
 node --test tests/kernel.test.mjs
 node scripts/validate-aep-decision-contract.mjs
 node --test tests/aep-decision-contract.test.mjs
+node scripts/validate-parallel-admission.mjs
+node --test tests/parallel-admission.test.mjs
 node scripts/evaluate-language-routing.mjs
 node --test tests/language-routing-evaluator.test.mjs
 node --test tests/release-verification.test.mjs

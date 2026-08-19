@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "parallel-admission-v0",
+  "description": "Original reviewed-synthetic spawn admission contrasts. Size never admits fan-out.",
+  "cases": [
+    {
+      "id": "adm-001a",
+      "pairId": "adm-001",
+      "variant": "a",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "coupled",
+        "zonesOverlap": true,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": false,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": false,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": true,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "sequential-units",
+        "maxConcurrency": 1
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-001b",
+      "pairId": "adm-001",
+      "variant": "b",
+      "inputs": {
+        "kind": "read",
+        "decomposition": "independent",
+        "zonesOverlap": true,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": false,
+        "independentIntegrationOracle": false,
+        "sizeIsLarge": true,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "read-only-fanout",
+        "maxConcurrency": 7
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-002a",
+      "pairId": "adm-002",
+      "variant": "a",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": true,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "single-agent",
+        "maxConcurrency": 1
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-002b",
+      "pairId": "adm-002",
+      "variant": "b",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": true,
+        "worktreeIsolation": true,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "isolated-write-fanout",
+        "maxConcurrency": 4
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-003a",
+      "pairId": "adm-003",
+      "variant": "a",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": false,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": false,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "single-agent",
+        "maxConcurrency": 1
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-003b",
+      "pairId": "adm-003",
+      "variant": "b",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": false,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "isolated-write-fanout",
+        "maxConcurrency": 4
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-004a",
+      "pairId": "adm-004",
+      "variant": "a",
+      "inputs": {
+        "kind": "read",
+        "decomposition": "independent",
+        "zonesOverlap": true,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": false,
+        "frozenContract": false,
+        "independentIntegrationOracle": false,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "single-agent",
+        "maxConcurrency": 1
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-004b",
+      "pairId": "adm-004",
+      "variant": "b",
+      "inputs": {
+        "kind": "read",
+        "decomposition": "independent",
+        "zonesOverlap": true,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": false,
+        "independentIntegrationOracle": false,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "read-only-fanout",
+        "maxConcurrency": 7
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-005a",
+      "pairId": "adm-005",
+      "variant": "a",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": false,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": true
+      },
+      "expected": {
+        "decision": "single-agent",
+        "maxConcurrency": 1
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-005b",
+      "pairId": "adm-005",
+      "variant": "b",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": false,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "isolated-write-fanout",
+        "maxConcurrency": 4
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-006a",
+      "pairId": "adm-006",
+      "variant": "a",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": false,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": false,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "single-agent",
+        "maxConcurrency": 1
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    },
+    {
+      "id": "adm-006b",
+      "pairId": "adm-006",
+      "variant": "b",
+      "inputs": {
+        "kind": "write",
+        "decomposition": "independent",
+        "zonesOverlap": false,
+        "worktreeIsolation": false,
+        "specifiedWithoutPeerOutput": true,
+        "setupCheaperThanWork": true,
+        "parentCanIntegrateFaster": true,
+        "hostSubagents": true,
+        "frozenContract": true,
+        "independentIntegrationOracle": true,
+        "sizeIsLarge": false,
+        "reviewFanout": false
+      },
+      "expected": {
+        "decision": "isolated-write-fanout",
+        "maxConcurrency": 4
+      },
+      "provenance": {
+        "kind": "reviewed-synthetic",
+        "original": true,
+        "privateInput": false
+      }
+    }
+  ]
+}
