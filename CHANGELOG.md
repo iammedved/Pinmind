@@ -11,6 +11,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 - Short composition table: Superpowers TDD, Grok `/design`, or inline. Not a
   second skill library.
 
+### Changed
+
+- Moved duplicated contract, work-unit, review-scale, and circuit-breaker
+  essays from always-loaded `SKILL.md` into the existing references. Bootstrap,
+  route names, the work-loop bullets, and the four verification questions stay.
+
 ## [0.8.1] - 2026-08-19
 
 ### Fixed

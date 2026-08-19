@@ -1098,6 +1098,13 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   assert.match(skill, /Create no process artifacts/i);
   assert.match(skill, /Create no Pinmind artifacts/i);
   assert.doesNotMatch(skill, /simple[\s\S]{0,120}init --run/i);
+  assert.doesNotMatch(skill, /Scale review by risk/);
+  assert.doesNotMatch(skill, /Create a work unit only when/);
+  assert.doesNotMatch(skill, /The alias `exclusions`/);
+  assert.doesNotMatch(skill, /Classify the blocker as a contract/);
+  assert.match(execution, /Create a work unit only when/);
+  const contractRef = await readFile(fileURLToPath(new URL('../skills/pinmind/references/contract.md', import.meta.url)), 'utf8');
+  assert.match(contractRef, /alias `exclusions`/);
   assert.match(loop, /Failing public-seam check first/i);
   assert.match(loop, /Search the web or primary sources/i);
   assert.match(loop, /When to compose which skill/i);

@@ -85,11 +85,7 @@ For a software-change run, read [contract.md](references/contract.md) and use th
 node <skill-dir>/scripts/pinmind.mjs init --run <run-id> --brief <brief-source.md>
 ```
 
-Capture a sanitized immutable copy of the initial request. Preserve meaning and provenance, but never claim the stored copy is byte-for-byte original when secrets were redacted. Record later user additions as the authority for the next amendment and ensure new source quotes occur in that sanitized authority text. Derive obligations, observable acceptance criteria, invariants, preservation rules, boundaries, public seams, assumptions, canonical `outOfScope`, and planned evidence. The alias `exclusions` is invalid because an ignored scope field could silently weaken the contract. Keep private implementation choices out of the contract unless they are themselves required.
-
-Run an independent `brief -> contract` coverage pass before freeze. Check for missing, narrowed, invented, contradictory, and untestable obligations. Freeze only when material forks are resolved or explicitly assumed. Never edit a frozen contract in place; create a versioned amendment and invalidate affected evidence.
-
-Use persistent `.pinmind` artifacts for substantive workspace changes. Keep local, low-risk reasoning inline when persistence would cost more than it protects, but never omit observable acceptance or verification.
+Use persistent `.pinmind` artifacts for substantive workspace changes. Keep local, low-risk reasoning inline when persistence would cost more than it protects, but never omit observable acceptance or verification. Never edit a frozen contract in place.
 
 ## Execute through evidence
 
@@ -102,11 +98,7 @@ choose obligation -> observe valid failure -> implement minimum behavior
 -> observe pass -> refactor without behavior drift -> record evidence
 ```
 
-Test through public seams. Keep expected values independent from production logic. Preserve existing behavior explicitly in brownfield work.
-
-Work inline by default. Create a work unit only when a boundary buys fresh context, independent acceptance, rollback, safe parallelism, distinct ownership, or specialist capability. Never create separate units merely for writing tests, running tests, or reviewing the same tiny change.
-
-Use subagents only when the applicable user or repository instructions allow them and the payback is concrete. Give each one a narrow context bundle and non-overlapping write zone. Keep one owner for shared files. Review all returned work before integration.
+Test through public seams. Keep expected values independent from production logic. Preserve existing behavior explicitly in brownfield work. Work inline by default.
 
 ## Verify before claiming completion
 
@@ -119,24 +111,13 @@ Run fresh targeted checks and the broadest affordable regression checks. Verify 
 3. Does the real user journey achieve the original goal? When fresh independent context is available, test this goal axis from the immutable brief and running outcome without exposing the contract; evaluate contract compliance separately. If only an inline check is possible, label it non-independent.
 4. Is the whole change maintainable, safe, and internally consistent?
 
-Use only `pass`, `fail`, `uncertain`, `pending-review`, or `not-applicable`. Never convert uncertainty into a pass by judgment alone. For critical evidence, confirm sensitivity with a recorded RED, a negative control, assertion inspection, or another proportionate method.
-
-Scale review by risk:
-
-- low: self-review, targeted tests, diff sanity, final verification;
-- medium: one combined contract, scope, quality, and evidence review;
-- high: separate contract/evidence and quality/security/reliability reviews;
-- non-trivial whole change: one fresh-eyes review of the integrated result.
-
-Use one integrated fresh-eyes pass, never a review fan-out per file, obligation, or microstep. When the harness cannot provide a genuinely independent context, run the same whole-change checklist inline and disclose that the review was not independent.
+Never convert uncertainty into a pass by judgment alone.
 
 ## Break failing loops
 
 Stop repeating the same strategy when the same failure class occurs twice, three repair rounds finish, scope expands materially, a new public boundary appears, evidence cannot distinguish success from failure, or the next action would be a guess.
 
 Re-check the original request and current evidence. Search the web or primary sources when local docs and the repo cannot settle the blocker. Then change strategy or report the real gap.
-
-Classify the blocker as a contract, design, decomposition, environment, evidence, or implementation defect. Rebuild the relevant invariant/state matrix, recut the work, amend the contract, change strategy, or report a real blocker. After a second concurrency or ordering symptom, stop symptom patches and model the full interleaving surface.
 
 When Pinmind itself misses activation, misroutes, downgrades unsafely, composes the wrong capability, or produces defective evidence/receipts, read [regression-inbox.md](references/regression-inbox.md). Preserve a sanitized reproducible case before changing metadata or policy; never self-edit merely because one task felt awkward.
 
@@ -148,7 +129,7 @@ Never erase a dirty tree, expose secrets in artifacts, weaken acceptance to make
 
 ## Finalize honestly
 
-Generate the final report from current artifacts and fresh evidence, not memory. Separate completed, failed, unproven, pending, assumed, amended, added, and manual items. Include exact verification commands and material limitations. Curate only stable reusable facts into durable project memory; never turn a session log or assumption into project truth.
+Generate the final report from current artifacts and fresh evidence, not memory. See [verification.md](references/verification.md) for the completed, failed, unproven, and manual split.
 
 Do not report token usage and do not read token-accounting references while finishing a task. Token counting is out of the skill and plugin surface so it cannot displace routing, contracts, or verification.
 
