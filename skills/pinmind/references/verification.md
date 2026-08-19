@@ -57,6 +57,4 @@ Generate `final.md` or the final response from current canonical state. Separate
 - manual steps and external gates;
 - exact checks run and their current result.
 
-Do not report token usage in the chat completion. Token accounting is out of the skill surface and must not appear in the user-facing report.
-
 Never claim success from stale evidence, historical output, memory, an unexecuted command, or an unavailable capability. State partial completion plainly.

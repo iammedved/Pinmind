@@ -1,20 +1,17 @@
-# Design decisions: activation, routing, usage, and UI
+# Design decisions: activation, routing, and UI
 
 Research snapshot: 2026-08-16. GitHub star counts are point-in-time discovery signals, not quality scores, and will drift.
 
 ## Host constraints
 
 - OpenAI [Build skills](https://learn.chatgpt.com/docs/build-skills) says discovery initially exposes the skill name and description; implicit selection depends on matching that description. It recommends concise scope, boundaries, and front-loaded trigger terms. It does not promise deterministic recognition of every language or phrasing.
-- Codex [App Server](https://learn.chatgpt.com/docs/app-server) and the Codex SDK [`turn.completed` event](https://github.com/openai/codex/blob/main/sdk/typescript/src/events.ts) expose usage after model work completes. The instruction-only skill does not receive a documented, exact whole-task counter before composing its own final response.
-- OpenAI [hooks](https://learn.chatgpt.com/docs/hooks) do not expose a stable whole-task token counter to a Stop hook.
 - A custom ChatGPT [plugin UI](https://developers.openai.com/plugins/build/chatgpt-ui) is an MCP resource rendered in an iframe. Adding it would introduce a server, lifecycle, CSP, privacy, and security boundary; see [Security and privacy](https://developers.openai.com/plugins/guides/security-privacy).
 
 Consequences:
 
 1. Improve implicit activation at the discovery description, then route semantically after activation.
 2. Treat arbitrary-language capture as a measured eval target, not a 100 percent guarantee.
-3. Keep token accounting out of the skill and plugin surface so it cannot displace routing or verification.
-4. Keep UI optional. A local read-only JSON/Markdown report answers the current question without a daemon or MCP server.
+3. Keep UI optional. A local read-only JSON/Markdown report answers the current question without a daemon or MCP server.
 
 ## Project evidence
 
@@ -45,9 +42,8 @@ Additional 100-star-or-more references shaped the implementation boundary:
 ```text
 concise bilingual host description
   -> deterministic post-activation route
-     (route + clarity + span + risk + signals + confidence)
+     (route + clarity + executionSpan + risk + signals + confidence)
   -> proportional skill composition and evidence lifecycle
-  -> no chat token line; optional kernel receipts stay off the skill surface
   -> optional hash-checked local receipt and read-only report
 ```
 

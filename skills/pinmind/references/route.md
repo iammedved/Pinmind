@@ -25,6 +25,8 @@ Do not equate short wording with a simple task. Treat "fix the race," "deploy th
 
 Never dump unrecognized, vague, or contradictory wording into `software-change`. Those cases stay `clarity: uncertain`, `needsHumanConfirmation: true`, and a read-only `audit` route until the user confirms the outcome. Classify paraphrases by intended outcome, not by the old fixture keywords.
 
+Speech act beats nouns. Inspect, critique, review, and think-about stay `audit` even when the sentence mentions code, APIs, or optimization. `продумай` / `подумай` / `think about` is not an implement directive. A quality clause such as `чтобы он был более человечный` is not product-desire by itself. A plan followed by an explicit implement clause (`продумай план и начинай исправлять`) remains `software-change`.
+
 ## Classification axes
 
 Classify independently:
@@ -122,5 +124,5 @@ Honor an explicit `audit` or `investigation` kind because both are non-mutating 
 Use one-line progress wording such as:
 
 ```text
-Route: software-change | clear/local/medium - user-visible validation behavior changes.
+Route: software-change | clear/local/medium — user-visible validation behavior changes.
 ```

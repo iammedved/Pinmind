@@ -54,7 +54,7 @@ node "$KERNEL" execution validate --run <run-id> --file <execution.json>
 
 Provide `units[]` with `unitId`, obligation or criterion references, optional `dependsOn`, and non-empty relative `zone` paths. The gate rejects unknown traces, dependency cycles, unsafe paths, and overlapping zones between units that could run in parallel.
 
-Usage and execution replacements take an optimistic snapshot before entering the writer lock. If another writer changed the same singleton view first, the later commit fails with `STALE_USAGE` or `STALE_EXECUTION` instead of reporting success for a silently overwritten update. Append-only evidence reloads under the lock, while contract and final-state commits revalidate their current version or status there.
+Execution replacements take an optimistic snapshot before entering the writer lock. If another writer changed the same singleton view first, the later commit fails with `STALE_EXECUTION` instead of reporting success for a silently overwritten update. Append-only evidence reloads under the lock, while contract and final-state commits revalidate their current version or status there.
 
 ## Record and verify evidence
 
@@ -81,16 +81,11 @@ An evidence template may declare `freshnessPaths`, a unique list of at most 64 c
 
 `final check` requires every evidence ID planned by each required MUST trace, invariant, and preservation rule to have trustworthy current passing evidence. It is read-only and byte-idempotent. Explicit `finalize` repeats the same gate while holding the writer lock before writing `final.md`, completing state, and clearing the active pointer. The legacy `final verify` command remains a deprecated compatibility alias for finalization. Neither command replays stored commands or external work.
 
-## Record token usage and render reports
-
-Read [token-usage.md](token-usage.md) before connecting host telemetry.
+## Render reports
 
 ```bash
-node "$KERNEL" usage record --run <run-id> --file <usage-receipt.json>
 node "$KERNEL" report --run <run-id> --format json
 node "$KERNEL" report --run <run-id> --format md
 ```
 
-New runs begin with `status: unavailable`. `usage record` accepts actual counts only with an allowed observed source and derives `totalTokens` as input plus output. Cached input, cache-write input, and reasoning output are subsets and are never double-counted. Invalid, negative, inconsistent, or secret-bearing data is rejected or redacted. A checksum mismatch blocks reporting of an accidentally changed or incompletely rewritten receipt; this unkeyed hash is not a security boundary against a writer who can recompute it.
-
-`report` is read-only. It renders lifecycle, baseline classification, evidence counts, and exact observed token usage or an explicit unavailable status. A post-turn host adapter may record authoritative usage after `finalize`; the report then reflects it without rewriting the contract or evidence verdict.
+`report` is read-only. It renders lifecycle, baseline classification, evidence counts, and remaining contract boundaries.

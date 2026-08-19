@@ -7792,5 +7792,133 @@
     "signalsInclude": [
       "intent:change"
     ]
+  },
+  {
+    "name": "p083-speech-critique-inconsistencies-ru",
+    "input": {
+      "text": "покритикуй pinmind найти возможные не состыковки в тексте или в коде, продумай как можно было бы сделать проще и легче, подумай над оптимизацией кода, чтобы он был более человечный, а не ИИшный с присущим ему AI-slop"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "clarity": "clear",
+    "needsHumanConfirmation": false,
+    "signalsInclude": [
+      "intent:inspect",
+      "intent:think"
+    ],
+    "signalsExclude": [
+      "intent:implement-directive",
+      "intent:change",
+      "intent:unrecognized"
+    ]
+  },
+  {
+    "name": "p083-speech-think-simpler-ru",
+    "input": {
+      "text": "продумай как можно было бы сделать проще и легче"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:think"
+    ],
+    "signalsExclude": [
+      "intent:unrecognized",
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p083-speech-think-optimize-human-ru",
+    "input": {
+      "text": "подумай над оптимизацией кода, чтобы он был более человечный, а не ИИшный"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:think"
+    ],
+    "signalsExclude": [
+      "intent:implement-directive",
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p083-speech-quality-clause-not-desire-ru",
+    "input": {
+      "text": "чтобы он был более человечный"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "needsHumanConfirmation": true,
+    "signalsExclude": [
+      "intent:product-desire",
+      "intent:implement-directive"
+    ]
+  },
+  {
+    "name": "p083-speech-find-inconsistencies-in-code-ru",
+    "input": {
+      "text": "найди несостыковки в тексте или в коде"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:inspect"
+    ],
+    "signalsExclude": [
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p083-speech-think-optimize-en",
+    "input": {
+      "text": "think about optimizing the code so it is more human, not AI-slop"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:think"
+    ],
+    "signalsExclude": [
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p083-speech-optimize-imperative-en",
+    "input": {
+      "text": "optimize the code to make it more human and less AI-slop"
+    },
+    "expected": "software-change",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p083-speech-audit-inconsistencies-en",
+    "input": {
+      "text": "Audit pinmind, find inconsistencies, think how to simplify the code so it feels more human"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.3",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsExclude": [
+      "intent:change"
+    ]
   }
 ]

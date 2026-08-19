@@ -26,7 +26,7 @@ Each observation must contain:
   "caseId": "ru-positive-investigation",
   "host": "codex-cli",
   "hostVersion": "observed version",
-  "pluginVersion": "0.8.2",
+  "pluginVersion": "0.9.0",
   "observedAt": "canonical UTC timestamp",
   "freshSession": true,
   "selection": "implicit",
