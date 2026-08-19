@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Short composition table: Superpowers TDD, Grok `/design`, or inline. Not a
+  second skill library.
+
 ## [0.8.1] - 2026-08-19
 
 ### Fixed
