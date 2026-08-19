@@ -7920,5 +7920,39 @@
     "signalsExclude": [
       "intent:change"
     ]
+  },
+  {
+    "name": "p091-speech-value-question-improvement-ru",
+    "input": {
+      "text": "какое улучшение это дало"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.9.1",
+    "surface": "public-route-cli",
+    "disposition": "confirmed-defect",
+    "signalsInclude": [
+      "intent:value-question"
+    ],
+    "signalsExclude": [
+      "intent:change",
+      "intent:unrecognized"
+    ]
+  },
+  {
+    "name": "p091-speech-value-question-improvement-en",
+    "input": {
+      "text": "what improvement did that give us?"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.9.1",
+    "surface": "public-route-cli",
+    "disposition": "confirmed-defect",
+    "signalsInclude": [
+      "intent:value-question"
+    ],
+    "signalsExclude": [
+      "intent:change",
+      "intent:unrecognized"
+    ]
   }
 ]

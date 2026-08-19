@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-19
+
+### Changed
+
+- Kernel lifecycle is split along real seams: `persist.mjs` owns lock, journal,
+  and run I/O; `contract.mjs` owns freeze/amend; `evidence.mjs` owns capture and
+  the evidence store; `state.mjs` owns init, report, and finalize. `core.mjs`
+  still re-exports the public API.
+- AEP and P2 stay off the chat path. They remain an offline evaluation contract
+  and a design ADR; the kernel and `SKILL.md` do not load them, and P2 adapters
+  are not implemented.
+- Value questions about improvement, such as "какое улучшение это дало", stay
+  `audit`. Imperative `улучши` / `надо улучшить` still change software.
+
+### Added
+
+- Two value-question routing regressions. The deterministic route corpus is now
+  457 cases.
+
 ## [0.9.0] - 2026-08-19
 
 ### Removed

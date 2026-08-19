@@ -2,14 +2,16 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.9.0`; see [CHANGELOG.md](CHANGELOG.md). It
+The released public baseline is `v0.9.1`; see [CHANGELOG.md](CHANGELOG.md). It
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
 CI, frozen-input gate, stable release metadata, a closed-schema 64-case language
 evaluator, first-class remaining-boundary reporting, the Superpowers work loop,
 conservative unknown routing, Grok user-scope discovery, colloquial RU/EN
-user-voice routing, and a skill surface without token counting.
+user-voice routing, a skill surface without token counting, and a kernel split
+into persist, contract, evidence, and state. AEP remains an offline evaluation
+contract; P2 adapters are not implemented.
 
 These are local and repository-hosted guarantees. They do not by themselves prove
 implicit host activation, resume a host process, replay external effects, select a
@@ -40,11 +42,11 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-The stable `0.8.0` source keeps the 0.7 work loop and conservative unknown
-routing, recognizes colloquial Russian product-desire and GitHub-push phrasing,
-and removes token counting from the always-loaded skill surface.
+The stable `0.9.1` source keeps speech-act routing, a one-screen `SKILL.md`, and
+a split kernel. AEP and P2 stay out of chat-time load. Remaining work is host
+evidence and independent release-corpus governance, not more process documents.
 
-### Remaining boundaries after the 0.8.0 release
+### Remaining boundaries after the 0.9.1 release
 
 - Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
   immutable installed `v0.8.0` tag. Record the host version, package tree hash,
@@ -91,31 +93,7 @@ repository, add a distinct reviewer or an externally administered signed manifes
 so they cannot be routinely tuned and approved together. A `CODEOWNERS` entry
 naming the same sole maintainer would not create independence.
 
-### 3. Measure before reducing the always-loaded layer
-
-Collect authoritative host usage receipts first. Only then move lifecycle and
-evidence procedures from `SKILL.md` into on-demand references, remove verified
-duplication, and compare observed context cost. Offline regression corpora remain.
-
-### 4. P2A activation observation ledger
-
-Implement the opt-in adapter in the [P2 ADR](docs/p2-architecture.md) only after
-the host corpus and its observation schema are stable. It records an observation;
-it does not change routing or execution.
-
-Gate: schema validation rejects unknown/private fields and duplicate IDs, and a
-fresh-session implicit-selection claim requires its evidence.
-
-### 5. P2B post-turn usage receipt
-
-Implement a foreground-only Codex terminal-event adapter that copies authoritative
-usage fields exactly, otherwise records `unavailable`.
-
-Gate: fixture coverage rejects malformed, duplicate-terminal, failed, and truncated
-streams; 20 successful real CLI turns match terminal events exactly; 10 interrupted
-or malformed trials produce no false `actual` receipt.
-
-### 6. Prevent new public identity leakage
+### 3. Prevent new public identity leakage
 
 Implemented since `0.6.1`: the release gate checks the configured identity locally
 and the prospective commit range in CI, accepting project-safe GitHub noreply or
@@ -124,6 +102,27 @@ GitHub-authored merge metadata requires a verified web-flow signature. Existing
 public history remains immutable and is not claimed to have been erased.
 
 ## Conditional
+
+P2 host adapters stay design-only until a host observation corpus exists. None of
+P2A–P2D change routing, contracts, or lifecycle.
+
+### P2A activation observation ledger
+
+Implement the opt-in adapter in the [P2 ADR](docs/p2-architecture.md) only after
+the host corpus and its observation schema are stable. It records an observation;
+it does not change routing or execution.
+
+Gate: schema validation rejects unknown/private fields and duplicate IDs, and a
+fresh-session implicit-selection claim requires its evidence.
+
+### P2B post-turn usage receipt
+
+Implement a foreground-only Codex terminal-event adapter that copies authoritative
+usage fields exactly, otherwise records `unavailable`.
+
+Gate: fixture coverage rejects malformed, duplicate-terminal, failed, and truncated
+streams; 20 successful real CLI turns match terminal events exactly; 10 interrupted
+or malformed trials produce no false `actual` receipt.
 
 ### P2C authorization receipt plus effect guard
 

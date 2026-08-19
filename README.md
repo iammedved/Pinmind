@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.9.0`.
+Current stable version: `0.9.1`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current stable version: `0.9.0`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.9.0
+   codex plugin marketplace add iammedved/Pinmind --ref v0.9.1
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.9.0` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.9.1` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -100,11 +100,13 @@ Official OpenAI guidance: [install and use plugins](https://learn.chatgpt.com/do
 
 Implicit selection is probabilistic. Explicit invocation is the reliable choice for critical work.
 
-## Experimental Adaptive Execution Policy
+## Offline AEP evaluation and P2 design
+
+AEP and P2 are not runtime. `SKILL.md` and the kernel do not load them. They stay in the repository as an offline evaluation contract and a design decision.
 
 `0.3.0-experimental` introduced AEP Phase 0: a provider-neutral decision contract, 16 original synthetic contrast cases, a held-out release split, and a deterministic validator.
 
-`0.4.0-experimental` added the P0/P1 routing, recovery, baseline, freshness, and final-check guarantees. `0.4.1-experimental` corrected a fresh-CLI read-only regression. `0.4.2-experimental` distinguishes planning from execution, recognizes bounded Russian no-change gerunds, rejects unknown or repeated CLI flags, and reduces roadmap duplication. The adapter-first [P2 architecture decision](docs/p2-architecture.md) remains design-only; P2 host adapters are gated and off by default.
+`0.4.0-experimental` added the P0/P1 routing, recovery, baseline, freshness, and final-check guarantees. `0.4.1-experimental` corrected a fresh-CLI read-only regression. `0.4.2-experimental` distinguishes planning from execution, recognizes bounded Russian no-change gerunds, rejects unknown or repeated CLI flags, and reduces roadmap duplication. The adapter-first [P2 architecture decision](docs/p2-architecture.md) remains design-only; P2 host adapters are gated, unimplemented, and off by default.
 
 `0.5.0-experimental` adds a closed-schema, dependency-free language evaluator with 32 development and 32 frozen release-gate cases. It reports route, authority, mutation boundary, pair, risk, and language-slice results without changing runtime routing. The fixed corpus is regression evidence, not a statistically independent benchmark or a claim of universal language understanding or host activation.
 
@@ -150,8 +152,8 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 ## Project documentation
 
 - [CHANGELOG.md](CHANGELOG.md) — stable and experimental release history.
-- [ADAPTIVE_EXECUTION_POLICY.md](ADAPTIVE_EXECUTION_POLICY.md) — provider-neutral AEP Phase 0 contract and rollout boundary.
-- [P2 architecture decision](docs/p2-architecture.md) — adapter boundaries, model handoffs, admission tests, and rejected runtime expansion.
+- [ADAPTIVE_EXECUTION_POLICY.md](ADAPTIVE_EXECUTION_POLICY.md) — offline AEP Phase 0 evaluation contract; not runtime.
+- [P2 architecture decision](docs/p2-architecture.md) — adapter-first design that keeps host adapters out of the kernel.
 - [ROADMAP.md](ROADMAP.md) — evidence-backed future priorities.
 - [LANGUAGE_ROUTING.md](LANGUAGE_ROUTING.md) — implemented multilingual routing evaluator and remaining host-evaluation boundary.
 - [SKILL.md](skills/pinmind/SKILL.md) — controller instructions and discovery rules.
@@ -176,7 +178,7 @@ Changed packages always receive a new patch or minor version; Pinmind does not
 publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
-versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, and `0.8.2`; backward-compatible feature releases use a
+versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, `0.8.2`, and `0.9.1`; backward-compatible feature releases use a
 new minor such as `0.7.0`, `0.8.0`, or `0.9.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 
@@ -200,7 +202,7 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 88 declarations
+than quoting Node's runtime summary. The current manifest records 89 declarations
 across five test files, plus fixture-case counts for routes, activation, AEP,
 parallel admission, and language evaluation. These are separate dimensions and
 are not presented as one inflated "test count."
@@ -219,6 +221,10 @@ node --test tests/release-verification.test.mjs
 node scripts/validate-plugin-skill.mjs
 node --check skills/pinmind/scripts/lib/core.mjs
 node --check skills/pinmind/scripts/lib/route.mjs
+node --check skills/pinmind/scripts/lib/persist.mjs
+node --check skills/pinmind/scripts/lib/contract.mjs
+node --check skills/pinmind/scripts/lib/evidence.mjs
+node --check skills/pinmind/scripts/lib/state.mjs
 node --check skills/pinmind/scripts/pinmind.mjs
 node scripts/check-release-identity.mjs
 node scripts/check-repository-diff.mjs

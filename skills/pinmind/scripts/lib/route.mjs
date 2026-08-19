@@ -162,9 +162,17 @@ export function routeTask(input = {}) {
   const readOnlySpeech = (inspectAct || thinkAct) && !implementDirective && !colloquialMutate && !evalHarness && !planningAndExecution;
   const explainAndDo = /^(?:explain|describe|объясни|расскажи)\s+(?:and|и)\s+/u.test(directiveText);
   const leadingReadOnly = readOnlyDirectivePattern.test(directiveText) && !planningAndExecution && !explainAndDo;
-  const changeAsTopic = /улучшить|улучшения?\b|\bimproving\b|\bto improve\b/u.test(text);
-  const opinionBlocksChange = opinionRequest && !implementDirective && (/\?\s*$/u.test(text) || changeAsTopic);
-  const requestedChange = implementDirective || colloquialMutate || productDesire || evalHarness || (!metaEvaluation && !leadingReadOnly && !opinionBlocksChange && !readOnlySpeech && (((changeMention && (!planningRequest || planningAndExecution)) || mutateParaphrase) && !inspectParaphrase && !diagnoseParaphrase));
+  const changeAsTopic = /улучшить|улучшени\S*|\bimprov(?:e|ing|ement)s?\b/u.test(text);
+  const valueQuestion = mark(
+    !implementDirective && !colloquialMutate && !evalHarness && !productDesire && changeAsTopic && (
+      /\?\s*$/u.test(text)
+      || /(?:^|[.!?]\s*)(?:како[ейяю]|какие|каков|что)\s+(?:\S+\s+){0,6}улучш/u.test(text)
+      || /(?:^|[.!?]\s*)(?:what|which|how much)\s+(?:\S+\s+){0,6}\bimprov/u.test(text)
+    ),
+    'intent:value-question',
+  );
+  const opinionBlocksChange = (opinionRequest || valueQuestion) && !implementDirective && (/\?\s*$/u.test(text) || changeAsTopic);
+  const requestedChange = implementDirective || colloquialMutate || productDesire || evalHarness || (!metaEvaluation && !leadingReadOnly && !opinionBlocksChange && !readOnlySpeech && !valueQuestion && (((changeMention && (!planningRequest || planningAndExecution)) || mutateParaphrase) && !inspectParaphrase && !diagnoseParaphrase));
   const softwareImpact = /\b(add|render|use|build|component|page|ui|catalog|asset|assets|code|implement|api|database|schema|client|function|method|class|module|array|arrays|queue|telemetry|stream|streams|coverage)\b|добав|рендер|использ.*(?:изображ|asset|ресурс)|страниц|компонент|интерфейс|каталог|код|баз\S*\s+данн|схем|функци|массив|очеред|телеметр|поток/u.test(effectScanText) || (translationIntentEarly && productLocalizationEarly);
   const translationIntent = translationIntentEarly;
   const boundedText = boundedTextEarly;
@@ -190,7 +198,7 @@ export function routeTask(input = {}) {
   const recognizedReadOnlyIntent = investigation || explanation || auditRequest || planningRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat || inspectParaphrase || diagnoseParaphrase;
   const conflict = mark(noChange && (requestedChange || operationalIntent || externalActionRequested || !recognizedReadOnlyIntent), 'authority:conflict');
   const vague = mark(/^(?:(?:make|fix|improve)\s+(?:it|this)(?:\s+(?:work|better|properly))?|do\s+(?:it|this)\s+(?:right|properly)|(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?)[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
-  const audit = conflict || inspectParaphrase || metaEvaluation || readOnlySpeech || (opinionRequest && !requestedChange) || (!investigation && ((!requestedChange && (explanation || planningRequest || comparisonRequest || documentationQuestion || routePolicyQuestion || opinionRequest)) || (auditRequest && (!requestedChange || noChange))));
+  const audit = conflict || inspectParaphrase || metaEvaluation || readOnlySpeech || valueQuestion || (opinionRequest && !requestedChange) || (!investigation && ((!requestedChange && (explanation || planningRequest || comparisonRequest || documentationQuestion || routePolicyQuestion || opinionRequest)) || (auditRequest && (!requestedChange || noChange))));
   if (requestedChange && !translation) mark(true, 'intent:change'); if (softwareImpact && !translation) mark(true, 'impact:software');
   if (operationalIntent) mark(true, 'intent:operational'); if (investigation) mark(true, 'intent:investigation'); if (spike) mark(true, 'intent:spike'); if (audit) mark(true, 'intent:audit');
   let selectedExplicit;
@@ -198,7 +206,7 @@ export function routeTask(input = {}) {
   else if (explicitRoute === 'simple' && (trivial || stableFact || translation || boundedRewrite || boundedFormat || (!requestedChange && !operationalIntent && !softwareImpact && !highRisk && !architectural))) selectedExplicit = explicitRoute;
   else if (explicitRoute === 'operational' && operationalIntent && !noChange && !requestedChange && !highRisk && !architectural) selectedExplicit = explicitRoute;
   else if (explicitRoute === 'spike' && spike && !requestedChange && !softwareImpact && !highRisk && !architectural) selectedExplicit = explicitRoute;
-  const recognizedOutcome = trivial || stableFact || translation || boundedRewrite || boundedFormat || operational || investigation || spike || audit || requestedChange || softwareImpact || externalActionRequested || inspectParaphrase || diagnoseParaphrase || mutateParaphrase || highRisk || comparisonRequest || nextStepQuestion || documentationQuestion || routePolicyQuestion || typoOnly || opinionRequest || colloquialMutate || productDesire || evalHarness || hostInstall;
+  const recognizedOutcome = trivial || stableFact || translation || boundedRewrite || boundedFormat || operational || investigation || spike || audit || requestedChange || softwareImpact || externalActionRequested || inspectParaphrase || diagnoseParaphrase || mutateParaphrase || highRisk || comparisonRequest || nextStepQuestion || documentationQuestion || routePolicyQuestion || typoOnly || opinionRequest || valueQuestion || colloquialMutate || productDesire || evalHarness || hostInstall;
   const unrecognized = mark(!recognizedOutcome && Boolean(text.trim()), 'intent:unrecognized');
   const inferredRoute = trivial || stableFact || translation || boundedRewrite || boundedFormat ? 'simple' : operational ? 'operational' : investigation ? 'investigation' : spike ? 'spike' : audit ? 'audit' : ((requestedChange || softwareImpact || highRisk) && !vague ? 'software-change' : 'audit');
   const route = selectedExplicit ?? inferredRoute;

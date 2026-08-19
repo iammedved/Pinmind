@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/route.mjs",
-      "sha256": "13afa103911b8b3ac41f683bc7540d84c58bbde6158d6af15082a309eb1ecbed"
+      "sha256": "0bd4c76b0253876d163a82dac26b103a2a18e16d44014712eda3ccfe688f135a"
     },
     {
       "role": "language-schema-validator",
@@ -31,7 +31,7 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "bbe14873c7c41c4b8ee59a58dadef5bf7a589288e6f78edd1a8b3b4007deb6d0"
+      "sha256": "e4300cc5947dac629d0ba28da7ba2caddb83c10585d5373c9fd3f9045dbb6079"
     }
   ],
   "commands": [
@@ -120,6 +120,38 @@
       ]
     },
     {
+      "id": "persist-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/persist.mjs"
+      ]
+    },
+    {
+      "id": "contract-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/contract.mjs"
+      ]
+    },
+    {
+      "id": "evidence-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/evidence.mjs"
+      ]
+    },
+    {
+      "id": "state-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/state.mjs"
+      ]
+    },
+    {
       "id": "cli-syntax",
       "argv": [
         "node",
@@ -146,7 +178,7 @@
     "testFiles": [
       {
         "path": "tests/kernel.test.mjs",
-        "topLevelDeclarations": 62
+        "topLevelDeclarations": 63
       },
       {
         "path": "tests/aep-decision-contract.test.mjs",
@@ -166,7 +198,7 @@
       }
     ],
     "fixtureCases": {
-      "routes": 455,
+      "routes": 457,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,
