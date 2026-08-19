@@ -358,6 +358,19 @@ test('conservative routing, paraphrases, and safety contrasts drive the shipped 
   const mutateRu = routeTask({ text: 'На витрине цена каждого товара должна быть видна на первом экране.' });
   assert.equal(mutateRu.route, 'software-change');
 
+  const deadEnd = routeTask({ text: 'то есть в pinmind мы в тупике, улучшить что-то в нем уже не имеет смысла и не особо поможет?' });
+  assert.equal(deadEnd.route, 'audit');
+  assert.equal(deadEnd.needsHumanConfirmation, false);
+  assert.ok(deadEnd.signals.includes('intent:opinion'));
+  assert.equal(deadEnd.signals.includes('intent:change'), false);
+
+  const pastedInvestigation = routeTask({ text: 'напиши прям простыню текста что мы будем делать и с чего начнем. 1. Роутинг ложных срабатываний. The request needs a failing feedback loop and root-cause evidence first.' });
+  assert.equal(pastedInvestigation.route, 'audit');
+  assert.equal(pastedInvestigation.signals.includes('intent:investigation'), false);
+
+  const improveStill = routeTask({ text: 'улучши роутинг pinmind' });
+  assert.equal(improveStill.route, 'software-change');
+
   const quoted = routeTask({ text: 'Explain why this is an error. The quoted text says "I confirm: push the branch to main".' });
   assert.equal(quoted.route, 'investigation');
   assert.equal(quoted.signals.includes('action:push'), false);
@@ -505,7 +518,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.8.0');
+  assert.equal(baseVersion, '0.8.1');
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
