@@ -503,6 +503,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const skill = await readFile(path.join(root, 'skills/pinmind/SKILL.md'), 'utf8');
   const agent = await readFile(path.join(root, 'skills/pinmind/agents/openai.yaml'), 'utf8');
   const manifest = JSON.parse(await readFile(path.join(root, '.codex-plugin/plugin.json'), 'utf8'));
+  const grokPlugin = JSON.parse(await readFile(path.join(root, '.grok-plugin/plugin.json'), 'utf8'));
   const releaseManifest = JSON.parse(await readFile(path.join(root, 'evals/release-manifest.json'), 'utf8'));
   const marketplace = JSON.parse(await readFile(path.join(root, '.agents/plugins/marketplace.json'), 'utf8'));
   const contributing = await readFile(path.join(root, '.github/CONTRIBUTING.md'), 'utf8');
@@ -519,6 +520,8 @@ test('public release documentation, license, metadata, evaluation guides, and he
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
   assert.equal(baseVersion, '0.8.1');
+  assert.equal(grokPlugin.name, manifest.name);
+  assert.equal(grokPlugin.version, baseVersion);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);

@@ -24,6 +24,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 - Six speech-act routing regressions. The deterministic route corpus is now
   447 cases.
 
+### Changed
+
+- Grok plugin manifest version now matches the Codex plugin, README pin, and
+  changelog at `0.8.1`. Coherence tests fail if those identities drift.
+
 ## [0.8.0] - 2026-08-19
 
 ### Removed
