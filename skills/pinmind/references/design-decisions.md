@@ -13,7 +13,7 @@ Consequences:
 
 1. Improve implicit activation at the discovery description, then route semantically after activation.
 2. Treat arbitrary-language capture as a measured eval target, not a 100 percent guarantee.
-3. Report actual usage only from a post-completion host/API source; otherwise say unavailable.
+3. Keep token accounting out of the skill and plugin surface so it cannot displace routing or verification.
 4. Keep UI optional. A local read-only JSON/Markdown report answers the current question without a daemon or MCP server.
 
 ## Project evidence
@@ -47,7 +47,7 @@ concise bilingual host description
   -> deterministic post-activation route
      (route + clarity + span + risk + signals + confidence)
   -> proportional skill composition and evidence lifecycle
-  -> final token line
+  -> no chat token line; optional kernel receipts stay off the skill surface
   -> optional hash-checked local receipt and read-only report
 ```
 

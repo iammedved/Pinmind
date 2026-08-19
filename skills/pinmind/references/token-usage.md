@@ -1,8 +1,14 @@
 # Token usage receipts
 
-## What Pinmind can claim
+Token accounting is out of the skill and plugin surface. Agents must not read
+this file to finish a task and must not print a chat token line. The optional
+kernel receipt below exists only for host adapters that already captured
+authoritative usage; it is not part of the controller contract.
 
-For every task while Pinmind is active, the final user-facing response must contain one `Token usage` line. Report a number only when an authoritative host, SDK, CLI JSON event, App Server event, API response, or explicitly labelled manual transcription supplied usage for the whole stated scope. Otherwise report `unavailable`.
+## What the optional kernel receipt can store
+
+Do not report token usage from the skill. Never estimate, never substitute
+zero, and never pad a chat answer with `unavailable`.
 
 An instruction-only skill normally cannot know the complete usage of its own final response: the host emits final usage after that response completes. Do not estimate it, infer it from text length, parse private rollout files, or substitute zero.
 

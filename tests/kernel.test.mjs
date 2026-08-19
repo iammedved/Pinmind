@@ -505,7 +505,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.7.0');
+  assert.equal(baseVersion, '0.8.0');
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
@@ -649,10 +649,26 @@ test('report is read-only and CLI records authoritative usage', async () => {
   assert.deepEqual(before, after); await assert.rejects(readFile(path.join(run, 'final.md'), 'utf8')); assert.match(markdown, /Total: 100/); assert.equal(json.tokenUsage.totalTokens, 100);
 });
 
-test('every Pinmind final path, including manual simple, requires a token line', async () => {
+test('skill and plugin surface keep token accounting out of the controller', async () => {
   const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
+  const tokenUsage = await readFile(fileURLToPath(new URL('../skills/pinmind/references/token-usage.md', import.meta.url)), 'utf8');
+  const verification = await readFile(fileURLToPath(new URL('../skills/pinmind/references/verification.md', import.meta.url)), 'utf8');
+  const loop = await readFile(fileURLToPath(new URL('../skills/pinmind/references/loop.md', import.meta.url)), 'utf8');
+  const design = await readFile(fileURLToPath(new URL('../skills/pinmind/references/design-decisions.md', import.meta.url)), 'utf8');
+  const routeRef = await readFile(fileURLToPath(new URL('../skills/pinmind/references/route.md', import.meta.url)), 'utf8');
   const simple = routeTask({ kind: 'simple', text: 'Привет' }); assert.equal(simple.route, 'simple');
-  assert.match(skill, /every task while Pinmind is active|кажд.*задач.*Pinmind/iu); assert.match(skill, /including.*simple|включая.*simple/iu); assert.match(skill, /Token usage|Токены/iu); assert.match(skill, /omit the token line|не оценивай|never estimate/iu);
+  assert.match(skill, /Do not report token usage|не сообщай расход токенов|out of the skill/iu);
+  assert.doesNotMatch(skill, /Read \[token-usage\.md\]/);
+  assert.doesNotMatch(skill, /Token usage:/);
+  assert.match(tokenUsage, /out of the skill and plugin surface/i);
+  assert.doesNotMatch(tokenUsage, /must contain one `Token usage` line/i);
+  assert.match(verification, /out of the skill surface/i);
+  assert.doesNotMatch(verification, /Token usage: unavailable/i);
+  assert.match(loop, /out of the skill/i);
+  assert.match(design, /out of the skill and plugin surface/i);
+  assert.match(routeRef, /Fix a race condition.+\bsoftware-change\b/i);
+  assert.doesNotMatch(routeRef, /Fix a race condition.+\binvestigation then software-change\b/i);
+  assert.match(skill, /effect:external-side-effect/);
 });
 
 test('baseline receipts preserve green, pre-existing failure, and explicit unavailable outcomes', async () => {

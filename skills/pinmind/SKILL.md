@@ -1,6 +1,6 @@
 ---
 name: pinmind
-description: "Default RU/EN controller for every new Grok, Codex, or ChatGPT chat on non-trivial Russian or English tasks (задачи на русском или английском) requiring tools/files, multi-step reasoning, research/исследование, audit/аудит, diagnosis/диагностику, planning/планирование, implementation, or changes to code, UI, documents, data, integrations, or tests. Use implicitly at session start alongside required domain skills; after selection, load only this SKILL.md and immediately run the bundled route before memory, references, workspace inspection, or task tools. Do not use for greetings, one stable fact, tiny translation/rewrite, trivial formatting, or other obvious one-step low-risk requests."
+description: "Default RU/EN controller for every new Grok, Codex, or ChatGPT chat on non-trivial Russian or English tasks (задачи на русском или английском, including colloquial RU) requiring tools/files, multi-step reasoning, research/исследование, audit/аудит, diagnosis/диагностику, planning/планирование, implementation, or changes to code, UI, documents, data, integrations, or tests. Use implicitly at session start alongside required domain skills; after selection, load only this SKILL.md and immediately run the bundled route before memory, references, workspace inspection, or task tools. Do not use for greetings, one stable fact, tiny translation/rewrite, or trivial formatting."
 ---
 
 # Pinmind
@@ -47,7 +47,7 @@ If Node.js or the kernel is unavailable, make the first update begin `Route: non
 4. Check for `.pinmind/active.json` in the active workspace before starting a new persistent run. Resume a matching unfinished run after validating its state; never rely on chat memory alone. The MVP permits one active run per workspace and blocks silent replacement.
 5. Ask only about an unresolved choice that changes observable outcome, safety, authority, or a hard-to-reverse boundary. Otherwise record a reasonable assumption and continue.
 
-Router fields explain handling but never grant authority. When `needsHumanConfirmation` is true, remain read-only until the contradiction or target is resolved.
+Router fields explain handling but never grant authority. When `needsHumanConfirmation` is true, remain read-only until the contradiction or target is resolved. When `effect:external-side-effect` is present, remain read-only until the user gives exact current authority for that concrete target and effect. The signal does not set `needsHumanConfirmation` by itself and does not grant authority.
 
 When changing discovery metadata, installation, or activation behavior, read [host-smoke.md](references/host-smoke.md) and keep host selection evidence separate from deterministic router evidence.
 
@@ -148,13 +148,8 @@ Never erase a dirty tree, expose secrets in artifacts, weaken acceptance to make
 
 ## Finalize honestly
 
-Read [token-usage.md](references/token-usage.md). Generate the final report from current artifacts and fresh evidence, not memory. Separate completed, failed, unproven, pending, assumed, amended, added, and manual items. Include exact verification commands and material limitations. Curate only stable reusable facts into durable project memory; never turn a session log or assumption into project truth.
+Generate the final report from current artifacts and fresh evidence, not memory. Separate completed, failed, unproven, pending, assumed, amended, added, and manual items. Include exact verification commands and material limitations. Curate only stable reusable facts into durable project memory; never turn a session log or assumption into project truth.
 
-For every task while Pinmind is active, including an explicitly or manually invoked `simple` route, report token usage only when an authoritative host, SDK, CLI JSON event, App Server event, or API response exposed counts for the whole reported scope:
-
-- `Token usage: <observed total> (<source and available input/output breakdown>)` when those counts exist;
-- omit the token line when the surface did not expose them. Never estimate, never substitute zero, and never pad a simple answer with `unavailable`.
-
-For persistent runs, keep the hash-checked receipt in `usage.json`; a supported post-turn observer may record actual usage later and `report` will render it without modifying the run.
+Do not report token usage and do not read token-accounting references while finishing a task. Token counting is out of the skill and plugin surface so it cannot displace routing, contracts, or verification.
 
 Use the bundled kernel for state, schema, trace, evidence, and freeze checks; see [kernel-cli.md](references/kernel-cli.md) for exact commands. Treat kernel validation as necessary but not sufficient: deterministic structure cannot replace product judgment or a real user journey.

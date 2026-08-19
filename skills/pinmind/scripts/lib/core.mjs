@@ -1229,6 +1229,30 @@ function classifyConfirmedExternalStatement(text) {
   return { kind: actionList ? 'action-list' : 'none', text: tail };
 }
 
+function quotedSpansStripped(value) {
+  return value.replace(/["“”«»`][^"“”«»`]{0,500}["“”«»`]/gu, ' ');
+}
+
+function translationFrame(value) {
+  return value
+    .replace(/\b(?:translate|translation)\b[\s\S]{0,80}?\b(?:this|the|it)\s+(?:sentence|phrase|word|paragraph|text)\s*[:\-–]?\s*[\s\S]*$/u, 'translate this sentence')
+    .replace(/\b(?:translate|translation)\b[\s\S]{0,80}?\b(?:sentence|phrase|word|paragraph|text)\s*[:\-–]\s*[\s\S]+$/u, 'translate this sentence')
+    .replace(/перевед\S*[\s\S]{0,80}?(?:это|этот|эту|данн\S*)?\s*(?:предложен|фраз|слов|абзац|текст)\s*[:\-–]?\s*[\s\S]*$/u, 'переведи это предложение');
+}
+
+function exampleListStripped(value) {
+  return value
+    .replace(/\b(?:delete|deploy|rotate)(?:\s*\/\s*(?:delete|deploy|rotate))+/gu, ' ')
+    .replace(/(?:^|[.!?]\s*)\d+\.\s+[\s\S]+$/u, ' ');
+}
+
+function analysisFrame(value, { translation, meta } = {}) {
+  let frame = quotedSpansStripped(value);
+  if (translation) frame = translationFrame(frame);
+  if (meta) frame = exampleListStripped(frame);
+  return frame.replace(/\s+/gu, ' ').trim();
+}
+
 export function routeTask(input = {}) {
   const normalizedText = String(input.text || input.intent || input.request || '').normalize('NFKC').toLocaleLowerCase().replace(/ё/g, 'е');
   const explicitInvocation = /^\s*(?:\$pinmind|@pinmind)(?=\s|[,:;.!?]|$)/u.test(normalizedText);
@@ -1239,6 +1263,22 @@ export function routeTask(input = {}) {
   const signalSet = new Set(); const mark = (condition, signal) => { if (condition) signalSet.add(signal); return condition; };
   if (explicitInvocation) mark(true, 'activation:explicit');
   if (explicit) mark(true, `explicit:${explicitRoute || 'unknown'}`);
+  const typoOnly = /\b(?:fix|correct)(?:\s+(?:the|a|this|that|one))?\s+typos?(?:\s+in\b|\s*:)|(?:исправ|поправ|паправ|пофикс)\S*[^\n]{0,40}опечат/u.test(text);
+  const colloquialMutate = mark(/(?:выпил|выпел|выреж|вырез|выкин|вычист|докрут|подкрут|допил|довед|додела)(?:и|йте|ите|ить|уть|ь|й|яй|ять)?(?=\s|[.,;:!?/]|$)|(?:дообучи|доучи|научи)\s+(?:его|ее|её|этот|данн\S*|скилл?|роутер|pinmind)|убер(?:и|ите)\s+(?:токен|подсчет|эту\s+функц|всю\s+эту\s+истори)|не\s+надо\s+считать\s+токен|давай\s+без\s+токен/u.test(text), 'intent:colloquial-mutate');
+  const productDesire = mark(/(?:хочу|нужно|надо|нужна),?\s+чтобы\s+(?:это|он|она|скилл?|плагин|pinmind)|(?:хочу|нужно|надо|нужна)[^\n]{0,48}(?:штоб|чтоб[ы]?)[^\n]{0,72}(?:не\s+туп|понимал|распознав|понял|могг?|слышал)|чтобы\s+(?:он|она|скилл?|плагин|это)\s+(?:могг?|понимал|распознавал|стал|был)|(?:сделай|зделай|сделайте)\s+(?:из\s+(?:этого|него|pinmind)|(?:нормальн\S*|полноценн\S*|норм)\s+(?:скилл?|плагин|skill|plugin))|(?:сделай|зделай)[^\n]{0,64}(?:скилл?|skill|плагин|plugin)[^\n]{0,40}из\s+pinmind|(?:полноценн\S*|нормальн\S*)\s+(?:скилл?|плагин|skill|plugin)\s+для|(?:должен|должна|должно|пусть)\s+(?:точно\s+)?(?:понима|распознава|стать|стал)|хочу\s+(?:нормальн\S*|полноценн\S*)\s+(?:скилл?|плагин)|надо\s+чтобы\s+он\s+слышал/u.test(text), 'intent:product-desire');
+  const evalHarness = mark(!/\?\s*$/u.test(text) && /(?:напиши|накидай|добав|продумай)\S*[^\n]{0,56}тест\S*|(?:прогон|прогони)\S*[^\n]{0,40}тест|версионир|доведи\s+до\s+релиза|сделай\s+релиз|(?:в\s+прошлом\s+чате)[^\n]{0,80}(?:докрут|поправ|додел|продолж|правил)/u.test(text), 'intent:eval-harness');
+  const opinionRequest = mark(/(?:какие|каковы)\s+(?:теперь\s+)?мысли|что\s+думаешь|как\s+(?:он|оно|это)\s+сейчас|норм\s+или\s+нет|оцени\s+\S+\s+честно|что\s+не\s+так\s+в|ну\s+и\s+как\s+он/u.test(text), 'intent:opinion');
+  const implementDirective = mark(!typoOnly && (/\b(?:implement|apply (?:this|these) (?:fix|fixes|patch|changes)|make pinmind|change pinmind|update pinmind|fix pinmind)\b|заставь|поправ(?:ь|ляй)|паправь|исправь\s+pinmind/u.test(text) || colloquialMutate || productDesire || evalHarness), 'intent:implement-directive');
+  const comparisonRequest = mark(/\b(?:compare|comparison|critique|criticiz(?:e|ing)|who(?:'s| is) better|which(?:\s+\S+){0,4}\s+is better|which is ahead|what(?:'s| is) stronger|side[- ]by[- ]side|criticizing tests?|contrast)\b|(?:сравн|сопостав)\S*|критику|кто\s+лучше|что\s+лучше/u.test(text), 'intent:compare');
+  const nextStepQuestion = mark(/\b(?:what(?:'s| is) the next step|which next step)\b|каким\s+следующ|следующ\S*\s+шаг|какой\s+следующ/u.test(text), 'intent:meta-evaluation');
+  const documentationQuestion = mark(!colloquialMutate && !productDesire && !evalHarness && /\b(?:token usage|token line|omit the token|pad simple answers|align the .{0,60} docs?)\b|token usage:\s*unavailable|нужно ли писать|не\s+падд/u.test(text), 'intent:docs-question');
+  const routePolicyQuestion = mark(/\?\s*$/u.test(text) && /\bshould\b[\s\S]{0,160}\b(?:software-change|operational|investigation|work loop|token usage)\b|\b(?:stay|remain)\s+software-change\b/u.test(text), 'intent:meta-evaluation');
+  const metaEvaluation = (comparisonRequest || nextStepQuestion || documentationQuestion || routePolicyQuestion) && !implementDirective;
+  const translationIntentEarly = /\b(?:translate|translation)\b|перевед/u.test(text);
+  const boundedTextEarly = /\b(?:translate\s+(?:this|it)|(?:this|the)?\s*(?:sentence|phrase|word|paragraph|text))\b|перевед\S*\s+(?:это|этот|эту|его|её|ее)|(?:это|этот|эту|данн\S*)?\s*(?:предложен|фраз|слов|абзац|текст)/u.test(text);
+  const productLocalizationEarly = /\b(app|application|site|website|ui|interface|product|project|locali[sz]ation|i18n)\b|приложен|сайт|интерфейс|продукт|проект|локализац/u.test(text);
+  const boundedTranslation = translationIntentEarly && boundedTextEarly && !productLocalizationEarly;
+  const analysisText = analysisFrame(text, { translation: boundedTranslation, meta: metaEvaluation });
   // External collaboration is modeled separately from software impact. A small
   // action grammar makes the effect and target visible without turning every
   // mention of a PR, branch, or generic verb into mutation authority.
@@ -1273,7 +1313,8 @@ export function routeTask(input = {}) {
   const confirmedPushAction = externalAuthorityActionList && /\bpush\b[^\n,;]{0,80}(?:\b(?:branch(?:es)?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|origin\s+[a-z0-9._/-]+|remote\b)|ветк)|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalAuthorityText);
   const createPrAction = confirmedCreatePrAction || /\b(?:create|open|submit|prepare)\s+(?:a\s+)?(?:pull\s+request|pr)\b|(?:создай|открой|отправь|подготовь|оформи)\s+(?:pull\s+request|pr)(?=\s|[.,;:!?]|$)/u.test(externalActionText);
   const mergeAction = confirmedMergeAction || /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)merge(?=\s+(?:(?:the\s+)?(?:pr|pull\s+request|this|it|#\d+)\b|(?:the|this|a)\s+(?:local\s+)?branch\b)|[^\n]{0,80}\b(?:into|to)\s+(?:(?:protected\s+)?(?:main|master)(?=\s*[.,;:!?]?$)|shared\s+branch|origin\/[a-z0-9._/-]+)|[.!?]?\s*$)|(?:см[её]рдж|смердж|смерж)(?:и|ите|ить)/u.test(externalActionText) || /(?:влей|слей)(?:те)?[^\n]{0,80}(?:\b(?:pr|main|master|branch|origin\/)\b|ветк)/u.test(externalActionText);
-  const pushAction = confirmedPushAction || /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)push\b(?=[^\n]{0,80}\b(?:branch(?:es)?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|origin\s+[a-z0-9._/-]+|remote\b|to\s+(?:main|master|protected|shared\s+branch|remote\s+branch)))|\bgit\s+push\b|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalActionText);
+  const colloquialRemotePush = /(?:запуш|пуш|залей)\S*[^\n]{0,48}(?:гитхаб|github|реп[уаые]|origin)|(?:закоммить|закоммич)\S*[^\n]{0,24}(?:запуш|пуш)/u.test(text);
+  const pushAction = confirmedPushAction || colloquialRemotePush || /(?:^|[.!?]\s*|\b(?:first|please|then|and|instead)\s*,?\s+|\b(?:can|could|would|will)\s+you\s+|\b(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+)push\b(?=[^\n]{0,80}\b(?:branch(?:es)?|commits?|changes?|tags?|refs?|origin\/[a-z0-9._/-]+|origin\s+[a-z0-9._/-]+|remote\b|to\s+(?:main|master|protected|shared\s+branch|remote\s+branch)))|\bgit\s+push\b|(?:запуш|пуш|отправ)\S*\s+(?:ветк|branch)/u.test(externalActionText);
   const externalActionRequested = createPrAction || mergeAction || pushAction;
   const conditionalExternalAction = /^(?:if|when|after|once|unless)\b[^\n,;]{0,100},?\s+(?:merge|push)\b/u.test(externalActionText);
   const protectedBranchTarget = /\bprotected\s+(?:main|master|branch)\b|(?:защищенн|защищен)\S*\s+(?:main|master|ветк)/u.test(text);
@@ -1293,11 +1334,12 @@ export function routeTask(input = {}) {
   else if (sharedBranchMutation) mark(true, 'effect:shared-branch-mutation');
   else if (localRepoTarget) mark(true, 'effect:local-mutation');
   else if (externalActionRequested) mark(true, 'effect:remote-collaboration');
-  const productionContext = /\b(?:prod|production)\b|\blive\b[^\n]{0,60}\b(?:database|data|records?|credentials?|keys?)\b|\b(?:deploy|publish|release|roll\s*out|ship|migrate|wipe|delete|rotate|revoke)\b[^\n]{0,80}\blive\b|\blive\b[^\n]{0,80}\b(?:deploy|publish|release|roll\s*out|ship|migration|wipe|delete|rotation|revocation)\b|(?<![\p{L}\p{N}_])прод(?:а|е)(?![\p{L}\p{N}_])|продакшн|боев\S*(?:\s+\S+){0,3}\s+(?:баз|данн|ключ|учетн)|(?:выкат|разверн|задепло|опублик|релиз|мигрир|удал|сотр|ротац|отоз)\S*[^\n]{0,80}(?:лайв|боев\S*)/u.test(text);
-  const credentialContext = /\b(?:credentials?|api[- ]?keys?|access[- ]?keys?)\b|учетн\S*\s+данн|ключ\S*\s+доступ/u.test(text);
-  const destructiveDataEffect = /\b(?:wipe|purge|erase|destroy)\b[^\n]{0,80}\b(?:data|database|records?|credentials?|keys?)\b|(?:сотр|очист|уничтож)\S*[^\n]{0,80}(?:данн|баз|запис|ключ|учетн)/u.test(text);
-  const credentialEffect = credentialContext && /\b(?:rotate|revoke|reset|replace|delete|remove|change)\b|ротац|отоз|отмен|смен|замен|удал/u.test(text);
-  const highRisk = mark(/\b(auth(?:entication|orization)?|password|payment|migration|delete|deletion|permission|races?|race\s+conditions?|concurrency|security|secret|production)\b|аутентификац|авторизац|парол|оплат|платеж|миграц|удален|прав.*доступ|гонк|конкурент|безопасност|секрет|продакшн/u.test(text) || productionContext || destructiveDataEffect || credentialEffect || protectedBranchMutation || sharedBranchMutation || unresolvedExternalTarget, 'risk:high');
+  const effectScanText = (boundedTranslation || metaEvaluation) ? analysisText : text;
+  const productionContext = /\b(?:prod|production)\b|\blive\b[^\n]{0,60}\b(?:database|data|records?|credentials?|keys?)\b|\b(?:deploy|publish|release|roll\s*out|ship|migrate|wipe|delete|rotate|revoke)\b[^\n]{0,80}\blive\b|\blive\b[^\n]{0,80}\b(?:deploy|publish|release|roll\s*out|ship|migration|wipe|delete|rotation|revocation)\b|(?<![\p{L}\p{N}_])прод(?:а|е|у|ом)?(?![\p{L}\p{N}_])|продакшен|продакшн|боев\S*(?:\s+\S+){0,3}\s+(?:баз|данн|ключ|учетн)|(?:выкат|разверн|задепло|опублик|релиз|мигрир|удал|сотр|ротац|отоз)\S*[^\n]{0,80}(?:лайв|боев\S*)/u.test(effectScanText);
+  const credentialContext = /\b(?:credentials?|api[- ]?keys?|access[- ]?keys?)\b|учетн\S*\s+данн|ключ\S*\s+доступ/u.test(effectScanText);
+  const destructiveDataEffect = /\b(?:wipe|purge|erase|destroy)\b[^\n]{0,80}\b(?:data|database|records?|credentials?|keys?)\b|(?:сотр|очист|уничтож)\S*[^\n]{0,80}(?:данн|баз|запис|ключ|учетн)/u.test(effectScanText);
+  const credentialEffect = credentialContext && /\b(?:rotate|revoke|reset|replace|delete|remove|change)\b|ротац|отоз|отмен|смен|замен|удал/u.test(effectScanText);
+  const highRisk = mark(/\b(auth(?:entication|orization)?|password|payment|migration|delete|deletion|permission|races?|race\s+conditions?|concurrency|security|secret|production)\b|аутентификац|авторизац|парол|оплат|платеж|миграц|удален|прав.*доступ|гонк|конкурент|безопасност|секрет|продакшен|продакшн/u.test(effectScanText) || productionContext || destructiveDataEffect || credentialEffect || protectedBranchMutation || sharedBranchMutation || unresolvedExternalTarget, 'risk:high');
   const multiSystem = /\b(payment|integration|multi-system|distributed|webhook)\b|платеж|интеграц|нескольк.*систем|вебхук/u.test(text);
   const architectural = mark(/\b(architecture|architectural|public\s+(?:api|interface)|breaking\s+change|system\s+shape|system\s+boundar(?:y|ies)|service\s+boundar(?:y|ies)|data\s+schema)\b|архитектур|публичн\S*\s+(?:api|интерфейс)|границ\S*\s+(?:сервис|систем)|схем\S*\s+обмен|перепроектир/u.test(text), 'clarity:architectural');
   const crossCutting = multiSystem || architectural || /\b(api|database|schema|shared state|canonical (?:state|mutation|change)|process group|workspace-wide|lifecycle|migration)\b|all\s+canonical\s+(?:state\s+)?(?:mutations?|changes?)|нескольк.*модул|общ.*состояни|каноническ.*(?:состояни|изменени)|жизненн.*цикл|групп.*процесс|баз\S*\s+данн|миграц|мигрир/u.test(text);
@@ -1314,7 +1356,7 @@ export function routeTask(input = {}) {
   const directiveText = actionText
     .replace(/\bhow\s+to\s+(?:fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|improve|redesign|migrate|deploy)\b/gu, '')
     .replace(/как\s+(?:исправить|изменить|реализовать|добавить|обновить|удалить|переписать|улучшить|переработать|мигрировать|развернуть)/gu, '');
-  const changePattern = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace|locali[sz]e)\b|сделай\s+так,?\s+чтобы|исправ|измен|внес|правк|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|зарелиз|пофикс|почин|сотр|очист|уничтож|ротац|отоз|смен|замен|локализ|усил.*(?:защит|безопас)/u;
+  const changePattern = /\b(fix|change|modify|edit|implement|add|update|remove|delete|rewrite|refactor|harden|improve|optimi[sz]e|redesign|migrate|deploy|publish|ship|roll\s*out|wipe|purge|erase|destroy|rotate|revoke|reset|replace|locali[sz]e)\b|сделай\s+так,?\s+чтобы|исправ|измен|внес|правк|реализ(?:уй|овать|ируй|ировать)|добав|обнов(?:и|ить|ляй|ите)|удал|перепиш|рефактор|улучш|оптимиз|переработ|перепроектир|мигрир|мигриру|выкат|разверн|задепло|опублик|зарелиз|пофикс|почин|сотр|очист|уничтож|ротац|ротир|отоз|смен|замен|локализ|усил.*(?:защит|безопас)/u;
   const readOnlyDirectivePattern = /^(?:(?:please|briefly|shortly|first)\s*,?\s*){0,3}(?:explain|describe|report|tell|summari[sz]e)\b|^(?:(?:пожалуйста|кратко|сначала)\s*,?\s*){0,3}(?:объясни|расскажи|опиши|сообщи|суммируй|дай\s+отч[её]т)(?=\s|[.,;:!?]|$)/u;
   const reportingDirectiveText = directiveText
     .replace(/\b(?:make|prepare|provide)\s+(?:an?\s+)?(?:analysis|assessment|review|report)\b/gu, '')
@@ -1327,19 +1369,25 @@ export function routeTask(input = {}) {
   const executionConnector = /(?:,?\s+)(?:(?:and\s+)?then|and|(?:и\s+)?(?:затем|потом|далее)|(?:и\s+)?после\s+(?:этого|чего)|и)(?:,\s*|\s+)/u.exec(directiveText);
   const executionSuffix = executionConnector ? directiveText.slice(executionConnector.index + executionConnector[0].length) : '';
   const planningAndExecution = Boolean(planningRequest && executionConnector && !readOnlyDirectivePattern.test(executionSuffix) && changePattern.test(executionSuffix));
-  const requestedChange = (((changeMention && (!planningRequest || planningAndExecution)) || mutateParaphrase) && !inspectParaphrase && !diagnoseParaphrase);
-  const softwareImpact = /\b(add|render|use|build|component|page|ui|catalog|asset|assets|code|implement|api|database|schema|client|function|method|class|module|array|arrays|queue|telemetry|stream|streams|coverage)\b|добав|рендер|использ.*(?:изображ|asset|ресурс)|страниц|компонент|интерфейс|каталог|код|баз\S*\s+данн|схем|функци|массив|очеред|телеметр|поток/u.test(text);
-  const translationIntent = /\b(?:translate|translation)\b|перевед/u.test(text);
-  const boundedText = /\b(?:translate\s+(?:this|it)|(?:this|the)?\s*(?:sentence|phrase|word|paragraph|text))\b|перевед\S*\s+(?:это|этот|эту|его|её|ее)|(?:это|этот|эту|данн\S*)?\s*(?:предложен|фраз|слов|абзац|текст)/u.test(text);
-  const productLocalization = /\b(app|application|site|website|ui|interface|product|project|locali[sz]ation|i18n)\b|приложен|сайт|интерфейс|продукт|проект|локализац/u.test(text);
-  const translation = translationIntent && boundedText && !productLocalization && !highRisk && !softwareImpact;
-  const stableFact = mark(/^(?:what\s+is\s+the\s+capital\s+of\s+[\p{L} .'-]+|(?:the\s+)?capital\s+of\s+[\p{L} .'-]+|столиц[аы]\s+[\p{L} .'-]+)\?$/u.test(text.trim()) && !highRisk && !softwareImpact, 'intent:stable-fact');
+  const explainAndDo = /^(?:explain|describe|объясни|расскажи)\s+(?:and|и)\s+/u.test(directiveText);
+  const leadingReadOnly = readOnlyDirectivePattern.test(directiveText) && !planningAndExecution && !explainAndDo;
+  const requestedChange = implementDirective || colloquialMutate || productDesire || evalHarness || (!metaEvaluation && !leadingReadOnly && (((changeMention && (!planningRequest || planningAndExecution)) || mutateParaphrase) && !inspectParaphrase && !diagnoseParaphrase));
+  const softwareImpact = /\b(add|render|use|build|component|page|ui|catalog|asset|assets|code|implement|api|database|schema|client|function|method|class|module|array|arrays|queue|telemetry|stream|streams|coverage)\b|добав|рендер|использ.*(?:изображ|asset|ресурс)|страниц|компонент|интерфейс|каталог|код|баз\S*\s+данн|схем|функци|массив|очеред|телеметр|поток/u.test(effectScanText) || (translationIntentEarly && productLocalizationEarly);
+  const translationIntent = translationIntentEarly;
+  const boundedText = boundedTextEarly;
+  const productLocalization = productLocalizationEarly;
+  const translation = translationIntent && boundedText && !productLocalization;
+  const stableFact = mark((/^(?:what\s+is\s+the\s+capital\s+of\s+[\p{L} .'-]+|(?:the\s+)?capital\s+of\s+[\p{L} .'-]+|столиц[аы]\s+[\p{L} .'-]+)\?$/u.test(text.trim()) || /^что\s+такое\s+[\p{L}0-9 .'_-]+(?:\s+одним\s+предложением)?\??$/u.test(text.trim())) && !highRisk && !softwareImpact && !requestedChange, 'intent:stable-fact');
   const boundedRewrite = /\b(?:rewrite|shorten|rephrase)\b[^\n]{0,80}\b(?:this|the)?\s*(?:sentence|phrase|paragraph|text)\b|(?:перепиш|сократ|перефразир)\S*[^\n]{0,80}(?:предложен|фраз|абзац|текст)/u.test(text) && !productLocalization && !softwareImpact;
   const boundedFormat = /\bformat\b[^\n]{0,80}\b(?:this|the)?\s*(?:short\s+)?(?:list|text|paragraph)\b|отформатир\S*[^\n]{0,80}(?:коротк\S*\s+)?(?:список|текст|абзац)/u.test(text) && !softwareImpact;
   if (translation || boundedRewrite) mark(true, 'intent:bounded-text'); if (boundedFormat) mark(true, 'intent:bounded-format');
-  const operationalIntent = externalActionRequested || (/\b(copy|rename|move|fix typo|sort files?)\b|скопир|переимен|перемест|исправ.*опечат|отсортир.*файл/u.test(text) && !softwareImpact);
+  const hostInstall = !/\?\s*$/u.test(text) && /(?<![\p{L}\p{N}_])(?:поставь|установи|заинсталь)(?=\s|[.,;:!?]|$)[^\n]{0,48}(?:pinmind|плагин|скилл?)/u.test(text);
+  const operationalIntent = externalActionRequested || typoOnly || hostInstall || (/\b(copy|rename|move|sort files?)\b|скопир|переимен|перемест|отсортир.*файл/u.test(text) && !softwareImpact);
   const operational = operationalIntent && !noChange && (!externalActionRequested || !requestedChange);
-  const symptom = /\b(?:errors?|fail(?:s|ed|ure|ing)?|returns?\s+[45]\d{2}|crash(?:es|ed|ing)?|broken|not\s+work(?:ing)?)\b|ошиб|падает|сломал|не\s+работает/u.test(text);
+  const sideEffectVerb = /\b(?:deploy|publish|release|roll\s*out|ship|migrate|migrations?|wipe|purge|erase|destroy|delete|rotate|revoke|reset)\b|задепло|выкат|разверн|опублик|мигрир|сотр|уничтож|удал|ротац|отоз|ротир/u.test(effectScanText);
+  const imperativeEffect = productionContext && sideEffectVerb && !/\?\s*$/u.test(text) && !leadingReadOnly && !metaEvaluation && !boundedTranslation;
+  mark(!boundedTranslation && !metaEvaluation && (requestedChange || operationalIntent || imperativeEffect) && (productionContext || destructiveDataEffect || credentialEffect) && sideEffectVerb, 'effect:external-side-effect');
+  const symptom = /\b(?:errors?|fail(?:s|ed|ure|ing)?|returns?\s+[45]\d{2}|crash(?:es|ed|ing)?|broken|not\s+work(?:ing)?)\b|ошиб|падает|сломал|не\s+работает|отвалив|криво\s+роутит|не\s+понимает/u.test(text);
   const exploratoryQuestion = /\b(?:feasibility|compare (?:the )?(?:options|approaches)|explore (?:the )?(?:options|approaches))\b|оцен.*возможност|сравни.*(?:вариант|подход)/u.test(text);
   const investigation = diagnoseParaphrase || (!requestedChange && !externalActionRequested && !conditionalExternalAction && ((!exploratoryQuestion && /\b(debug|diagnos\S*|investigat(?:e|es|ed|ing|ion)|root cause|reproduce|bug|find (?:the )?cause|find why)\b|диагност|расследован|исследу.*ошиб|найд.*причин|воспроизвед|баг|разберис/u.test(text)) || (/\bwhy\b|почему|пачему/u.test(text) && symptom) || symptom));
   const explanation = externalAuthorityReadOnlyStatement || /\b(?:explain|describe)\b|\bhow\s+(?:does|do|is|are)\b|объясн|расскаж|опиш\S*\s+как/u.test(text);
@@ -1348,15 +1396,15 @@ export function routeTask(input = {}) {
   const recognizedReadOnlyIntent = investigation || explanation || auditRequest || planningRequest || spike || trivial || stableFact || translation || boundedRewrite || boundedFormat || inspectParaphrase || diagnoseParaphrase;
   const conflict = mark(noChange && (requestedChange || operationalIntent || externalActionRequested || !recognizedReadOnlyIntent), 'authority:conflict');
   const vague = mark(/^(?:(?:make|fix|improve)\s+(?:it|this)(?:\s+(?:work|better|properly))?|do\s+(?:it|this)\s+(?:right|properly)|(?:сделай|почини|исправь|улучши)(?:\s+(?:это|нормально|как\s+надо))?)[!.,?\s]*$/u.test(text.trim()), 'ambiguity:vague');
-  const audit = conflict || inspectParaphrase || (!investigation && ((!requestedChange && (explanation || planningRequest)) || (auditRequest && (!requestedChange || noChange))));
-  if (requestedChange) mark(true, 'intent:change'); if (softwareImpact) mark(true, 'impact:software');
+  const audit = conflict || inspectParaphrase || metaEvaluation || (opinionRequest && !requestedChange) || (!investigation && ((!requestedChange && (explanation || planningRequest || comparisonRequest || documentationQuestion || routePolicyQuestion || opinionRequest)) || (auditRequest && (!requestedChange || noChange))));
+  if (requestedChange && !translation) mark(true, 'intent:change'); if (softwareImpact && !translation) mark(true, 'impact:software');
   if (operationalIntent) mark(true, 'intent:operational'); if (investigation) mark(true, 'intent:investigation'); if (spike) mark(true, 'intent:spike'); if (audit) mark(true, 'intent:audit');
   let selectedExplicit;
   if (explicitRoute === 'audit' || explicitRoute === 'investigation' || explicitRoute === 'software-change') selectedExplicit = explicitRoute;
   else if (explicitRoute === 'simple' && (trivial || stableFact || translation || boundedRewrite || boundedFormat || (!requestedChange && !operationalIntent && !softwareImpact && !highRisk && !architectural))) selectedExplicit = explicitRoute;
   else if (explicitRoute === 'operational' && operationalIntent && !noChange && !requestedChange && !highRisk && !architectural) selectedExplicit = explicitRoute;
   else if (explicitRoute === 'spike' && spike && !requestedChange && !softwareImpact && !highRisk && !architectural) selectedExplicit = explicitRoute;
-  const recognizedOutcome = trivial || stableFact || translation || boundedRewrite || boundedFormat || operational || investigation || spike || audit || requestedChange || softwareImpact || externalActionRequested || inspectParaphrase || diagnoseParaphrase || mutateParaphrase || highRisk;
+  const recognizedOutcome = trivial || stableFact || translation || boundedRewrite || boundedFormat || operational || investigation || spike || audit || requestedChange || softwareImpact || externalActionRequested || inspectParaphrase || diagnoseParaphrase || mutateParaphrase || highRisk || comparisonRequest || nextStepQuestion || documentationQuestion || routePolicyQuestion || typoOnly || opinionRequest || colloquialMutate || productDesire || evalHarness || hostInstall;
   const unrecognized = mark(!recognizedOutcome && Boolean(text.trim()), 'intent:unrecognized');
   const inferredRoute = trivial || stableFact || translation || boundedRewrite || boundedFormat ? 'simple' : operational ? 'operational' : investigation ? 'investigation' : spike ? 'spike' : audit ? 'audit' : ((requestedChange || softwareImpact || highRisk) && !vague ? 'software-change' : 'audit');
   const route = selectedExplicit ?? inferredRoute;

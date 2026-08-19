@@ -2,13 +2,14 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.7.0`; see [CHANGELOG.md](CHANGELOG.md). It
+The released public baseline is `v0.8.0`; see [CHANGELOG.md](CHANGELOG.md). It
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
 CI, frozen-input gate, stable release metadata, a closed-schema 64-case language
 evaluator, first-class remaining-boundary reporting, the Superpowers work loop,
-conservative unknown routing, and Grok user-scope discovery.
+conservative unknown routing, Grok user-scope discovery, colloquial RU/EN
+user-voice routing, and a skill surface without token counting.
 
 These are local and repository-hosted guarantees. They do not by themselves prove
 implicit host activation, resume a host process, replay external effects, select a
@@ -39,14 +40,14 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-The stable `0.7.0` source keeps the 0.6 routing and evidence kernel, adds the
-Superpowers-defining work loop without copying its ceremony, refuses to dump
-unrecognized text into `software-change`, and installs into Grok user scope.
+The stable `0.8.0` source keeps the 0.7 work loop and conservative unknown
+routing, recognizes colloquial Russian product-desire and GitHub-push phrasing,
+and removes token counting from the always-loaded skill surface.
 
-### Remaining boundaries after the 0.7.0 release
+### Remaining boundaries after the 0.8.0 release
 
 - Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
-  immutable installed `v0.7.0` tag. Record the host version, package tree hash,
+  immutable installed `v0.8.0` tag. Record the host version, package tree hash,
   selected cache path, first route, and whether routing preceded task tools.
 - Directly inspect the Pinmind card and composer entry in a fresh Codex App
   session. The manifest and cache can prove which tracked image is configured;
@@ -58,9 +59,6 @@ unrecognized text into `software-change`, and installs into Grok user scope.
 - Separate release-corpus approval from router and manifest approval. A digest
   updated in the same repository and PR detects accidental drift but does not
   provide independent governance.
-- Capture authoritative whole-task token usage from a documented host event
-  before reducing the always-loaded layer. Receipt storage alone is not token
-  measurement.
 - Add a public-seam integration test for the real GitHub web-flow signature
   verifier, including command invocation and status parsing. Current unit tests
   cover the decision boundary with a verifier stub, while the release gate

@@ -18,7 +18,7 @@ Pinmind canonical mutations use one local workspace writer lock. Dead, malformed
 
 ## External side effects
 
-Require a separate user gate before deployment, publication, payment, email or message sending, destructive deletion, production migration, shared-branch push, credential rotation, or any comparable external effect. Resolve exact target and scope with read-only checks first.
+Require a separate user gate before deployment, publication, payment, email or message sending, destructive deletion, production migration, shared-branch push, credential rotation, or any comparable external effect. The router marks those requests `effect:external-side-effect` without flipping `needsHumanConfirmation`. Resolve exact target and scope with read-only checks first.
 
 Apply this gate before operational routing. Treat only the user's current explicit authorization for the concrete target and effect as authority; do not infer it from historical access or a general request to "finish everything."
 
@@ -30,4 +30,4 @@ Snapshot available subagents, continuation, model pinning, worktrees, browser, s
 
 ## Optional interfaces
 
-Keep dashboard, daemon, external database, issue tracker, multi-model router, auto-deploy, and always-on hook stacks out of the core until evidence proves a concrete need. Prefer the generated read-only report for lifecycle, evidence, and token usage. If a dashboard is added later, serve only generated public state over loopback with authentication and origin validation; never expose the run directory or interpret user text as instructions.
+Keep dashboard, daemon, external database, issue tracker, multi-model router, auto-deploy, and always-on hook stacks out of the core until evidence proves a concrete need. Prefer the generated read-only report for lifecycle and evidence. If a dashboard is added later, serve only generated public state over loopback with authentication and origin validation; never expose the run directory or interpret user text as instructions.

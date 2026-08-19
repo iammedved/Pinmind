@@ -2,9 +2,9 @@
 
 ![Pinmind routes non-trivial work through specialized skills and verified evidence](docs/assets/pinmind-hero.png)
 
-Pinmind is a Russian-and-English workflow controller packaged as a Codex skill and a ChatGPT/Codex plugin. It classifies non-trivial work, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
+Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.7.0`.
+Current stable version: `0.8.0`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current stable version: `0.7.0`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.7.0
+   codex plugin marketplace add iammedved/Pinmind --ref v0.8.0
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.7.0` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.8.0` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -177,7 +177,7 @@ publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
 versions such as `0.6.1`, `0.6.2`, and `0.6.3`; backward-compatible feature releases use a
-new minor such as `0.7.0`. Existing experimental tags are immutable history and
+new minor such as `0.7.0` or `0.8.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 
 ## Validation

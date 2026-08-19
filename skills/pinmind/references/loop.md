@@ -30,5 +30,5 @@ Then change strategy or report the blocker.
 ## Do not copy
 
 Do not require a visual companion, a git worktree, or 2–5 minute plan
-microsteps. Do not estimate token usage. If the host did not expose
-authoritative counts, omit the token line.
+microsteps. Do not report or estimate token usage; it is out of the skill
+surface.

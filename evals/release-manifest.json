@@ -6,7 +6,7 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/core.mjs",
-      "sha256": "b207864828993253cc29792495fe52c2a27a9cc35af405063422c740c4e79a35"
+      "sha256": "f4f0bdcba39af3f95c7257b38ec5587ea49aa8f52e147a547b1046b0b8160840"
     },
     {
       "role": "language-schema-validator",
@@ -31,31 +31,115 @@
     {
       "role": "unsafe-negative-regressions",
       "path": "evals/fixtures/routes.json",
-      "sha256": "64494e26573373065437e98186721becc535e47694c749081a12880901b233e8"
+      "sha256": "892f0a16a175df5598684e2b9c8350b88a59f241c3f40ffc3581ba0450c3646c"
     }
   ],
   "commands": [
-    { "id": "kernel-tests", "argv": ["node", "--test", "tests/kernel.test.mjs"] },
-    { "id": "aep-validator", "argv": ["node", "scripts/validate-aep-decision-contract.mjs"] },
-    { "id": "aep-tests", "argv": ["node", "--test", "tests/aep-decision-contract.test.mjs"] },
-    { "id": "language-evaluator", "argv": ["node", "scripts/evaluate-language-routing.mjs"] },
-    { "id": "language-tests", "argv": ["node", "--test", "tests/language-routing-evaluator.test.mjs"] },
-    { "id": "release-tests", "argv": ["node", "--test", "tests/release-verification.test.mjs"] },
-    { "id": "plugin-skill-validator", "argv": ["node", "scripts/validate-plugin-skill.mjs"] },
-    { "id": "core-syntax", "argv": ["node", "--check", "skills/pinmind/scripts/lib/core.mjs"] },
-    { "id": "cli-syntax", "argv": ["node", "--check", "skills/pinmind/scripts/pinmind.mjs"] },
-    { "id": "release-identity", "argv": ["node", "scripts/check-release-identity.mjs"] },
-    { "id": "diff-check", "argv": ["node", "scripts/check-repository-diff.mjs"] }
+    {
+      "id": "kernel-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/kernel.test.mjs"
+      ]
+    },
+    {
+      "id": "aep-validator",
+      "argv": [
+        "node",
+        "scripts/validate-aep-decision-contract.mjs"
+      ]
+    },
+    {
+      "id": "aep-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/aep-decision-contract.test.mjs"
+      ]
+    },
+    {
+      "id": "language-evaluator",
+      "argv": [
+        "node",
+        "scripts/evaluate-language-routing.mjs"
+      ]
+    },
+    {
+      "id": "language-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/language-routing-evaluator.test.mjs"
+      ]
+    },
+    {
+      "id": "release-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/release-verification.test.mjs"
+      ]
+    },
+    {
+      "id": "plugin-skill-validator",
+      "argv": [
+        "node",
+        "scripts/validate-plugin-skill.mjs"
+      ]
+    },
+    {
+      "id": "core-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/core.mjs"
+      ]
+    },
+    {
+      "id": "cli-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/pinmind.mjs"
+      ]
+    },
+    {
+      "id": "release-identity",
+      "argv": [
+        "node",
+        "scripts/check-release-identity.mjs"
+      ]
+    },
+    {
+      "id": "diff-check",
+      "argv": [
+        "node",
+        "scripts/check-repository-diff.mjs"
+      ]
+    }
   ],
   "inventory": {
     "testFiles": [
-      { "path": "tests/kernel.test.mjs", "topLevelDeclarations": 62 },
-      { "path": "tests/aep-decision-contract.test.mjs", "topLevelDeclarations": 5 },
-      { "path": "tests/language-routing-evaluator.test.mjs", "topLevelDeclarations": 7 },
-      { "path": "tests/release-verification.test.mjs", "topLevelDeclarations": 9 }
+      {
+        "path": "tests/kernel.test.mjs",
+        "topLevelDeclarations": 62
+      },
+      {
+        "path": "tests/aep-decision-contract.test.mjs",
+        "topLevelDeclarations": 5
+      },
+      {
+        "path": "tests/language-routing-evaluator.test.mjs",
+        "topLevelDeclarations": 7
+      },
+      {
+        "path": "tests/release-verification.test.mjs",
+        "topLevelDeclarations": 9
+      }
     ],
     "fixtureCases": {
-      "routes": 254,
+      "routes": 441,
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,
