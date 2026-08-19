@@ -519,7 +519,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.8.1');
+  assert.equal(baseVersion, '0.8.2');
   assert.equal(grokPlugin.name, manifest.name);
   assert.equal(grokPlugin.version, baseVersion);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);

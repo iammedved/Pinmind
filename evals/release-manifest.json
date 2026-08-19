@@ -59,6 +59,21 @@
       ]
     },
     {
+      "id": "parallel-admission-validator",
+      "argv": [
+        "node",
+        "scripts/validate-parallel-admission.mjs"
+      ]
+    },
+    {
+      "id": "parallel-admission-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/parallel-admission.test.mjs"
+      ]
+    },
+    {
       "id": "language-evaluator",
       "argv": [
         "node",
@@ -130,6 +145,10 @@
         "topLevelDeclarations": 5
       },
       {
+        "path": "tests/parallel-admission.test.mjs",
+        "topLevelDeclarations": 5
+      },
+      {
         "path": "tests/language-routing-evaluator.test.mjs",
         "topLevelDeclarations": 7
       },
@@ -143,6 +162,7 @@
       "activation": 28,
       "aepDev": 8,
       "aepRelease": 8,
+      "parallelAdmission": 12,
       "languageDev": 32,
       "languageRelease": 32
     }

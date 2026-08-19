@@ -98,7 +98,7 @@ choose obligation -> observe valid failure -> implement minimum behavior
 -> observe pass -> refactor without behavior drift -> record evidence
 ```
 
-Test through public seams. Keep expected values independent from production logic. Preserve existing behavior explicitly in brownfield work. Work inline by default.
+Test through public seams. Keep expected values independent from production logic. Preserve existing behavior explicitly in brownfield work. Work inline by default. A large coupled task is not a reason to spawn; admit parallelism only by the execution.md five-yes rule.
 
 ## Verify before claiming completion
 

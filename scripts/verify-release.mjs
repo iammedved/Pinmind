@@ -59,6 +59,8 @@ export const EXPECTED_COMMANDS = Object.freeze([
   Object.freeze({ id: 'kernel-tests', argv: Object.freeze(['node', '--test', 'tests/kernel.test.mjs']) }),
   Object.freeze({ id: 'aep-validator', argv: Object.freeze(['node', 'scripts/validate-aep-decision-contract.mjs']) }),
   Object.freeze({ id: 'aep-tests', argv: Object.freeze(['node', '--test', 'tests/aep-decision-contract.test.mjs']) }),
+  Object.freeze({ id: 'parallel-admission-validator', argv: Object.freeze(['node', 'scripts/validate-parallel-admission.mjs']) }),
+  Object.freeze({ id: 'parallel-admission-tests', argv: Object.freeze(['node', '--test', 'tests/parallel-admission.test.mjs']) }),
   Object.freeze({ id: 'language-evaluator', argv: Object.freeze(['node', 'scripts/evaluate-language-routing.mjs']) }),
   Object.freeze({ id: 'language-tests', argv: Object.freeze(['node', '--test', 'tests/language-routing-evaluator.test.mjs']) }),
   Object.freeze({ id: 'release-tests', argv: Object.freeze(['node', '--test', 'tests/release-verification.test.mjs']) }),
@@ -72,6 +74,7 @@ export const EXPECTED_COMMANDS = Object.freeze([
 const EXPECTED_TEST_FILES = Object.freeze([
   'tests/kernel.test.mjs',
   'tests/aep-decision-contract.test.mjs',
+  'tests/parallel-admission.test.mjs',
   'tests/language-routing-evaluator.test.mjs',
   'tests/release-verification.test.mjs',
 ]);
@@ -81,6 +84,7 @@ const FIXTURE_PATHS = Object.freeze({
   activation: 'evals/fixtures/activation-smoke.json',
   aepDev: 'evals/fixtures/aep-decision-contract-v0.dev.json',
   aepRelease: 'evals/fixtures/aep-decision-contract-v0.release.json',
+  parallelAdmission: 'evals/fixtures/parallel-admission-v0.json',
   languageDev: 'evals/fixtures/language-dev.json',
   languageRelease: 'evals/fixtures/language-release.json',
 });

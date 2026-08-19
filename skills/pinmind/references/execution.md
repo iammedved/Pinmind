@@ -65,6 +65,29 @@ Never copy the full chat, frozen contract, long logs, rejected reasoning, or sec
 
 Parallelize only after dependencies and public contracts are stable. Require disjoint write zones, one owner for shared files, an explicit integration strategy, and acceptance of a parent interface before dependent work begins.
 
+### Spawn admission (five-yes)
+
+Spawn is exceptional. Admit it only when almost all of the following are true:
+
+1. Pieces do not wait for each other (`decomposition: independent`).
+2. Write files do not overlap, or each writer has a worktree. Shared reads may overlap.
+3. Each piece is specified without another piece's intermediate output.
+4. Setup is cheaper than the piece itself.
+5. The parent can merge and verify faster than children generate.
+
+If any of those fail, stay `single-agent` or cut the work into sequential units. A large coupled task is not a reason to spawn. The forbidden error is "the task is large → spawn 7".
+
+| Decision | When |
+|---|---|
+| `single-agent` | Default. Coupled state, missing host subagents, review fan-out, or fewer than five yes answers. |
+| `sequential-units` | Large coupled write that still has to move; one owner, serial slices. |
+| `read-only-fanout` | Independent reconnaissance, audit, or research. Shared reads are allowed. Cap 7. |
+| `isolated-write-fanout` | Frozen contract, independent write DAG, worktree or disjoint zones, and an independent integration oracle. Cap 4. Parent owns shared files and the merge. |
+
+Pinmind does not launch agents. Hosts that already have `spawn_subagent`, `workflow parallel()`, or `/execute-plan` may use those primitives only after this admission. Codex or ChatGPT without subagents stays `single-agent`. One integrated fresh-eyes review; never a review fan-out per file.
+
+The machine-checked contrasts live in `evals/fixtures/parallel-admission-v0.json`. AEP Phase 0 still does not start an agent and still owns only `workShape`, not host spawn.
+
 Provide a subagent only:
 
 - unit goal and IDs;

@@ -6,8 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-08-19
+
 ### Added
 
+- Five-yes spawn admission in `execution.md`: parallelism only when pieces are
+  independent, writes are disjoint or worktree-isolated, each piece is fully
+  specified, setup is cheaper than the work, and the parent can integrate
+  faster than children generate. A large coupled task stays single-agent or
+  sequential units; "task is large → spawn 7" is forbidden.
+- 12-case parallel-admission fixture corpus and a read-only validator. Hosts
+  may use existing `spawn_subagent` / worktree primitives after admission.
+  Pinmind still does not launch agents or become a swarm runtime.
 - Short composition table: Superpowers TDD, Grok `/design`, or inline. Not a
   second skill library.
 - Host-observation ledger for sanitized fresh-session selection results.
