@@ -31,7 +31,7 @@ test('canonical release manifest, workflow, plugin, and skill metadata validate'
   assert.equal(result.frozenInputs, 6);
   assert.equal(result.commands, EXPECTED_COMMANDS.length);
   assert.equal(result.inventory.testFiles.length, 4);
-  assert.equal(result.inventory.fixtureCases.routes, 441);
+  assert.equal(result.inventory.fixtureCases.routes, 447);
   assert.deepEqual(await validateWorkflow(root), { ok: true, nodeVersion: '24.19.0' });
   const plugin = await validatePluginAndSkills(root); assert.equal(plugin.ok, true); assert.deepEqual(plugin.skills, ['pinmind']);
 });

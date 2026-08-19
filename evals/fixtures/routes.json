@@ -7691,5 +7691,106 @@
     "pluginVersion": "0.8.0",
     "surface": "public-route-cli",
     "disposition": "human-authored"
+  },
+  {
+    "name": "p081-voice-dead-end-improve-ru",
+    "input": {
+      "text": "то есть в pinmind мы в тупике, улучшить что-то в нем уже не имеет смысла и не особо поможет?"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.1",
+    "surface": "public-route-cli",
+    "disposition": "confirmed-defect",
+    "needsHumanConfirmation": false,
+    "signalsInclude": [
+      "intent:opinion"
+    ],
+    "signalsExclude": [
+      "intent:change",
+      "intent:unrecognized"
+    ]
+  },
+  {
+    "name": "p081-voice-dead-end-improve-en",
+    "input": {
+      "text": "Are we at a dead end with Pinmind, does improving it no longer make sense?"
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.1",
+    "surface": "public-route-cli",
+    "disposition": "confirmed-defect",
+    "needsHumanConfirmation": false,
+    "signalsInclude": [
+      "intent:opinion"
+    ],
+    "signalsExclude": [
+      "intent:change",
+      "intent:unrecognized"
+    ]
+  },
+  {
+    "name": "p081-voice-plan-paste-investigation-ru",
+    "input": {
+      "text": "напиши прям простыню текста что мы будем делать и с чего начнем. 1. Роутинг ложных срабатываний. The request needs a failing feedback loop and root-cause evidence first."
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.1",
+    "surface": "public-route-cli",
+    "disposition": "confirmed-defect",
+    "needsHumanConfirmation": false,
+    "signalsInclude": [
+      "intent:meta-evaluation"
+    ],
+    "signalsExclude": [
+      "intent:investigation",
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p081-voice-plan-paste-investigation-en",
+    "input": {
+      "text": "Write a sheet of what we will do and where we start. 1. False-positive routing. The request needs a failing feedback loop and root-cause evidence first."
+    },
+    "expected": "audit",
+    "pluginVersion": "0.8.1",
+    "surface": "public-route-cli",
+    "disposition": "confirmed-defect",
+    "needsHumanConfirmation": false,
+    "signalsInclude": [
+      "intent:meta-evaluation"
+    ],
+    "signalsExclude": [
+      "intent:investigation",
+      "intent:change"
+    ]
+  },
+  {
+    "name": "p081-voice-improve-router-still-change-ru",
+    "input": {
+      "text": "улучши роутинг pinmind"
+    },
+    "expected": "software-change",
+    "pluginVersion": "0.8.1",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:change"
+    ],
+    "signalsExclude": [
+      "intent:opinion"
+    ]
+  },
+  {
+    "name": "p081-voice-need-improve-still-change-ru",
+    "input": {
+      "text": "надо улучшить роутинг pinmind"
+    },
+    "expected": "software-change",
+    "pluginVersion": "0.8.1",
+    "surface": "public-route-cli",
+    "disposition": "human-authored",
+    "signalsInclude": [
+      "intent:change"
+    ]
   }
 ]

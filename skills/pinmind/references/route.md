@@ -79,6 +79,8 @@ After Pinmind is active, use the kernel route record before route-dependent acti
 | "Review this PR and do not change code" / "Проверь репозиторий, ничего не меняй" | audit |
 | "Compare Pinmind and Superpowers" / "кто лучше?" | audit; not unrecognized |
 | "так и какие теперь мысли по поводу pinmind?" | audit; colloquial status question, not unrecognized |
+| "мы в тупике, улучшить уже не имеет смысла?" | audit; value question, not a change order |
+| "напиши простыню... 1. root-cause evidence first." | audit; pasted diagnosis wording does not override the plan speech act |
 | "выпили подсчет токенов" / "пуш на гитхаб" | software-change or operational by outcome; "пуш на гитхаб" is a remote push |
 | "Prepare a plan for the pull request merge" | audit |
 | "Create a pull request targeting main" | operational, clear/local/medium plus external-effect gate |

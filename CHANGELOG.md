@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-19
+
+### Fixed
+
+- Status and value questions that mention `улучшить` / improving, such as
+  "мы в тупике, улучшить уже не имеет смысла", stay `audit` instead of
+  becoming `software-change`. Imperative `улучши роутинг` still changes
+  software.
+- A planning request that pastes numbered investigation wording no longer
+  becomes `investigation` because the quote contains `root-cause` or
+  `failing feedback loop`. Direct "find the root cause" stays
+  `investigation`.
+
+### Added
+
+- Six speech-act routing regressions. The deterministic route corpus is now
+  447 cases.
+
 ## [0.8.0] - 2026-08-19
 
 ### Removed
