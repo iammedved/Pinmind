@@ -1,6 +1,6 @@
 # Adaptive Execution Policy — Decision Contract v0
 
-Status: Phase 0 evaluation contract. This document and its fixtures do not change Pinmind runtime behavior, select a model, start an agent, or authorize an external action.
+Status: Phase 0 evaluation contract. This document and its fixtures do not change Pinmind runtime behavior, select a model, start an agent, or authorize an external action. They are not loaded by `SKILL.md` or the kernel.
 
 ## Decision boundary
 

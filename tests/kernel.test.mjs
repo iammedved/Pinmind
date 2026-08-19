@@ -371,6 +371,15 @@ test('conservative routing, paraphrases, and safety contrasts drive the shipped 
   const improveStill = routeTask({ text: 'улучши роутинг pinmind' });
   assert.equal(improveStill.route, 'software-change');
 
+  const valueQuestionRu = routeTask({ text: 'какое улучшение это дало' });
+  assert.equal(valueQuestionRu.route, 'audit');
+  assert.equal(valueQuestionRu.signals.includes('intent:change'), false);
+  assert.ok(valueQuestionRu.signals.includes('intent:value-question'));
+
+  const valueQuestionEn = routeTask({ text: 'what improvement did that give us?' });
+  assert.equal(valueQuestionEn.route, 'audit');
+  assert.equal(valueQuestionEn.signals.includes('intent:change'), false);
+
   const critiqueThink = routeTask({ text: 'покритикуй pinmind найти возможные не состыковки в тексте или в коде, продумай как можно было бы сделать проще и легче, подумай над оптимизацией кода, чтобы он был более человечный, а не ИИшный с присущим ему AI-slop' });
   assert.equal(critiqueThink.route, 'audit');
   assert.equal(critiqueThink.needsHumanConfirmation, false);
@@ -542,7 +551,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.9.0');
+  assert.equal(baseVersion, '0.9.1');
   assert.equal(grokPlugin.name, manifest.name);
   assert.equal(grokPlugin.version, baseVersion);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
@@ -1146,6 +1155,42 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   assert.match(execution, /Investigation feedback loop/i); assert.match(execution, /public-seam test[\s\S]*CLI.API.browser[\s\S]*minimal (?:throwaway )?harness[\s\S]*(?:property|fuzz)[\s\S]*(?:bisect|differential)/i);
   assert.match(execution, /Phase boundar/i); for (const action of ['continue', 'compact', 'handoff', 'subagent']) assert.ok(execution.includes(`\`${action}\``), action);
   assert.match(inbox, /regression case.*before|before.*policy change/is); assert.match(inbox, /activation-miss/); assert.match(inbox, /route-misclassification/); assert.match(inbox, /Do not automatically rewrite Pinmind/i);
+});
+
+test('lifecycle splits persist, contract, and evidence and keeps AEP/P2 off the kernel', async () => {
+  const lib = fileURLToPath(new URL('../skills/pinmind/scripts/lib/', import.meta.url));
+  const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
+  const persist = await readFile(path.join(lib, 'persist.mjs'), 'utf8');
+  const contract = await readFile(path.join(lib, 'contract.mjs'), 'utf8');
+  const evidence = await readFile(path.join(lib, 'evidence.mjs'), 'utf8');
+  const state = await readFile(path.join(lib, 'state.mjs'), 'utf8');
+  const core = await readFile(path.join(lib, 'core.mjs'), 'utf8');
+  const route = await readFile(path.join(lib, 'route.mjs'), 'utf8');
+  const cli = await readFile(fileURLToPath(new URL('../skills/pinmind/scripts/pinmind.mjs', import.meta.url)), 'utf8');
+  assert.doesNotMatch(contract, /export \* from ['"]\.\/state\.mjs['"]/);
+  assert.doesNotMatch(evidence, /export \* from ['"]\.\/state\.mjs['"]/);
+  assert.match(persist, /export async function (?:withWorkspaceLock|executeTransition)/);
+  assert.match(contract, /export async function freezeContract/);
+  assert.match(contract, /export function validateContract/);
+  assert.match(evidence, /export async function recordEvidence/);
+  assert.match(evidence, /export async function captureEvidence/);
+  assert.doesNotMatch(state, /export async function freezeContract/);
+  assert.doesNotMatch(state, /export async function recordEvidence/);
+  assert.doesNotMatch(persist, /from ['"]\.\/(?:contract|evidence|state)\.mjs['"]/);
+  assert.doesNotMatch(evidence, /from ['"]\.\/(?:contract|state)\.mjs['"]/);
+  assert.doesNotMatch(contract, /from ['"]\.\/state\.mjs['"]/);
+  assert.match(core, /from ['"]\.\/persist\.mjs['"]/);
+  assert.match(core, /from ['"]\.\/contract\.mjs['"]/);
+  assert.match(core, /from ['"]\.\/evidence\.mjs['"]/);
+  assert.doesNotMatch(skill, /Adaptive Execution Policy|\bAEP\b|workShape|desiredProfile|p2-architecture|Luna \/ low/i);
+  for (const source of [persist, contract, evidence, state, route, core, cli]) {
+    assert.doesNotMatch(source, /validate-aep-decision-contract|aep-decision-contract|p2-architecture|workShape|desiredProfile/);
+  }
+  const api = await import('../skills/pinmind/scripts/lib/core.mjs');
+  assert.equal(typeof api.freezeContract, 'function');
+  assert.equal(typeof api.recordEvidence, 'function');
+  assert.equal(typeof api.initRun, 'function');
+  assert.equal(typeof api.withWorkspaceLock, 'function');
 });
 
 test('CLI evidence gate throws, final check returns a failed verdict, and empty input provides usage', async () => {
