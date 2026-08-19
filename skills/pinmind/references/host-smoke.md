@@ -2,6 +2,8 @@
 
 Use `evals/fixtures/activation-smoke.json` after changing discovery metadata or reinstalling Pinmind. The corpus states intended eligibility plus deterministic routing after activation; it does not claim that a host selected the skill.
 
+Record sanitized host-selection results in `evals/fixtures/host-observations.json`. A single `routeBeforeTaskTools: false` observation is not authority to change discovery metadata or the controller.
+
 ## Local gate
 
 Run the kernel suite to validate corpus schema, language/class coverage, metadata boundaries, and every post-activation route. This proves only local policy and router behavior.

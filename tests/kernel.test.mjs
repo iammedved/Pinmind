@@ -1080,6 +1080,29 @@ test('activation corpus and instructions require the deterministic post-activati
   assert.deepEqual([...routes].sort(), ['audit', 'investigation', 'operational', 'simple', 'software-change', 'spike']);
   const release = routeTask({ text: 'Доделай Pinmind: исправь гонки всех канонических изменений, symlink containment, timeout process groups, router lifecycle и host smoke corpus.' });
   assert.equal(release.route, 'software-change'); assert.equal(release.risk, 'high'); assert.equal(release.executionSpan, 'cross-cutting');
+  const observations = JSON.parse(await readFile(fileURLToPath(new URL('../evals/fixtures/host-observations.json', import.meta.url)), 'utf8'));
+  const observationKeys = new Set(['caseId', 'host', 'hostVersion', 'pluginVersion', 'observedAt', 'freshSession', 'selection', 'observedRoute', 'routeBeforeTaskTools', 'notes']);
+  assert.equal(observations.schemaVersion, 1); assert.ok(Array.isArray(observations.cases));
+  assert.match(hostSmoke, /host-observations\.json/);
+  const observationIds = new Set();
+  for (const item of observations.cases) {
+    assert.deepEqual(Object.keys(item).sort(), [...observationKeys].sort(), item.caseId);
+    assert.equal(observationIds.has(`${item.host}:${item.caseId}:${item.observedAt}`), false);
+    observationIds.add(`${item.host}:${item.caseId}:${item.observedAt}`);
+    assert.ok(corpus.cases.some((entry) => entry.id === item.caseId), item.caseId);
+    assert.match(item.host, /^(grok-cli|codex-cli|chatgpt)$/);
+    assert.equal(typeof item.hostVersion, 'string'); assert.ok(item.hostVersion);
+    assert.match(item.pluginVersion, /^\d+\.\d+\.\d+$/);
+    assert.match(item.observedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    assert.equal(typeof item.freshSession, 'boolean');
+    assert.match(item.selection, /^(implicit|explicit|not-selected|uncertain)$/);
+    if (item.selection === 'implicit') assert.equal(item.freshSession, true, item.caseId);
+    assert.match(item.observedRoute, /^(simple|operational|spike|audit|investigation|software-change)$/);
+    assert.equal(typeof item.routeBeforeTaskTools, 'boolean');
+    assert.equal(typeof item.notes, 'string');
+    assert.doesNotMatch(item.notes, /(?:\/home\/|[A-Za-z]:\\Users\\)/);
+  }
+  assert.ok(observations.cases.some((item) => item.caseId === 'en-positive-investigation' && item.host === 'grok-cli' && item.selection === 'implicit' && item.observedRoute === 'investigation' && item.routeBeforeTaskTools === false && item.pluginVersion === '0.8.1'));
 });
 
 test('progressive references preserve composition, diagnosis, handoff, and regression boundaries', async () => {
