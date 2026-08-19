@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "description": "Sanitized fresh-host selection observations. Separate from deterministic routing. One observation is not policy authority.",
+  "cases": [
+    {
+      "caseId": "en-positive-investigation",
+      "host": "grok-cli",
+      "hostVersion": "1.0.5",
+      "pluginVersion": "0.8.1",
+      "observedAt": "2026-08-19T06:18:48Z",
+      "freshSession": true,
+      "selection": "implicit",
+      "observedRoute": "investigation",
+      "routeBeforeTaskTools": false,
+      "notes": "Headless grok -p, max-turns 6. Loaded SKILL.md, then a workspace list_dir, then the kernel. Policy unchanged after one ordering miss."
+    },
+    {
+      "caseId": "ru-positive-investigation",
+      "host": "codex-cli",
+      "hostVersion": "0.147.0",
+      "pluginVersion": "0.8.1",
+      "observedAt": "2026-08-19T06:49:00Z",
+      "freshSession": true,
+      "selection": "implicit",
+      "observedRoute": "investigation",
+      "routeBeforeTaskTools": false,
+      "notes": "After marketplace add --ref v0.8.1. Loaded tagged SKILL.md in the same command as a workspace search, then kernel via stdin route --file -."
+    },
+    {
+      "caseId": "ru-positive-investigation",
+      "host": "codex-cli",
+      "hostVersion": "0.147.0",
+      "pluginVersion": "0.8.1",
+      "observedAt": "2026-08-19T06:49:01Z",
+      "freshSession": true,
+      "selection": "explicit",
+      "observedRoute": "investigation",
+      "routeBeforeTaskTools": false,
+      "notes": "After marketplace add --ref v0.8.1 with $pinmind. Loaded tagged SKILL.md in the same command as a workspace search, then kernel via stdin route --file -."
+    },
+    {
+      "caseId": "en-positive-investigation",
+      "host": "codex-cli",
+      "hostVersion": "0.147.0",
+      "pluginVersion": "0.8.1",
+      "observedAt": "2026-08-19T06:49:02Z",
+      "freshSession": true,
+      "selection": "implicit",
+      "observedRoute": "investigation",
+      "routeBeforeTaskTools": true,
+      "notes": "After marketplace add --ref v0.8.1. SKILL.md, then kernel stdin route --file -, then references. Route line before workspace tools."
+    },
+    {
+      "caseId": "en-positive-investigation",
+      "host": "codex-cli",
+      "hostVersion": "0.147.0",
+      "pluginVersion": "0.8.1",
+      "observedAt": "2026-08-19T06:49:03Z",
+      "freshSession": true,
+      "selection": "explicit",
+      "observedRoute": "investigation",
+      "routeBeforeTaskTools": true,
+      "notes": "After marketplace add --ref v0.8.1 with $pinmind. SKILL.md, then kernel stdin route --file -, then references. Route line before workspace tools."
+    }
+  ]
+}

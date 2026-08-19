@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 - Short composition table: Superpowers TDD, Grok `/design`, or inline. Not a
   second skill library.
+- Host-observation ledger for sanitized fresh-session selection results.
+  Recorded cases: Grok CLI implicit EN ordering miss, plus four Codex CLI
+  sessions after `marketplace add --ref v0.8.1`. They do not change routing
+  or discovery policy.
 
 ### Changed
 
