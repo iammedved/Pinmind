@@ -46,9 +46,22 @@ function analysisFrame(value, { translation, meta } = {}) {
 // is authoritative; quoted or future mentions remain ordinary request text.
 export function selectCurrentPhaseText(value) {
   const input = String(value || '');
+  const maskedChars = input.split('');
+  const protectedPatterns = [
+    /```[\s\S]{0,20000}?(?:```|$)/gu,
+    /`[^`\r\n]{0,2000}`/gu,
+    /["“«][^"“”«»]{0,2000}["”»]/gu,
+  ];
+  for (const pattern of protectedPatterns) {
+    for (const protectedMatch of input.matchAll(pattern)) {
+      const end = protectedMatch.index + protectedMatch[0].length;
+      for (let index = protectedMatch.index; index < end; index += 1) maskedChars[index] = ' ';
+    }
+  }
+  const masked = maskedChars.join('');
   const marker = /(?:^|[\n>])[\t ]*context_ready[\t ]*(?:[.!:;]+|(?=\n|$))/giu;
   let selected = null;
-  for (const match of input.matchAll(marker)) {
+  for (const match of masked.matchAll(marker)) {
     const tail = input.slice(match.index + match[0].length).trim();
     if (tail) selected = tail;
   }

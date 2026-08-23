@@ -546,6 +546,17 @@ export async function verifyRun(cwd, runId) {
     const contract = await readJson(file, 'Frozen contract');
     if (contract.contractSha256 !== expectedHash || hashWithout(contract, 'contractSha256') !== expectedHash) throw new KernelError(`Frozen contract v${version} was changed.`, 'FROZEN_CONTRACT_CHANGED');
   }
+  if (state.status === 'archived') {
+    if (!(await exists(files.archive))) throw new KernelError('Archived run marker is missing.', 'CORRUPT_STATE');
+    await verifyStateEntry(files.archive, files.run, 'file', 'archive marker');
+    const markerText = await readFile(files.archive, 'utf8');
+    const marker = await readJson(files.archive, 'Archive marker');
+    if (marker.format !== FORMAT || marker.runId !== runId || marker.previousStatus !== state.archivedFromStatus || marker.archivedAt !== state.archivedAt || sha256(markerText) !== state.archiveMarkerSha256) {
+      throw new KernelError('Archived run marker does not match state.', 'CORRUPT_STATE');
+    }
+  } else if (await exists(files.archive)) {
+    throw new KernelError('Archive marker exists for a non-archived run.', 'CORRUPT_STATE');
+  }
   return { files, state };
 }
 export async function currentContract(files, state) {

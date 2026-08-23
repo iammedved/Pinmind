@@ -226,6 +226,7 @@ export async function finalizeRun(cwd, runId, verification, options = {}) {
 
 function terminalReason(value) {
   if (typeof value !== 'string' || !value.trim()) throw new KernelError('A non-empty terminal reason is required.', 'INVALID_TERMINAL_REASON');
+  if (value.length > 2000) throw new KernelError('Terminal reason must be between 1 and 2000 characters.', 'INVALID_TERMINAL_REASON');
   const sanitized = redact(value).replace(/\s+/g, ' ').trim();
   if (!sanitized || sanitized.length > 2000) throw new KernelError('Terminal reason must be between 1 and 2000 characters.', 'INVALID_TERMINAL_REASON');
   return sanitized;
@@ -275,10 +276,11 @@ async function archiveRunUnlocked(cwd, runId, reason, options = {}) {
   if (await exists(files.archive)) throw new KernelError('Archive marker exists for a non-archived run.', 'CORRUPT_STATE');
   const now = new Date().toISOString(); const previousStatus = state.status;
   const marker = { format: FORMAT, runId, previousStatus, reason, archivedAt: now };
+  const markerContent = jsonText(marker);
   const nextState = structuredClone(state);
-  nextState.phase = 'archive'; nextState.status = 'archived'; nextState.archivedFromStatus = previousStatus; nextState.archivedAt = now; nextState.updatedAt = now;
+  nextState.phase = 'archive'; nextState.status = 'archived'; nextState.archivedFromStatus = previousStatus; nextState.archivedAt = now; nextState.archiveMarkerSha256 = sha256(markerContent); nextState.updatedAt = now;
   setStateHash(nextState);
-  await executeTransition(cwd, 'archive', runId, [{ file: files.archive, content: jsonText(marker) }, { file: files.state, content: jsonText(nextState) }], options);
+  await executeTransition(cwd, 'archive', runId, [{ file: files.archive, content: markerContent }, { file: files.state, content: jsonText(nextState) }], options);
   return { runId, status: 'archived', previousStatus, idempotent: false, archivedAt: now };
 }
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, mkdtemp, readFile, symlink } from 'node:fs/promises';
+import { access, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -50,6 +50,7 @@ test('abandon rejects an empty reason before changing state', async () => {
   const { files } = await loadState(cwd, 'run-one');
   const before = await Promise.all([readFile(files.state, 'utf8'), readFile(files.active, 'utf8')]);
   await rejects(() => abandonRun(cwd, 'run-one', '   '), 'INVALID_TERMINAL_REASON');
+  await rejects(() => abandonRun(cwd, 'run-one', `token=${'x'.repeat(3000)}`), 'INVALID_TERMINAL_REASON');
   assert.deepEqual(await Promise.all([readFile(files.state, 'utf8'), readFile(files.active, 'utf8')]), before);
 });
 
@@ -79,6 +80,11 @@ test('archive is terminal-only, non-destructive, journaled, and idempotent', asy
   const repeated = await archiveRun(cwd, 'run-one', 'Do not rewrite the marker.');
   assert.equal(repeated.idempotent, true);
   assert.deepEqual(await Promise.all([readFile(files.state, 'utf8'), readFile(files.archive, 'utf8')]), before);
+
+  const tampered = JSON.parse(await readFile(files.archive, 'utf8'));
+  tampered.reason = 'Tampered after archival.';
+  await writeFile(files.archive, `${JSON.stringify(tampered, null, 2)}\n`, 'utf8');
+  await rejects(() => archiveRun(cwd, 'run-one', 'Detect marker tampering.'), 'CORRUPT_STATE');
 });
 
 test('terminal transitions recover every bounded interruption without replaying task work', async () => {

@@ -36,7 +36,7 @@ test('decomposition is bounded, stable, diagnostic-only, and has no raw text fie
 
 test('decomposition keeps protected commands, paths, URLs, identifiers, and literals intact', () => {
   const input = {
-    text: 'Проверь `git push origin feature/a,b`; реализуй изменение в /srv/app/a,b.mjs; открой https://example.test/a,b?x=1; обработай ID-42.',
+    text: '🙂 Проверь `git push origin feature/a,b`; реализуй изменение в /srv/app/a,b.mjs; открой https://example.test/a,b?x=1; обработай ID-42.',
   };
   const result = decomposeTask(input);
 

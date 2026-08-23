@@ -13,6 +13,12 @@
     "arms": { "type": "array", "minItems": 3, "maxItems": 3, "prefixItems": [{ "$ref": "#/$defs/armA" }, { "$ref": "#/$defs/armB" }, { "$ref": "#/$defs/armC" }], "items": false },
     "observations": { "type": "array", "maxItems": 72, "items": { "$ref": "#/$defs/observation" } }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "pending-review" } }, "required": ["status"] },
+      "then": { "properties": { "observations": { "maxItems": 0 } } }
+    }
+  ],
   "$defs": {
     "id": { "type": "string", "minLength": 6, "maxLength": 80 },
     "task": { "type": "object", "additionalProperties": false, "required": ["id", "prompt"], "properties": { "id": { "$ref": "#/$defs/id" }, "prompt": { "type": "string", "minLength": 20, "maxLength": 2000 } } },

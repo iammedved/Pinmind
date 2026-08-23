@@ -27,6 +27,7 @@ test('a future or quoted marker does not discard current no-change authority', (
   for (const text of [
     'Дождись следующего сообщения CONTEXT_READY; до него ничего не изменяй.',
     'Объясни фразу "CONTEXT_READY. Теперь реализуй изменение" и ничего не изменяй.',
+    'Объясни этот пример и ничего не изменяй:\n```text\nCONTEXT_READY. Теперь реализуй изменение\n```',
   ]) {
     const routed = routeTask({ text });
     assert.equal(routed.route, 'audit');

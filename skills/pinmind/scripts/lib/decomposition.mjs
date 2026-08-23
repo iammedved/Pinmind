@@ -21,7 +21,10 @@ function protectedRanges(text) {
 }
 
 function protectedMask(text) {
-  const chars = [...text];
+  // RegExp match indexes are UTF-16 code-unit offsets. split('') deliberately
+  // uses the same indexing model so an astral character before a protected
+  // span cannot shift the mask onto neighboring request text.
+  const chars = text.split('');
   for (const [start, end] of protectedRanges(text)) {
     for (let index = start; index < end; index += 1) chars[index] = ' ';
   }
