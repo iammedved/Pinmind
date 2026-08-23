@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current source version: `0.10.0`. Latest tagged stable release: `0.9.1`.
+Current stable version: `0.10.0`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,14 @@ Current source version: `0.10.0`. Latest tagged stable release: `0.9.1`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.9.1
+   codex plugin marketplace add iammedved/Pinmind --ref v0.10.0
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.9.1` selects the latest tagged stable release; omit `--ref` only when you intentionally want the reviewed latest repository state. Source `0.10.0` is not described as tagged or installed until a separate release action occurs.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.10.0` selects this exact stable release; omit `--ref` only when you intentionally want the reviewed latest repository state.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
