@@ -2,7 +2,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  KernelError, amendContract, captureBaseline, captureEvidence, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, readRouteInputJson, reconcileActiveRuns, recoverTransition,
+  KernelError, abandonRun, amendContract, archiveRun, captureBaseline, captureEvidence, decomposeTask, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, readRouteInputJson, reconcileActiveRuns, recoverTransition,
   recordEvidence, recordUnavailableBaseline, reportRun, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from './lib/core.mjs';
 
@@ -20,11 +20,11 @@ function parse(argv) {
   return { positionals, flags };
 }
 const COMMAND_FLAGS = new Map([
-  ['init', ['run', 'brief']], ['route', ['file', 'text', 'kind']], ['state show', ['run']], ['state resume', ['run']], ['state reconcile', ['dry-run']],
+  ['init', ['run', 'brief']], ['route', ['file', 'text', 'kind', 'decompose']], ['state show', ['run']], ['state resume', ['run']], ['state reconcile', ['dry-run']],
   ['state recover', ['apply', 'expected-sha256', 'expected-lock-sha256']], ['report', ['run', 'format']], ['baseline capture', ['run', 'file', 'cwd', 'timeout-ms']],
   ['baseline unavailable', ['run', 'file']], ['contract validate', ['run', 'file']], ['contract freeze', ['run', 'file']], ['contract amend', ['run', 'file', 'reason', 'affects', 'authority']],
   ['execution validate', ['run', 'file']], ['evidence record', ['run', 'file']], ['evidence capture', ['run', 'file', 'cwd', 'timeout-ms']], ['evidence validate', ['run']],
-  ['final check', ['run']], ['final verify', ['run']], ['finalize', ['run']],
+  ['final check', ['run']], ['final verify', ['run']], ['finalize', ['run']], ['abandon', ['run', 'reason']], ['archive', ['run', 'reason']],
 ]);
 function validateInvocation(positionals, flags, commandArgv = []) {
   const [group, action, ...extra] = positionals;
@@ -42,7 +42,7 @@ function validateInvocation(positionals, flags, commandArgv = []) {
 }
 function requireFlag(flags, name) { if (typeof flags[name] !== 'string') throw new KernelError(`--${name} is required.`, 'MISSING_ARGUMENT'); return flags[name]; }
 function print(value) { process.stdout.write(typeof value === 'string' ? `${value.replace(/\n?$/, '\n')}` : `${JSON.stringify(value, null, 2)}\n`); }
-const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|baseline capture --run RUN --file TEMPLATE [--cwd RELATIVE] -- COMMAND [ARGS...]|baseline unavailable --run RUN --file RECEIPT|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|report|state show|state resume|state reconcile --dry-run|state recover --apply --expected-sha256 HASH [--expected-lock-sha256 HASH]|final check|final verify|finalize';
+const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|baseline capture --run RUN --file TEMPLATE [--cwd RELATIVE] -- COMMAND [ARGS...]|baseline unavailable --run RUN --file RECEIPT|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|report|state show|state resume|state reconcile --dry-run|state recover --apply --expected-sha256 HASH [--expected-lock-sha256 HASH]|final check|final verify|finalize|abandon --run RUN --reason TEXT|archive --run RUN --reason TEXT';
 function requirePassing(result, code, message) { if (!result.ok) throw new KernelError(message, code, result.errors); return result; }
 
 export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
@@ -54,7 +54,9 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     const hasFile = Object.hasOwn(flags, 'file'); const hasText = Object.hasOwn(flags, 'text'); const hasKind = Object.hasOwn(flags, 'kind');
     if (hasFile && hasText) throw new KernelError('route accepts exactly one input source: --file or --text.', 'CONFLICTING_ROUTE_INPUT');
     if (hasFile && hasKind) throw new KernelError('--kind belongs inside the JSON object when route uses --file.', 'CONFLICTING_ROUTE_INPUT');
-    return routeTask(hasFile ? await readRouteInputJson(requireFlag(flags, 'file')) : { text: requireFlag(flags, 'text'), kind: flags.kind });
+    if (Object.hasOwn(flags, 'decompose') && flags.decompose !== true) throw new KernelError('--decompose is a boolean flag.', 'INVALID_ARGUMENT');
+    const input = hasFile ? await readRouteInputJson(requireFlag(flags, 'file')) : { text: requireFlag(flags, 'text'), kind: flags.kind };
+    return flags.decompose === true ? decomposeTask(input) : routeTask(input);
   }
   if (group === 'state' && action === 'show') return stateShow(cwd, flags.run);
   if (group === 'state' && action === 'resume') return stateResume(cwd, flags.run);
@@ -82,6 +84,8 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   if (group === 'final' && action === 'check') return finalVerify(cwd, run);
   if (group === 'final' && action === 'verify') return finalizeRun(cwd, run, requirePassing(await finalVerify(cwd, run), 'FINAL_GATE_FAILED', 'Final verification gate failed.'));
   if (group === 'finalize' && action === undefined) return finalizeRun(cwd, run, requirePassing(await finalVerify(cwd, run), 'FINAL_GATE_FAILED', 'Final verification gate failed.'));
+  if (group === 'abandon' && action === undefined) return abandonRun(cwd, run, requireFlag(flags, 'reason'));
+  if (group === 'archive' && action === undefined) return archiveRun(cwd, run, requireFlag(flags, 'reason'));
   throw new KernelError(`Unknown command: ${[group, action].filter(Boolean).join(' ')}.`, 'USAGE');
 }
 

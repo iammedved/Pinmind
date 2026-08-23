@@ -15,7 +15,7 @@ export class KernelError extends Error {
 export const FORMAT = 1;
 const LOCK_WAIT_MS = 5000;
 const LOCK_RETRY_MS = 15;
-const TRANSITION_OPERATIONS = new Set(['init', 'freeze', 'amend', 'evidence', 'finalize']);
+const TRANSITION_OPERATIONS = new Set(['init', 'freeze', 'amend', 'evidence', 'finalize', 'abandon', 'archive']);
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonicalJson = (value) => JSON.stringify(sortValue(value));
 
@@ -142,7 +142,7 @@ export function layout(cwd, runId) {
   const root = path.resolve(cwd, '.pinmind');
   const runs = path.join(root, 'runs');
   const run = path.join(runs, safe);
-  return { root, runs, run, lock: path.join(root, 'writer.lock'), transition: path.join(root, 'transition.json'), active: path.join(root, 'active.json'), brief: path.join(run, 'brief.md'), state: path.join(run, 'state.json'), baseline: path.join(run, 'baseline.json'), evidence: path.join(run, 'evidence.json'), final: path.join(run, 'final.md'), execution: path.join(run, 'execution.json'), contracts: path.join(run, 'contracts'), amendments: path.join(run, 'amendments') };
+  return { root, runs, run, lock: path.join(root, 'writer.lock'), transition: path.join(root, 'transition.json'), active: path.join(root, 'active.json'), brief: path.join(run, 'brief.md'), state: path.join(run, 'state.json'), baseline: path.join(run, 'baseline.json'), evidence: path.join(run, 'evidence.json'), final: path.join(run, 'final.md'), archive: path.join(run, 'archive.json'), execution: path.join(run, 'execution.json'), contracts: path.join(run, 'contracts'), amendments: path.join(run, 'amendments') };
 }
 function unsafeStatePath(label, detail = '') {
   return new KernelError(`Pinmind state ${label} must be a physical path inside the workspace.${detail ? ` ${detail}` : ''}`, 'UNSAFE_STATE_PATH');
@@ -198,7 +198,7 @@ export async function verifiedLayout(cwd, runId, { createRoot = false } = {}) {
   if (!(await verifyStateEntry(files.run, files.root, 'directory', 'run directory'))) return files;
   await verifyStateEntry(files.contracts, files.run, 'directory', 'contracts directory');
   await verifyStateEntry(files.amendments, files.run, 'directory', 'amendments directory');
-  for (const [label, file] of Object.entries({ brief: files.brief, state: files.state, baseline: files.baseline, evidence: files.evidence, final: files.final, execution: files.execution })) {
+  for (const [label, file] of Object.entries({ brief: files.brief, state: files.state, baseline: files.baseline, evidence: files.evidence, final: files.final, archive: files.archive, execution: files.execution })) {
     await verifyStateEntry(file, files.run, 'file', `${label} file`);
   }
   return files;
@@ -269,6 +269,8 @@ function transitionTargetAllowed(operation, runId, relative) {
     freeze: new Set([`${run}/contracts/contract-v001.json`, `${run}/state.json`]),
     evidence: new Set([`${run}/evidence.json`]),
     finalize: new Set([`${run}/final.md`, `${run}/state.json`, '.pinmind/active.json']),
+    abandon: new Set([`${run}/state.json`, '.pinmind/active.json']),
+    archive: new Set([`${run}/archive.json`, `${run}/state.json`]),
   };
   if (exact[operation]?.has(relative)) return true;
   if (operation !== 'amend') return false;
@@ -352,6 +354,7 @@ function transitionMatchesLock(transition, lock) {
   const expected = {
     init: [`init:${transition.runId}`], freeze: [`freeze-contract:${transition.runId}`], amend: [`amend-contract:${transition.runId}`],
     evidence: [`record-evidence:${transition.runId}`, `capture-evidence:${transition.runId}`], finalize: [`finalize:${transition.runId}`],
+    abandon: [`abandon:${transition.runId}`], archive: [`archive:${transition.runId}`],
   };
   return (expected[transition.operation] || []).includes(lock.operation);
 }

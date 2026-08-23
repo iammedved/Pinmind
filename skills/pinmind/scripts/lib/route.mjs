@@ -40,14 +40,32 @@ function analysisFrame(value, { translation, meta } = {}) {
   return frame.replace(/\s+/gu, ' ').trim();
 }
 
+// A transferred task can contain an immutable historical gate followed by a
+// standalone host marker that explicitly opens the current phase. Only a
+// marker at the start of input, a new line, or immediately after a wrapper tag
+// is authoritative; quoted or future mentions remain ordinary request text.
+export function selectCurrentPhaseText(value) {
+  const input = String(value || '');
+  const marker = /(?:^|[\n>])[\t ]*context_ready[\t ]*(?:[.!:;]+|(?=\n|$))/giu;
+  let selected = null;
+  for (const match of input.matchAll(marker)) {
+    const tail = input.slice(match.index + match[0].length).trim();
+    if (tail) selected = tail;
+  }
+  return selected === null ? { text: input, phase: null } : { text: selected, phase: 'context-ready' };
+}
+
 export function routeTask(input = {}) {
-  const normalizedText = String(input.text || input.intent || input.request || '').normalize('NFKC').toLocaleLowerCase().replace(/ё/g, 'е');
+  const normalizedInput = String(input.text || input.intent || input.request || '').normalize('NFKC').toLocaleLowerCase().replace(/ё/g, 'е');
+  const selectedPhase = selectCurrentPhaseText(normalizedInput);
+  const normalizedText = selectedPhase.text;
   const explicitInvocation = /^\s*(?:\$pinmind|@pinmind)(?=\s|[,:;.!?]|$)/u.test(normalizedText);
   const text = normalizedText.replace(/^\s*(?:\$pinmind|@pinmind)(?=\s|[,:;.!?]|$)[,:;.!?]?\s*/u, '');
   const explicit = String(input.route || input.kind || '').trim().toLowerCase().replace(/[ _]/g, '-');
   const aliases = new Map([['review', 'audit'], ['audit', 'audit'], ['investigate', 'investigation'], ['investigation', 'investigation'], ['bug', 'investigation'], ['debug', 'investigation'], ['change', 'software-change'], ['software', 'software-change'], ['software-change', 'software-change'], ['operational', 'operational'], ['simple', 'simple'], ['spike', 'spike']]);
   const explicitRoute = aliases.get(explicit);
   const signalSet = new Set(); const mark = (condition, signal) => { if (condition) signalSet.add(signal); return condition; };
+  if (selectedPhase.phase) mark(true, `phase:${selectedPhase.phase}`);
   if (explicitInvocation) mark(true, 'activation:explicit');
   if (explicit) mark(true, `explicit:${explicitRoute || 'unknown'}`);
   const typoOnly = /\b(?:fix|correct)(?:\s+(?:the|a|this|that|one))?\s+typos?(?:\s+in\b|\s*:)|(?:исправ|поправ|паправ|пофикс)\S*[^\n]{0,40}опечат/u.test(text);
