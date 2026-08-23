@@ -6,6 +6,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-23
+
+### Added
+
+- Optional pure `GoalContext` v1 adapter with explicit standalone, active,
+  paused, complete, blocked, invalid, and mismatched outcomes. Goal remains a
+  host concern and never grants authority or evidence.
+- Additive mixed-request decomposition into bounded `read-only`,
+  `local-mutation`, and `external-effect` diagnostics while retaining the full
+  released primary route.
+- Journaled `abandon` and non-destructive `archive` lifecycle commands with
+  explicit reasons, active-pointer safety, idempotent terminal repeats, and
+  interruption recovery through the existing lock and transition hashes.
+- Independently written proportional-method and readability references covering
+  debugging, RED-GREEN TDD, architecture alternatives, fresh verification,
+  review, typo-tolerant intent, identifier safety, instruction decoding,
+  context re-entry, and decision comparison.
+- Strict offline A/B/C schema and evaluator for the same sanitized tasks across
+  released Pinmind, a Superpowers+dyslex.ai protocol descriptor, and hybrid
+  Pinmind. Tokens require authoritative receipts; the public sample is honestly
+  `pending-review` and contains no measurements.
+
+### Fixed
+
+- A standalone `CONTEXT_READY` marker now opens the current transferred phase,
+  so an expired historical no-change gate cannot misroute the newly authorized
+  work. Future and quoted marker mentions remain non-authorizing text.
+
+### Changed
+
+- Release verification now freezes the new public seams and A/B/C inputs and
+  executes their lifecycle, invalid-input, privacy, and compatibility tests.
+- Documentation distinguishes Goal duration from Pinmind control and evidence,
+  and explicitly keeps Superpowers and dyslex.ai out of runtime dependencies.
+
 ## [0.9.1] - 2026-08-19
 
 ### Changed

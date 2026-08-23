@@ -2,7 +2,9 @@
 
 ## Verified baseline
 
-The released public baseline is `v0.9.1`; see [CHANGELOG.md](CHANGELOG.md). It
+The source baseline prepared for protected delivery is `0.10.0`; the latest
+published tag remains `v0.9.1` until a separately authorized release. See
+[CHANGELOG.md](CHANGELOG.md). The `0.10.0` source
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
@@ -10,8 +12,11 @@ CI, frozen-input gate, stable release metadata, a closed-schema 64-case language
 evaluator, first-class remaining-boundary reporting, the Superpowers work loop,
 conservative unknown routing, Grok user-scope discovery, colloquial RU/EN
 user-voice routing, a skill surface without token counting, and a kernel split
-into persist, contract, evidence, and state. AEP remains an offline evaluation
-contract; P2 adapters are not implemented.
+into persist, contract, evidence, and state. It adds mixed-request diagnostics,
+optional pure Goal context, abandon/archive terminal operations, proportional
+methods, readability safeguards, and an offline pending-review A/B/C protocol.
+AEP remains an offline evaluation contract; P2 model/agent adapters are not
+implemented.
 
 These are local and repository-hosted guarantees. They do not by themselves prove
 implicit host activation, resume a host process, replay external effects, select a
@@ -42,11 +47,12 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-The stable `0.9.1` source keeps speech-act routing, a one-screen `SKILL.md`, and
-a split kernel. AEP and P2 stay out of chat-time load. Remaining work is host
-evidence and independent release-corpus governance, not more process documents.
+The `0.10.0` source keeps speech-act routing, a compact `SKILL.md`, and a split
+kernel. AEP, A/B/C experiments, and P2 stay out of chat-time runtime. Remaining
+work is comparable host-run A/B/C evidence, fresh-host activation evidence, and
+independent release-corpus governance, not another workflow controller.
 
-### Remaining boundaries after the 0.9.1 release
+### Remaining boundaries after the 0.10.0 source delivery
 
 - Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
   immutable installed `v0.8.0` tag. Record the host version, package tree hash,
@@ -70,6 +76,10 @@ evidence and independent release-corpus governance, not more process documents.
   exact-target contrasts. The current Git collaboration grammar can keep a
   combined release request high-risk through its push/merge backbone, but does
   not yet expose those later actions as separate route signals.
+- Execute the frozen A/B/C task set in fresh comparable host sessions. Until all
+  arms share model, effort, tools, repository state, stopping condition, blind
+  review, and authoritative token receipts, the public record stays
+  `pending-review` and supports no superiority claim.
 
 ### 1. Fresh-host activation evidence
 

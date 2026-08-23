@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.9.1`.
+Current source version: `0.10.0`. Latest tagged stable release: `0.9.1`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -23,7 +23,7 @@ Current stable version: `0.9.1`.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.9.1` selects this exact stable release; omit `--ref` only when you intentionally want the latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.9.1` selects the latest tagged stable release; omit `--ref` only when you intentionally want the reviewed latest repository state. Source `0.10.0` is not described as tagged or installed until a separate release action occurs.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -95,10 +95,14 @@ Official OpenAI guidance: [install and use plugins](https://learn.chatgpt.com/do
 1. After Pinmind is installed in a supported host, ChatGPT or Codex selects it implicitly, or you invoke it with `@Pinmind` or `$pinmind`.
 2. The bundled kernel chooses `simple`, `operational`, `spike`, `audit`, `investigation`, or `software-change`.
 3. Pinmind applies only the workflow needed for that route and keeps authority boundaries explicit.
-4. Substantive changes use a frozen outcome contract and traceable evidence.
-5. Final reporting separates passed, failed, uncertain, pending, and manual results.
+4. Mixed requests may expose bounded diagnostic clauses while retaining one primary route.
+5. Substantive changes use a frozen outcome contract and traceable evidence.
+6. An optional pure Goal adapter distinguishes standalone, active, paused, complete, blocked, and mismatched host context without making Goal a dependency or authority source.
+7. Final reporting separates passed, failed, uncertain, pending, and manual results.
 
 Implicit selection is probabilistic. Explicit invocation is the reliable choice for critical work.
+
+Pinmind `0.10.0` also adds journaled `abandon`, non-destructive `archive`, proportional debugging/TDD/architecture/review guidance, and a compact readability profile. Superpowers and dyslex.ai remain research inputs: they are not installed, imported, or made runtime dependencies.
 
 ## Offline AEP evaluation and P2 design
 
@@ -118,6 +122,8 @@ README. Stable refers to the release contract and versioning discipline; it does
 not claim universal implicit activation, ChatGPT directory availability, an
 independently administered corpus, or authoritative token measurement.
 
+`0.10.0` adds a separate offline A/B/C record validator for the same sanitized tasks across released Pinmind, a fixed Superpowers+dyslex.ai protocol descriptor, and hybrid Pinmind. Its public sample is deliberately `pending-review`: schema validity is not presented as measured product superiority, and token totals remain unavailable unless a host supplies authoritative receipts.
+
 Phase 0 does **not** select a concrete model, change `route`, start an agent, authorize an action, or store prompts and traces. It only defines how a future host adapter could choose a work shape, capability profile, escalation reason, and verification oracle. Mapping profiles to current models and reasoning levels remains a later opt-in step that requires held-out evaluation and separate authorization.
 
 ## Kernel CLI
@@ -126,6 +132,7 @@ Run kernel commands from the target workspace with the repository-relative entry
 
 ```bash
 node skills/pinmind/scripts/pinmind.mjs route --file request.json
+node skills/pinmind/scripts/pinmind.mjs route --decompose --file request.json
 printf '%s' '{"text":"Audit this repository and report only."}' | node skills/pinmind/scripts/pinmind.mjs route --file -
 node skills/pinmind/scripts/pinmind.mjs init --run <run-id> --brief brief.md
 node skills/pinmind/scripts/pinmind.mjs state reconcile --dry-run
@@ -135,6 +142,8 @@ node skills/pinmind/scripts/pinmind.mjs contract freeze --run <run-id> --file co
 node skills/pinmind/scripts/pinmind.mjs evidence capture --run <run-id> --file evidence.json -- <command> [args...]
 node skills/pinmind/scripts/pinmind.mjs final check --run <run-id>
 node skills/pinmind/scripts/pinmind.mjs finalize --run <run-id>
+node skills/pinmind/scripts/pinmind.mjs abandon --run <run-id> --reason "<reason>"
+node skills/pinmind/scripts/pinmind.mjs archive --run <run-id> --reason "<reason>"
 node skills/pinmind/scripts/pinmind.mjs report --run <run-id> --format md
 ```
 
@@ -147,6 +156,8 @@ JSON object instead.
 
 New runs require an explicit baseline receipt before contract freeze. `final check` is the pure read-only gate; `finalize` is the preferred explicit completion command. The legacy `final verify` spelling remains a deprecated finalizing alias so existing automation does not silently change behavior.
 
+`abandon` terminates the canonical active run without claiming completion and clears its pointer. `archive` accepts only a completed or abandoned run, writes `archive.json`, and preserves the run directory and evidence in place. Both require an explicit sanitized reason and use the same lock, journal, and hash-bound recovery path as existing lifecycle mutations.
+
 See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and safety behavior.
 
 ## Project documentation
@@ -156,6 +167,9 @@ See [kernel-cli.md](skills/pinmind/references/kernel-cli.md) for schemas and saf
 - [P2 architecture decision](docs/p2-architecture.md) — adapter-first design that keeps host adapters out of the kernel.
 - [ROADMAP.md](ROADMAP.md) — evidence-backed future priorities.
 - [LANGUAGE_ROUTING.md](LANGUAGE_ROUTING.md) — implemented multilingual routing evaluator and remaining host-evaluation boundary.
+- [Goal context](skills/pinmind/references/goal-context.md) — optional host adapter contract and ownership matrix.
+- [Offline A/B/C evaluation](skills/pinmind/references/abc-evaluation.md) — comparable-run and token-receipt rules.
+- [Readability profile](skills/pinmind/references/readability.md) — typo, literal, re-entry, and comparison safeguards.
 - [SKILL.md](skills/pinmind/SKILL.md) — controller instructions and discovery rules.
 - [Safety reference](skills/pinmind/references/safety.md) — secrets, workspace, and side-effect boundaries.
 - [SECURITY.md](SECURITY.md) — private vulnerability reporting.
@@ -179,7 +193,7 @@ publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
 versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, `0.8.2`, and `0.9.1`; backward-compatible feature releases use a
-new minor such as `0.7.0`, `0.8.0`, or `0.9.0`. Existing experimental tags are immutable history and
+new minor such as `0.7.0`, `0.8.0`, `0.9.0`, or `0.10.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 
 ## Validation
@@ -192,9 +206,10 @@ runs the same fixed command list as CI:
 node scripts/verify-release.mjs --run
 ```
 
-The manifest records SHA-256 digests for the router, language validator,
-GitHub web-flow signing key, development corpus, held-out release corpus, and
-mandatory unsafe-negative route regressions. The identity gate permits
+The manifest records SHA-256 digests for the router, optional Goal/decomposition
+seams, A/B/C validator/profile/schema/sample, language validator, GitHub web-flow
+signing key, development corpus, held-out release corpus, and mandatory
+unsafe-negative route regressions. The identity gate permits
 provider-authored merge metadata only after local signature verification against
 that frozen key. A digest change therefore requires an intentional manifest
 update in review. Because the manifest and inputs remain in the same repository,
@@ -202,8 +217,8 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 89 declarations
-across five test files, plus fixture-case counts for routes, activation, AEP,
+than quoting Node's runtime summary. The current manifest records 117 declarations
+across ten test files, plus fixture-case counts for routes, activation, AEP,
 parallel admission, and language evaluation. These are separate dimensions and
 are not presented as one inflated "test count."
 
@@ -211,6 +226,12 @@ The expanded commands executed by the gate are:
 
 ```bash
 node --test tests/kernel.test.mjs
+node --test tests/terminal-lifecycle.test.mjs
+node --test tests/goal-context.test.mjs
+node --test tests/decomposition.test.mjs
+node --test tests/route-phase-regression.test.mjs
+node scripts/evaluate-abc.mjs
+node --test tests/abc-evaluator.test.mjs
 node scripts/validate-aep-decision-contract.mjs
 node --test tests/aep-decision-contract.test.mjs
 node scripts/validate-parallel-admission.mjs
@@ -225,6 +246,8 @@ node --check skills/pinmind/scripts/lib/persist.mjs
 node --check skills/pinmind/scripts/lib/contract.mjs
 node --check skills/pinmind/scripts/lib/evidence.mjs
 node --check skills/pinmind/scripts/lib/state.mjs
+node --check skills/pinmind/scripts/lib/decomposition.mjs
+node --check skills/pinmind/scripts/lib/goal-context.mjs
 node --check skills/pinmind/scripts/pinmind.mjs
 node scripts/check-release-identity.mjs
 node scripts/check-repository-diff.mjs
@@ -241,6 +264,8 @@ workflow runs on GitHub.
 - The deterministic router runs only after Pinmind is selected.
 - Passing the fixed language corpus does not prove arbitrary-language accuracy or host selection.
 - AEP Phase 0 is an evaluation contract, not a runtime model or agent router.
+- Goal context is an optional pure adapter; Pinmind does not create, resume, complete, or mutate a host Goal.
+- The public A/B/C sample is pending review; comparable host runs and authoritative token receipts are not bundled.
 - Filesystem locking is cooperative and single-host, not a distributed lock.
 - Evidence containment protects workflow integrity; it is not a sandbox against a hostile writer.
 - Pinmind includes no dashboard, daemon, connector, MCP server, or external telemetry service.
