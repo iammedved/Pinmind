@@ -48,6 +48,12 @@ const TEST_FILE_KEYS = new Set(['path', 'topLevelDeclarations']);
 
 export const EXPECTED_FROZEN_INPUTS = Object.freeze([
   ['router', 'skills/pinmind/scripts/lib/route.mjs'],
+  ['mixed-decomposition', 'skills/pinmind/scripts/lib/decomposition.mjs'],
+  ['goal-context', 'skills/pinmind/scripts/lib/goal-context.mjs'],
+  ['abc-schema-validator', 'scripts/evaluate-abc.mjs'],
+  ['abc-exchange-schema', 'evals/abc-evaluation.schema.json'],
+  ['readability-profile', 'evals/readability-profile.json'],
+  ['abc-pending-template', 'evals/fixtures/abc-sample.json'],
   ['language-schema-validator', 'scripts/evaluate-language-routing.mjs'],
   ['github-web-flow-key', 'scripts/keys/github-web-flow.gpg'],
   ['development-corpus', 'evals/fixtures/language-dev.json'],
@@ -57,6 +63,12 @@ export const EXPECTED_FROZEN_INPUTS = Object.freeze([
 
 export const EXPECTED_COMMANDS = Object.freeze([
   Object.freeze({ id: 'kernel-tests', argv: Object.freeze(['node', '--test', 'tests/kernel.test.mjs']) }),
+  Object.freeze({ id: 'terminal-lifecycle-tests', argv: Object.freeze(['node', '--test', 'tests/terminal-lifecycle.test.mjs']) }),
+  Object.freeze({ id: 'goal-context-tests', argv: Object.freeze(['node', '--test', 'tests/goal-context.test.mjs']) }),
+  Object.freeze({ id: 'decomposition-tests', argv: Object.freeze(['node', '--test', 'tests/decomposition.test.mjs']) }),
+  Object.freeze({ id: 'route-phase-tests', argv: Object.freeze(['node', '--test', 'tests/route-phase-regression.test.mjs']) }),
+  Object.freeze({ id: 'abc-evaluator', argv: Object.freeze(['node', 'scripts/evaluate-abc.mjs']) }),
+  Object.freeze({ id: 'abc-tests', argv: Object.freeze(['node', '--test', 'tests/abc-evaluator.test.mjs']) }),
   Object.freeze({ id: 'aep-validator', argv: Object.freeze(['node', 'scripts/validate-aep-decision-contract.mjs']) }),
   Object.freeze({ id: 'aep-tests', argv: Object.freeze(['node', '--test', 'tests/aep-decision-contract.test.mjs']) }),
   Object.freeze({ id: 'parallel-admission-validator', argv: Object.freeze(['node', 'scripts/validate-parallel-admission.mjs']) }),
@@ -71,6 +83,8 @@ export const EXPECTED_COMMANDS = Object.freeze([
   Object.freeze({ id: 'contract-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/contract.mjs']) }),
   Object.freeze({ id: 'evidence-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/evidence.mjs']) }),
   Object.freeze({ id: 'state-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/state.mjs']) }),
+  Object.freeze({ id: 'decomposition-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/decomposition.mjs']) }),
+  Object.freeze({ id: 'goal-context-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/goal-context.mjs']) }),
   Object.freeze({ id: 'cli-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/pinmind.mjs']) }),
   Object.freeze({ id: 'release-identity', argv: Object.freeze(['node', 'scripts/check-release-identity.mjs']) }),
   Object.freeze({ id: 'diff-check', argv: Object.freeze(['node', 'scripts/check-repository-diff.mjs']) }),
@@ -78,6 +92,11 @@ export const EXPECTED_COMMANDS = Object.freeze([
 
 const EXPECTED_TEST_FILES = Object.freeze([
   'tests/kernel.test.mjs',
+  'tests/terminal-lifecycle.test.mjs',
+  'tests/goal-context.test.mjs',
+  'tests/decomposition.test.mjs',
+  'tests/route-phase-regression.test.mjs',
+  'tests/abc-evaluator.test.mjs',
   'tests/aep-decision-contract.test.mjs',
   'tests/parallel-admission.test.mjs',
   'tests/language-routing-evaluator.test.mjs',

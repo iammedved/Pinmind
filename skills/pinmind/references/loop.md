@@ -22,6 +22,8 @@ migrate production, or rotate credentials without the user's exact authority.
 
 ## When to compose which skill
 
+Use [methods.md](methods.md) as the proportional selection table. The method strengthens the active Pinmind route; it does not become a second controller.
+
 Pinmind is the controller. Load a specialist only when that specialist owns
 the seam. Do not grow a second skill library.
 

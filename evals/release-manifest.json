@@ -6,7 +6,37 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/route.mjs",
-      "sha256": "0bd4c76b0253876d163a82dac26b103a2a18e16d44014712eda3ccfe688f135a"
+      "sha256": "808643bbb66cf8458a239a7be66bce9ef2f91a2e75901520fcaeae5dcec0b79c"
+    },
+    {
+      "role": "mixed-decomposition",
+      "path": "skills/pinmind/scripts/lib/decomposition.mjs",
+      "sha256": "af8e7daa7f0ea3317dd997a477f4e179ae2b8b357a058ec6450f30022fdb90a9"
+    },
+    {
+      "role": "goal-context",
+      "path": "skills/pinmind/scripts/lib/goal-context.mjs",
+      "sha256": "41241246fd3ae52dd44cefaa3c8539e94e382a2d4a7f4ebd78080e2bdc13135c"
+    },
+    {
+      "role": "abc-schema-validator",
+      "path": "scripts/evaluate-abc.mjs",
+      "sha256": "ffd821d24f54455fb98fa78cc0289b1d457bfa945563d6faa1d646df4069e172"
+    },
+    {
+      "role": "abc-exchange-schema",
+      "path": "evals/abc-evaluation.schema.json",
+      "sha256": "ad883d7ef00cc7f64f64c4b83846141d673cb0688a580b86d6a01e32515975d7"
+    },
+    {
+      "role": "readability-profile",
+      "path": "evals/readability-profile.json",
+      "sha256": "e77f2bf95d7f3560a0dad9e2c44ff9c52c9aa40d439ab815062595c55b285107"
+    },
+    {
+      "role": "abc-pending-template",
+      "path": "evals/fixtures/abc-sample.json",
+      "sha256": "bead81499c5aa1c8e8873bb2859f2cd4e73099629aad8f66b9b97178278aefc1"
     },
     {
       "role": "language-schema-validator",
@@ -41,6 +71,53 @@
         "node",
         "--test",
         "tests/kernel.test.mjs"
+      ]
+    },
+    {
+      "id": "terminal-lifecycle-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/terminal-lifecycle.test.mjs"
+      ]
+    },
+    {
+      "id": "goal-context-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/goal-context.test.mjs"
+      ]
+    },
+    {
+      "id": "decomposition-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/decomposition.test.mjs"
+      ]
+    },
+    {
+      "id": "route-phase-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/route-phase-regression.test.mjs"
+      ]
+    },
+    {
+      "id": "abc-evaluator",
+      "argv": [
+        "node",
+        "scripts/evaluate-abc.mjs"
+      ]
+    },
+    {
+      "id": "abc-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/abc-evaluator.test.mjs"
       ]
     },
     {
@@ -152,6 +229,22 @@
       ]
     },
     {
+      "id": "decomposition-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/decomposition.mjs"
+      ]
+    },
+    {
+      "id": "goal-context-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/goal-context.mjs"
+      ]
+    },
+    {
       "id": "cli-syntax",
       "argv": [
         "node",
@@ -179,6 +272,26 @@
       {
         "path": "tests/kernel.test.mjs",
         "topLevelDeclarations": 63
+      },
+      {
+        "path": "tests/terminal-lifecycle.test.mjs",
+        "topLevelDeclarations": 7
+      },
+      {
+        "path": "tests/goal-context.test.mjs",
+        "topLevelDeclarations": 8
+      },
+      {
+        "path": "tests/decomposition.test.mjs",
+        "topLevelDeclarations": 6
+      },
+      {
+        "path": "tests/route-phase-regression.test.mjs",
+        "topLevelDeclarations": 2
+      },
+      {
+        "path": "tests/abc-evaluator.test.mjs",
+        "topLevelDeclarations": 7
       },
       {
         "path": "tests/aep-decision-contract.test.mjs",

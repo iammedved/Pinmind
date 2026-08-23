@@ -97,6 +97,10 @@ After Pinmind is active, use the kernel route record before route-dependent acti
 
 ## Composition after routing
 
+Keep one primary route. When a request combines inspection, local software mutation, and an external effect, the additive `decomposeTask`/`route --decompose` seam may return ordered diagnostic clause kinds. It does not execute clauses, preserve raw excerpts, or grant authority. An empty clause list means the input was simple, ambiguous, unsupported, or conservatively blocked; the primary route remains authoritative for process selection.
+
+A standalone `CONTEXT_READY` marker can open the current phase of a transferred task. Historical no-change text before that marker must not override a current authorized software-change phase. A future or quoted marker is ordinary text and does not change authority.
+
 Compose capabilities, not a mandatory list of named skills. A higher-priority instruction or mandatory domain skill always wins.
 
 | Route | Capability to compose | Minimum evidence |

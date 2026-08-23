@@ -104,7 +104,10 @@ export async function stateResume(cwd, requestedRunId) {
   if (reconciliation.classification === 'clean-idle') {
     if (requestedRunId) {
       const summary = await stateShow(cwd, requestedRunId);
-      if (summary.status !== 'active') throw new KernelError(`Run ${summary.runId} is complete.`, 'RUN_COMPLETE');
+      if (summary.status !== 'active') {
+        const code = summary.status === 'complete' ? 'RUN_COMPLETE' : 'RUN_TERMINAL';
+        throw new KernelError(`Run ${summary.runId} is terminal (${summary.status}).`, code);
+      }
     }
     throw new KernelError('There is no active run.', 'NO_ACTIVE_RUN');
   }
@@ -219,6 +222,71 @@ async function finalizeRunUnlocked(cwd, runId, verification, options = {}) {
 
 export async function finalizeRun(cwd, runId, verification, options = {}) {
   return withWorkspaceLock(cwd, `finalize:${safeRunId(runId)}`, () => finalizeRunUnlocked(cwd, runId, verification, options));
+}
+
+function terminalReason(value) {
+  if (typeof value !== 'string' || !value.trim()) throw new KernelError('A non-empty terminal reason is required.', 'INVALID_TERMINAL_REASON');
+  if (value.length > 2000) throw new KernelError('Terminal reason must be between 1 and 2000 characters.', 'INVALID_TERMINAL_REASON');
+  const sanitized = redact(value).replace(/\s+/g, ' ').trim();
+  if (!sanitized || sanitized.length > 2000) throw new KernelError('Terminal reason must be between 1 and 2000 characters.', 'INVALID_TERMINAL_REASON');
+  return sanitized;
+}
+
+async function requireConsistentTerminalRun(cwd, runId) {
+  const reconciliation = await reconcileActiveRuns(cwd);
+  if (!reconciliation.ok || reconciliation.pointerRunId === runId || reconciliation.activeRunIds.includes(runId)) {
+    throw new KernelError('Terminal run ownership is inconsistent and requires read-only reconciliation.', 'ACTIVE_RUN_INCONSISTENT', [reconciliation.classification]);
+  }
+  return reconciliation;
+}
+
+async function abandonRunUnlocked(cwd, runId, reason, options = {}) {
+  const { files, state } = await verifyRun(cwd, runId);
+  if (state.status === 'abandoned') {
+    await requireConsistentTerminalRun(cwd, runId);
+    return { runId, status: 'abandoned', idempotent: true, abandonedAt: state.abandonedAt };
+  }
+  if (state.status !== 'active') throw new KernelError(`Run ${runId} is already terminal (${state.status}).`, 'RUN_TERMINAL');
+  await requireCanonicalActiveRun(cwd, state, runId);
+  const now = new Date().toISOString();
+  const nextState = structuredClone(state);
+  nextState.phase = 'abandon'; nextState.status = 'abandoned'; nextState.abandonedAt = now; nextState.abandonReason = reason; nextState.updatedAt = now;
+  setStateHash(nextState);
+  await executeTransition(cwd, 'abandon', runId, [{ file: files.state, content: jsonText(nextState) }, { file: files.active, content: null }], options);
+  return { runId, status: 'abandoned', idempotent: false, abandonedAt: now };
+}
+
+export async function abandonRun(cwd, runId, reason, options = {}) {
+  const safe = safeRunId(runId); const sanitizedReason = terminalReason(reason);
+  return withWorkspaceLock(cwd, `abandon:${safe}`, () => abandonRunUnlocked(cwd, safe, sanitizedReason, options));
+}
+
+async function archiveRunUnlocked(cwd, runId, reason, options = {}) {
+  const { files, state } = await verifyRun(cwd, runId);
+  if (state.status === 'archived') {
+    await requireConsistentTerminalRun(cwd, runId);
+    if (!(await exists(files.archive))) throw new KernelError('Archived run marker is missing.', 'CORRUPT_STATE');
+    const marker = await readJson(files.archive, 'Archive marker');
+    if (marker.format !== FORMAT || marker.runId !== runId || marker.previousStatus !== state.archivedFromStatus || marker.archivedAt !== state.archivedAt) throw new KernelError('Archived run marker does not match state.', 'CORRUPT_STATE');
+    return { runId, status: 'archived', previousStatus: state.archivedFromStatus, idempotent: true, archivedAt: state.archivedAt };
+  }
+  if (state.status === 'active') throw new KernelError(`Run ${runId} must be finalized or abandoned before archive.`, 'RUN_ACTIVE');
+  if (!['complete', 'abandoned'].includes(state.status)) throw new KernelError(`Run ${runId} has unsupported terminal status ${state.status}.`, 'RUN_TERMINAL');
+  await requireConsistentTerminalRun(cwd, runId);
+  if (await exists(files.archive)) throw new KernelError('Archive marker exists for a non-archived run.', 'CORRUPT_STATE');
+  const now = new Date().toISOString(); const previousStatus = state.status;
+  const marker = { format: FORMAT, runId, previousStatus, reason, archivedAt: now };
+  const markerContent = jsonText(marker);
+  const nextState = structuredClone(state);
+  nextState.phase = 'archive'; nextState.status = 'archived'; nextState.archivedFromStatus = previousStatus; nextState.archivedAt = now; nextState.archiveMarkerSha256 = sha256(markerContent); nextState.updatedAt = now;
+  setStateHash(nextState);
+  await executeTransition(cwd, 'archive', runId, [{ file: files.archive, content: markerContent }, { file: files.state, content: jsonText(nextState) }], options);
+  return { runId, status: 'archived', previousStatus, idempotent: false, archivedAt: now };
+}
+
+export async function archiveRun(cwd, runId, reason, options = {}) {
+  const safe = safeRunId(runId); const sanitizedReason = terminalReason(reason);
+  return withWorkspaceLock(cwd, `archive:${safe}`, () => archiveRunUnlocked(cwd, safe, sanitizedReason, options));
 }
 
 export async function readInputJson(file) { return readJson(path.resolve(file)); }

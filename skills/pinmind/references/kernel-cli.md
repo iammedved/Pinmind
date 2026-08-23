@@ -12,6 +12,7 @@ The CLI prints JSON, except `report --format md`, which prints Markdown. A faile
 
 ```bash
 node "$KERNEL" route --file <sanitized-request.json>
+node "$KERNEL" route --decompose --file <sanitized-request.json>
 printf '%s' '<sanitized-request-json>' | node "$KERNEL" route --file -
 node "$KERNEL" route --text "<request>" [--kind simple|operational|spike|audit|investigation|software-change]
 node "$KERNEL" init --run <safe-run-id> --brief <brief-source.md>
@@ -20,11 +21,15 @@ node "$KERNEL" state resume [--run <run-id>]
 node "$KERNEL" state reconcile --dry-run
 node "$KERNEL" state recover --apply --expected-sha256 <transition-sha256> \
   [--expected-lock-sha256 <dead-local-lock-sha256>]
+node "$KERNEL" abandon --run <run-id> --reason "<sanitized reason>"
+node "$KERNEL" archive --run <run-id> --reason "<sanitized reason>"
 ```
 
-For an active non-simple Pinmind task, run `route` before route-dependent tools or writes when the kernel is available. Run `init` only for a persistent software-change run. It creates `.pinmind/active.json` and the versioned run layout. Preserve the supplied source request separately until redaction and capture are confirmed.
+For an active non-simple Pinmind task, run `route` before route-dependent tools or writes when the kernel is available. `--decompose` is optional and additive: it preserves the primary route and emits only bounded diagnostic kinds, never authority or raw excerpts. Run `init` only for a persistent software-change run. It creates `.pinmind/active.json` and the versioned run layout. Preserve the supplied source request separately until redaction and capture are confirmed.
 
 `state resume` succeeds only when `active.json` names the sole verified run whose state is `active`; a named run must match that canonical owner. It reports the saved phase but does not replay commands or external effects.
+
+`abandon` requires an explicit reason, atomically marks the canonical active run `abandoned`, and clears its pointer without running the final evidence gate. The exact repeated call is idempotent and does not rewrite history. `archive` requires a `complete` or `abandoned` run, writes an integrity-checked `archive.json` marker, changes status to `archived`, and preserves every run artifact in place. It never moves or deletes evidence. Unsupported terminal repeats and ownership mismatches fail closed. Both transitions use the existing writer lock, journal, exact recovery hashes, and bounded reason redaction.
 
 `state reconcile --dry-run` inventories the physical managed run directories, active pointer, and bounded transition journal without changing them. In addition to active-run classifications, it reports `transition-recovery-required` when every target still matches its prepared before/after hash, or `transition-conflict` for malformed, unsafe, or divergent journal state. A consistent result exits zero; an inconsistent result preserves the structured diagnosis in the error details and exits nonzero. Every inconsistent class blocks initialization, resume, active-run mutation, capture, and finalization.
 

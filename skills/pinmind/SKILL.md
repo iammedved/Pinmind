@@ -29,6 +29,8 @@ If Node or the kernel is missing, start with `Route: non-deterministic fallback 
 
 Exactly one primary route. Details live in [route.md](references/route.md). When the route is `simple`, answer directly without further reference or workspace reads.
 
+For a materially mixed request, `route --decompose` may add bounded diagnostic clauses (`read-only`, `local-mutation`, `external-effect`) around the unchanged primary route. Clauses never grant authority and never contain raw request excerpts. Decode dense or transferred instructions with [readability.md](references/readability.md).
+
 | Route | Do |
 |---|---|
 | `simple` | Answer. Create no process artifacts. |
@@ -48,16 +50,18 @@ Ask only when an unresolved choice changes outcome, safety, authority, or a hard
 
 Remain read-only when `needsHumanConfirmation` is true, or when `effect:external-side-effect` is present until the user names the concrete target and effect. Operational routing never authorizes a shared push, deploy, message, deletion, production migration, payment, or credential change.
 
-Check `.pinmind/active.json` before a new persistent run. Resume a matching unfinished run; the MVP allows one active run per workspace. See [safety.md](references/safety.md) for secrets, dirty trees, and production.
+Check `.pinmind/active.json` before a new persistent run. Reconcile it read-only and resume only an explicitly identified matching unfinished run; never infer that an old pointer belongs to a new task. Optional Goal handling is defined in [goal-context.md](references/goal-context.md). The MVP allows one active run per workspace. See [safety.md](references/safety.md) for secrets, dirty trees, and production.
 
 Keep specialist skills (PDF, Superpowers, `/design`, `/execute-plan`). Pinmind wraps them; it does not replace them.
 
 ## Loop
 
-For `software-change` and `investigation`, follow [loop.md](references/loop.md): design or name 2–3 alternatives, observe a failing public-seam check, collect root-cause evidence before a fix, and run fresh verification before any "done" claim. Search the web or primary sources when the repo cannot settle the blocker. Parallelism only by the five-yes rule in [execution.md](references/execution.md).
+For `software-change` and `investigation`, follow [loop.md](references/loop.md): design or name 2–3 alternatives, observe a failing public-seam check, collect root-cause evidence before a fix, and run fresh verification before any "done" claim. Select debugging, TDD, architecture, verification, and review proportionally from [methods.md](references/methods.md); Pinmind stays the controller. Search the web or primary sources when the repo cannot settle the blocker. Parallelism only by the five-yes rule in [execution.md](references/execution.md).
 
 ## Finish
 
 [verification.md](references/verification.md) splits completed, failed, unproven, and manual. Kernel structure is necessary and not sufficient. Commands: [kernel-cli.md](references/kernel-cli.md).
 
 If Pinmind itself misroutes or produces bad evidence, capture a sanitized case first: [regression-inbox.md](references/regression-inbox.md).
+
+For controlled method comparisons, use the offline, receipt-aware protocol in [abc-evaluation.md](references/abc-evaluation.md). A pending experiment is not completion evidence.

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PinMind offline A/B/C readability evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "status", "tasks", "ordering", "arms", "observations"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 6, "maxLength": 80 },
+    "status": { "enum": ["complete", "pending-review"] },
+    "tasks": { "type": "array", "minItems": 1, "maxItems": 24, "items": { "$ref": "#/$defs/task" } },
+    "ordering": { "$ref": "#/$defs/ordering" },
+    "arms": { "type": "array", "minItems": 3, "maxItems": 3, "prefixItems": [{ "$ref": "#/$defs/armA" }, { "$ref": "#/$defs/armB" }, { "$ref": "#/$defs/armC" }], "items": false },
+    "observations": { "type": "array", "maxItems": 72, "items": { "$ref": "#/$defs/observation" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "pending-review" } }, "required": ["status"] },
+      "then": { "properties": { "observations": { "maxItems": 0 } } }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "minLength": 6, "maxLength": 80 },
+    "task": { "type": "object", "additionalProperties": false, "required": ["id", "prompt"], "properties": { "id": { "$ref": "#/$defs/id" }, "prompt": { "type": "string", "minLength": 20, "maxLength": 2000 } } },
+    "ordering": { "type": "object", "additionalProperties": false, "required": ["strategy", "orders"], "properties": { "strategy": { "const": "counterbalanced" }, "orders": { "type": "array", "minItems": 1, "maxItems": 24, "items": { "type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": { "enum": ["A", "B", "C"] } } } } },
+    "armA": { "type": "object", "additionalProperties": false, "required": ["id", "name", "description"], "properties": { "id": { "const": "A" }, "name": { "const": "released-pinmind" }, "description": { "const": "Released PinMind controller without the optional readability profile." } } },
+    "armB": { "type": "object", "additionalProperties": false, "required": ["id", "name", "description"], "properties": { "id": { "const": "B" }, "name": { "const": "superpowers-dyslex-protocol-descriptor" }, "description": { "const": "Protocol descriptor inspired by Superpowers plus dyslex.ai research, independently worded with no imports, copied prompts, or dependency." } } },
+    "armC": { "type": "object", "additionalProperties": false, "required": ["id", "name", "description"], "properties": { "id": { "const": "C" }, "name": { "const": "pinmind-readability-hybrid" }, "description": { "const": "Released PinMind plus selected offline readability-profile guidance." } } },
+    "observation": { "type": "object", "additionalProperties": false, "required": ["taskId", "arm", "order", "metrics", "review"], "properties": { "taskId": { "$ref": "#/$defs/id" }, "arm": { "enum": ["A", "B", "C"] }, "order": { "type": "integer", "minimum": 1, "maximum": 3 }, "review": { "type": "string", "minLength": 6, "maxLength": 120 }, "metrics": { "$ref": "#/$defs/metrics" } } },
+    "metrics": { "type": "object", "additionalProperties": false, "required": ["errors", "userQuestions", "durationMs", "evidenceQuality", "repeatedRepairs", "tokens"], "properties": { "errors": { "type": "integer", "minimum": 0, "maximum": 100 }, "userQuestions": { "type": "integer", "minimum": 0, "maximum": 100 }, "durationMs": { "type": "integer", "minimum": 0, "maximum": 86400000 }, "evidenceQuality": { "type": "integer", "minimum": 0, "maximum": 100 }, "repeatedRepairs": { "type": "integer", "minimum": 0, "maximum": 100 }, "tokens": { "$ref": "#/$defs/tokens" } } },
+    "tokens": { "$comment": "authoritative-receipt input also requires a successful out-of-band host verifier; JSON shape alone is not authority", "oneOf": [{ "type": "object", "additionalProperties": false, "required": ["status"], "properties": { "status": { "const": "unavailable" } } }, { "type": "object", "additionalProperties": false, "required": ["status", "value", "receiptId"], "properties": { "status": { "const": "authoritative-receipt" }, "value": { "type": "integer", "minimum": 0, "maximum": 10000000 }, "receiptId": { "type": "string", "minLength": 6, "maxLength": 120 } } }] }
+  }
+}

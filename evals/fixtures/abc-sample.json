@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "abc-sample-v1",
+  "status": "pending-review",
+  "tasks": [
+    {
+      "id": "task-alpha",
+      "prompt": "Audit an authentication boundary without making changes; report findings and exact evidence."
+    },
+    {
+      "id": "task-beta",
+      "prompt": "Implement a bounded API retry policy with RED-GREEN tests, preserve existing behavior, and prepare a verified delivery summary."
+    }
+  ],
+  "ordering": {
+    "strategy": "counterbalanced",
+    "orders": [["A", "B", "C"], ["C", "B", "A"]]
+  },
+  "arms": [
+    { "id": "A", "name": "released-pinmind", "description": "Released PinMind controller without the optional readability profile." },
+    { "id": "B", "name": "superpowers-dyslex-protocol-descriptor", "description": "Protocol descriptor inspired by Superpowers plus dyslex.ai research, independently worded with no imports, copied prompts, or dependency." },
+    { "id": "C", "name": "pinmind-readability-hybrid", "description": "Released PinMind plus selected offline readability-profile guidance." }
+  ],
+  "observations": []
+}

@@ -482,7 +482,7 @@ test('CLI rejects unknown and repeated flags without changing valid commands', a
     ['init'], ['route'], ['state', 'show'], ['state', 'resume'], ['state', 'reconcile'], ['state', 'recover'], ['report'],
     ['baseline', 'capture'], ['baseline', 'unavailable'], ['contract', 'validate'], ['contract', 'freeze'], ['contract', 'amend'],
     ['execution', 'validate'], ['evidence', 'record'], ['evidence', 'capture'], ['evidence', 'validate'],
-    ['final', 'check'], ['final', 'verify'], ['finalize'],
+    ['final', 'check'], ['final', 'verify'], ['finalize'], ['abandon'], ['archive'],
   ];
   for (const command of commands) await rejects(() => main([...command, '--unexpected-flag', 'x']), 'UNKNOWN_FLAG');
   await rejects(() => main(['route', '--text', 'Hello', '--text', 'Привет']), 'DUPLICATE_FLAG');
@@ -551,15 +551,17 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.9.1');
+  assert.equal(baseVersion, '0.10.0');
   assert.equal(grokPlugin.name, manifest.name);
   assert.equal(grokPlugin.version, baseVersion);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, new RegExp(`Current stable version:\\s*\`${escapedBaseVersion}\``));
-  assert.match(readme, new RegExp(`codex plugin marketplace add iammedved/Pinmind --ref v${escapedBaseVersion}`));
+  assert.match(readme, new RegExp(`Current source version:\\s*\`${escapedBaseVersion}\``));
+  assert.match(readme, /Latest tagged stable release:\s*`0\.9\.1`/);
+  assert.match(readme, /codex plugin marketplace add iammedved\/Pinmind --ref v0\.9\.1/);
+  assert.doesNotMatch(readme, /--ref v0\.10\.0/);
   assert.doesNotMatch(readme, /Current (?:source|stable) version:[^\n]*unreleased/i);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
   for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |']) assert.ok(readme.includes(term), term);
@@ -1127,6 +1129,10 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   const route = await readFile(fileURLToPath(new URL('../skills/pinmind/references/route.md', import.meta.url)), 'utf8');
   const execution = await readFile(fileURLToPath(new URL('../skills/pinmind/references/execution.md', import.meta.url)), 'utf8');
   const inbox = await readFile(fileURLToPath(new URL('../skills/pinmind/references/regression-inbox.md', import.meta.url)), 'utf8');
+  const goal = await readFile(fileURLToPath(new URL('../skills/pinmind/references/goal-context.md', import.meta.url)), 'utf8');
+  const methods = await readFile(fileURLToPath(new URL('../skills/pinmind/references/methods.md', import.meta.url)), 'utf8');
+  const readability = await readFile(fileURLToPath(new URL('../skills/pinmind/references/readability.md', import.meta.url)), 'utf8');
+  const abc = await readFile(fileURLToPath(new URL('../skills/pinmind/references/abc-evaluation.md', import.meta.url)), 'utf8');
   assert.match(route, /Composition after routing/i); for (const kind of ['simple', 'operational', 'spike', 'audit', 'investigation', 'software-change']) assert.ok(route.includes(`| \`${kind}\` |`), kind);
   const loop = await readFile(fileURLToPath(new URL('../skills/pinmind/references/loop.md', import.meta.url)), 'utf8');
   const skill = await readFile(fileURLToPath(new URL('../skills/pinmind/SKILL.md', import.meta.url)), 'utf8');
@@ -1155,6 +1161,11 @@ test('progressive references preserve composition, diagnosis, handoff, and regre
   assert.match(execution, /Investigation feedback loop/i); assert.match(execution, /public-seam test[\s\S]*CLI.API.browser[\s\S]*minimal (?:throwaway )?harness[\s\S]*(?:property|fuzz)[\s\S]*(?:bisect|differential)/i);
   assert.match(execution, /Phase boundar/i); for (const action of ['continue', 'compact', 'handoff', 'subagent']) assert.ok(execution.includes(`\`${action}\``), action);
   assert.match(inbox, /regression case.*before|before.*policy change/is); assert.match(inbox, /activation-miss/); assert.match(inbox, /route-misclassification/); assert.match(inbox, /Do not automatically rewrite Pinmind/i);
+  assert.match(goal, /Goal is a host capability/i); assert.match(goal, /never proof/i); assert.match(goal, /active\.json.*not automatically/is);
+  for (const term of ['root-cause', 'RED', 'alternatives', 'fresh', 'fresh-eyes']) assert.match(methods, new RegExp(term, 'i'));
+  for (const term of ['typo-tolerant', 'identifier safety', 'instruction decoder', 'context re-entry', 'decision comparator']) assert.match(readability, new RegExp(term, 'i'));
+  assert.match(readability, /Never silently change identifiers, commands, paths, URLs, versions, numbers, or literal values/);
+  assert.match(abc, /pending-review/); assert.match(abc, /authoritative-receipt/); assert.match(abc, /does not prove universal/i);
 });
 
 test('lifecycle splits persist, contract, and evidence and keeps AEP/P2 off the kernel', async () => {
@@ -1191,6 +1202,10 @@ test('lifecycle splits persist, contract, and evidence and keeps AEP/P2 off the 
   assert.equal(typeof api.recordEvidence, 'function');
   assert.equal(typeof api.initRun, 'function');
   assert.equal(typeof api.withWorkspaceLock, 'function');
+  assert.equal(typeof api.abandonRun, 'function');
+  assert.equal(typeof api.archiveRun, 'function');
+  assert.equal(typeof api.decomposeTask, 'function');
+  assert.equal(typeof api.evaluateGoalContext, 'function');
 });
 
 test('CLI evidence gate throws, final check returns a failed verdict, and empty input provides usage', async () => {
