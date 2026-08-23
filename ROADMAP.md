@@ -55,7 +55,7 @@ independent release-corpus governance, not another workflow controller.
 ### Remaining boundaries after the 0.10.0 source delivery
 
 - Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
-  immutable installed `v0.8.0` tag. Record the host version, package tree hash,
+  immutable installed `v0.9.1` tag. Record the host version, package tree hash,
   selected cache path, first route, and whether routing preceded task tools.
 - Directly inspect the Pinmind card and composer entry in a fresh Codex App
   session. The manifest and cache can prove which tracked image is configured;

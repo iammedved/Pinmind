@@ -122,7 +122,7 @@ README. Stable refers to the release contract and versioning discipline; it does
 not claim universal implicit activation, ChatGPT directory availability, an
 independently administered corpus, or authoritative token measurement.
 
-`0.10.0` adds a separate offline A/B/C record validator for the same sanitized tasks across released Pinmind, a fixed Superpowers+dyslex.ai protocol descriptor, and hybrid Pinmind. Its public sample is deliberately `pending-review`: schema validity is not presented as measured product superiority, and token totals remain unavailable unless a host supplies authoritative receipts.
+`0.10.0` adds a separate offline A/B/C record validator for the same sanitized tasks across released Pinmind, a fixed Superpowers+dyslex.ai protocol descriptor, and hybrid Pinmind. Its public sample is deliberately `pending-review`: schema validity is not presented as measured product superiority, and token totals remain unavailable unless a host adapter verifies authoritative receipts.
 
 Phase 0 does **not** select a concrete model, change `route`, start an agent, authorize an action, or store prompts and traces. It only defines how a future host adapter could choose a work shape, capability profile, escalation reason, and verification oracle. Mapping profiles to current models and reasoning levels remains a later opt-in step that requires held-out evaluation and separate authorization.
 

@@ -18,6 +18,7 @@ const load = async () => ({
 });
 const copy = (value) => structuredClone(value);
 const rejectsCode = (action, code) => assert.throws(action, (error) => error instanceof AbcEvaluationError && error.code === code);
+const verifySyntheticReceipt = ({ receiptId, value, taskId, arm }) => receiptId.startsWith('synthetic-') && value === 120 && taskId.startsWith('task-') && arm === 'B';
 const syntheticCompletedFixture = (pendingFixture) => ({
   ...copy(pendingFixture),
   status: 'complete',
@@ -47,14 +48,53 @@ test('public offline sample is an honest pending-review template with fixed arms
 
 test('synthetic test-only complete fixture reports qualified metrics and never claims universal superiority', async () => {
   const { fixture, profile } = await load();
-  const result = evaluateAbc(syntheticCompletedFixture(fixture), profile);
+  const result = evaluateAbc(syntheticCompletedFixture(fixture), profile, { verifyReceipt: verifySyntheticReceipt });
   assert.equal(result.ok, true); assert.equal(result.status, 'complete');
   assert.equal(result.claim, 'qualified-comparison-only');
   assert.equal(result.universalSuperiorityClaim, false);
   assert.equal(result.arms.A.metrics.tokens.status, 'unavailable');
   assert.equal(result.arms.B.metrics.tokens.status, 'authoritative-receipt');
+  assert.equal(result.arms.B.metrics.tokens.verification, 'host-adapter');
   assert.equal(result.arms.B.metrics.tokens.value, 240);
+  assert.equal(result.arms.B.metrics.tokens.receiptCount, 2);
+  assert.equal(JSON.stringify(result).includes('synthetic-alpha-b'), false);
   assert.equal(result.arms.C.metrics.errors, 0);
+});
+
+test('token receipts fail closed without a host verifier and cannot be counted twice', async () => {
+  const { fixture, profile } = await load(); const complete = syntheticCompletedFixture(fixture);
+  rejectsCode(() => evaluateAbc(complete, profile), 'RECEIPT_VERIFIER_REQUIRED');
+  rejectsCode(() => evaluateAbc(complete, profile, { verifyReceipt: () => false }), 'RECEIPT_NOT_VERIFIED');
+  rejectsCode(() => evaluateAbc(complete, profile, { verifyReceipt: 'yes' }), 'INVALID_RECEIPT_VERIFIER');
+
+  complete.observations[4].metrics.tokens.receiptId = complete.observations[1].metrics.tokens.receiptId;
+  rejectsCode(() => evaluateAbc(complete, profile, { verifyReceipt: () => true }), 'DUPLICATE_RECEIPT');
+});
+
+test('privacy validation rejects owner paths and secret-shaped receipts without reflecting unsafe keys', async () => {
+  const source = await load(); source.fixture = syntheticCompletedFixture(source.fixture);
+  source.fixture.tasks[0].prompt = '/media/alice/private-project should be audited now';
+  rejectsCode(() => validateAbcEvaluation(source.fixture, source.profile, { verifyReceipt: verifySyntheticReceipt }), 'PRIVATE_TEXT');
+
+  source.fixture = syntheticCompletedFixture((await load()).fixture);
+  source.fixture.observations[1].metrics.tokens.receiptId = 'ghp_abcdefghijklmnopqrstuvwxyz123456';
+  rejectsCode(() => validateAbcEvaluation(source.fixture, source.profile, { verifyReceipt: verifySyntheticReceipt }), 'PRIVATE_TEXT');
+
+  source.fixture = syntheticCompletedFixture((await load()).fixture);
+  source.fixture.tasks[0]['/media/alice/private-project'] = true;
+  let error;
+  try { validateAbcEvaluation(source.fixture, source.profile, { verifyReceipt: verifySyntheticReceipt }); }
+  catch (caught) { error = caught; }
+  assert.ok(error instanceof AbcEvaluationError);
+  assert.equal(error.code, 'UNKNOWN_FIELD');
+  assert.doesNotMatch(`${error.message}\n${JSON.stringify(error.details)}`, /media|alice|private-project/u);
+
+  let cliError;
+  try { await main(['--fixture', '/media/alice/private-project']); }
+  catch (caught) { cliError = caught; }
+  assert.ok(cliError instanceof AbcEvaluationError);
+  assert.equal(cliError.code, 'INPUT_FILE_INVALID');
+  assert.doesNotMatch(`${cliError.message}\n${JSON.stringify(cliError.details)}`, /media|alice|private-project/u);
 });
 
 test('pending-review is valid and does not fabricate results or tokens', async () => {
@@ -90,6 +130,6 @@ test('strict validator rejects privacy leaks, unknown fields, fabricated tokens,
     ['renamed arm', 'INVALID_ARMS', (x) => { x.fixture.arms[0].name = 'different'; }],
   ];
   for (const [name, code, mutate] of cases) await t.test(name, () => {
-    const candidate = copy(source); mutate(candidate); rejectsCode(() => validateAbcEvaluation(candidate.fixture, candidate.profile), code);
+    const candidate = copy(source); mutate(candidate); rejectsCode(() => validateAbcEvaluation(candidate.fixture, candidate.profile, { verifyReceipt: verifySyntheticReceipt }), code);
   });
 });

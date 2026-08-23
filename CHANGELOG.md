@@ -25,7 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
   context re-entry, and decision comparison.
 - Strict offline A/B/C schema and evaluator for the same sanitized tasks across
   released Pinmind, a Superpowers+dyslex.ai protocol descriptor, and hybrid
-  Pinmind. Tokens require authoritative receipts; the public sample is honestly
+  Pinmind. Tokens require host-verified authoritative receipts; the public sample is honestly
   `pending-review` and contains no measurements.
 
 ### Fixed

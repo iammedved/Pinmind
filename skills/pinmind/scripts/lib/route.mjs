@@ -59,7 +59,7 @@ export function selectCurrentPhaseText(value) {
     }
   }
   const masked = maskedChars.join('');
-  const marker = /(?:^|[\n>])[\t ]*context_ready[\t ]*(?:[.!:;]+|(?=\n|$))/giu;
+  const marker = /(?:^|\n|<\/?[A-Za-z][A-Za-z0-9:._-]*(?:[\t ]+[^>\r\n]{0,256})?>)[\t ]*context_ready[\t ]*(?:[.!:;]+|(?=\n|$))/giu;
   let selected = null;
   for (const match of masked.matchAll(marker)) {
     const tail = input.slice(match.index + match[0].length).trim();
