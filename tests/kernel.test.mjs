@@ -558,10 +558,9 @@ test('public release documentation, license, metadata, evaluation guides, and he
   assert.match(description, /^"Default RU\/EN controller/);
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
-  assert.match(readme, new RegExp(`Current source version:\\s*\`${escapedBaseVersion}\``));
-  assert.match(readme, /Latest tagged stable release:\s*`0\.9\.1`/);
-  assert.match(readme, /codex plugin marketplace add iammedved\/Pinmind --ref v0\.9\.1/);
-  assert.doesNotMatch(readme, /--ref v0\.10\.0/);
+  assert.match(readme, new RegExp(`Current stable version:\\s*\`${escapedBaseVersion}\``));
+  assert.match(readme, /codex plugin marketplace add iammedved\/Pinmind --ref v0\.10\.0/);
+  assert.doesNotMatch(readme, /--ref v0\.9\.1/);
   assert.doesNotMatch(readme, /Current (?:source|stable) version:[^\n]*unreleased/i);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);
   for (const term of ['$skill-installer', '/skills', '$pinmind', '/plugins', 'Plugins Directory', '@Pinmind', 'Route: audit |']) assert.ok(readme.includes(term), term);
