@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.10.0`.
+Current stable version: `0.10.1`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,14 +16,58 @@ Current stable version: `0.10.0`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.10.0
+   codex plugin marketplace add iammedved/Pinmind --ref v0.10.1
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.10.0` selects this exact stable release; omit `--ref` only when you intentionally want the reviewed latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.10.1` selects this exact stable release; omit `--ref` only when you intentionally want the reviewed latest repository state.
+
+### Recommended design-enabled installation order
+
+Pinmind `0.10.1` can deterministically select two maintained external design
+skills. They are not bundled with Pinmind and must be installed separately.
+For a fresh project, use this order:
+
+1. Install **UI/UX Pro Max**:
+
+   ```bash
+   npx skills add nextlevelbuilder/ui-ux-pro-max-skill
+   ```
+
+   It supplies a searchable local corpus for product patterns, palettes,
+   typography, UX and accessibility guidance, icons, animation presets, and
+   stack-specific implementation recommendations. It answers focused design
+   questions; it does not own the full interface lifecycle.
+
+2. Install **Impeccable**:
+
+   ```bash
+   npx impeccable skills install
+   ```
+
+   Select the current project when prompted. Enabling its project hook is
+   optional but recommended when you want automatic UI checks after edits.
+   Impeccable owns end-to-end interface work: product context, shaping,
+   redesign, critique, audit, refinement, responsive adaptation, motion,
+   implementation discipline, and final visual verification.
+
+3. Install the reviewed Pinmind release:
+
+   ```bash
+   codex plugin marketplace add iammedved/Pinmind --ref v0.10.1
+   ```
+
+   Open `/plugins`, install **Pinmind** from **Pinmind Project**, and start a
+   new Codex session.
+
+4. Run `/skills` and confirm that `pinmind`, `impeccable`, and
+   `ui-ux-pro-max` are available.
+
+The historical `frontend-skill` is deprecated upstream and is not part of
+Pinmind `0.10.1` design routing. Do not install it for this workflow.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -102,7 +146,33 @@ Official OpenAI guidance: [install and use plugins](https://learn.chatgpt.com/do
 
 Implicit selection is probabilistic. Explicit invocation is the reliable choice for critical work.
 
-Pinmind `0.10.0` also adds journaled `abandon`, non-destructive `archive`, proportional debugging/TDD/architecture/review guidance, and a compact readability profile. Superpowers and dyslex.ai remain research inputs: they are not installed, imported, or made runtime dependencies.
+### Design-skill routing in 0.10.1
+
+Earlier Pinmind releases could compose specialist skills only through general
+instructions. That left the choice between overlapping design skills to the
+host or the current prompt. Version `0.10.1` adds a deterministic post-route
+decision:
+
+- **Impeccable only** for an explicit Impeccable command or an end-to-end
+  interface workflow.
+- **UI/UX Pro Max only** for a focused lookup such as a palette, font pairing,
+  UX rule, accessibility outcome, icon, chart, animation preset, or
+  stack-specific recommendation.
+- **Impeccable + UI/UX Pro Max** for substantive page or component work that
+  also needs researched design guidance. Impeccable remains primary; UI/UX Pro
+  Max supplies bounded supporting evidence.
+- **Neither** for backend-only, database, infrastructure, or non-visual work.
+
+Pinmind makes this choice with `design route` after its main process route.
+The specialist result never grants permission to edit, publish, deploy, use
+network services, or change Figma. Those boundaries still come from the user.
+
+`0.10.1` is a patch release because the existing main route, contracts,
+lifecycle, and authority model remain backward compatible. The release fixes
+ambiguous design-skill composition, documents the external installation
+requirements, and excludes the deprecated `frontend-skill`.
+
+Pinmind `0.10.0` added journaled `abandon`, non-destructive `archive`, proportional debugging/TDD/architecture/review guidance, and a compact readability profile. Superpowers and dyslex.ai remain research inputs: they are not installed, imported, or made runtime dependencies.
 
 ## Offline AEP evaluation and P2 design
 
@@ -133,6 +203,7 @@ Run kernel commands from the target workspace with the repository-relative entry
 ```bash
 node skills/pinmind/scripts/pinmind.mjs route --file request.json
 node skills/pinmind/scripts/pinmind.mjs route --decompose --file request.json
+node skills/pinmind/scripts/pinmind.mjs design route --file request.json
 printf '%s' '{"text":"Audit this repository and report only."}' | node skills/pinmind/scripts/pinmind.mjs route --file -
 node skills/pinmind/scripts/pinmind.mjs init --run <run-id> --brief brief.md
 node skills/pinmind/scripts/pinmind.mjs state reconcile --dry-run
@@ -192,7 +263,7 @@ Changed packages always receive a new patch or minor version; Pinmind does not
 publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
-versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, `0.8.2`, and `0.9.1`; backward-compatible feature releases use a
+versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, `0.8.2`, `0.9.1`, and `0.10.1`; backward-compatible feature releases use a
 new minor such as `0.7.0`, `0.8.0`, `0.9.0`, or `0.10.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 
@@ -217,7 +288,7 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 119 declarations
+than quoting Node's runtime summary. The current manifest records 121 declarations
 across ten test files, plus fixture-case counts for routes, activation, AEP,
 parallel admission, and language evaluation. These are separate dimensions and
 are not presented as one inflated "test count."
@@ -262,6 +333,8 @@ workflow runs on GitHub.
 
 - Pinmind cannot control whether a host selects it implicitly.
 - The deterministic router runs only after Pinmind is selected.
+- The design specialists are external installations. Pinmind reports a route;
+  it cannot make a missing `impeccable` or `ui-ux-pro-max` skill available.
 - Passing the fixed language corpus does not prove arbitrary-language accuracy or host selection.
 - AEP Phase 0 is an evaluation contract, not a runtime model or agent router.
 - Goal context is an optional pure adapter; Pinmind does not create, resume, complete, or mutate a host Goal.

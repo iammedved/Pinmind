@@ -54,6 +54,16 @@ Check `.pinmind/active.json` before a new persistent run. Reconcile it read-only
 
 Keep specialist skills (PDF, Superpowers, `/design`, `/execute-plan`). Pinmind wraps them; it does not replace them.
 
+## UI design specialists
+
+After the main route, if the request may design, change, review, or fix a visual interface, run the deterministic specialist router before loading a UI skill:
+
+```bash
+node <skill-dir>/scripts/pinmind.mjs design route --file <sanitized-request.json>
+```
+
+Follow its `primarySkill` and `supportingSkills` exactly. It selects only between the maintained `impeccable` workflow controller and the searchable `ui-ux-pro-max` knowledge skill. Load [design-skill-routing.md](references/design-skill-routing.md) when the result selects either skill. A `null` primary means neither applies. Specialist selection does not expand authority.
+
 ## Loop
 
 For `software-change` and `investigation`, follow [loop.md](references/loop.md): design or name 2–3 alternatives, observe a failing public-seam check, collect root-cause evidence before a fix, and run fresh verification before any "done" claim. Select debugging, TDD, architecture, verification, and review proportionally from [methods.md](references/methods.md); Pinmind stays the controller. Search the web or primary sources when the repo cannot settle the blocker. Parallelism only by the five-yes rule in [execution.md](references/execution.md).

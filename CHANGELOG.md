@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-08-24
+
+### Added
+
+- Deterministic `design route` specialist selection with RU/EN regression
+  coverage for Impeccable-only, UI/UX Pro Max-only, composed, and non-visual
+  requests.
+- Frozen-input and syntax-gate coverage for the design-specialist router.
+- A progressive design-routing reference that keeps Pinmind as the authority
+  controller, Impeccable as the interface-workflow owner, and UI/UX Pro Max as
+  bounded searchable design intelligence.
+
+### Changed
+
+- Document the recommended installation order and responsibilities of
+  `ui-ux-pro-max`, `impeccable`, and Pinmind.
+- Exclude the deprecated historical `frontend-skill` from automatic design
+  routing and the supported installation path.
+- Publish coherent Codex and Grok plugin metadata for stable version `0.10.1`.
+
 ## [0.10.0] - 2026-08-23
 
 ### Added
