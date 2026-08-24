@@ -2,8 +2,8 @@
 
 ## Verified baseline
 
-The current stable baseline is `0.10.0`, published as tag `v0.10.0`. See
-[CHANGELOG.md](CHANGELOG.md). The `0.10.0` release
+The current stable baseline is `0.10.1`, published as tag `v0.10.1`. See
+[CHANGELOG.md](CHANGELOG.md). The `0.10.1` release
 provides deterministic post-activation routing, local run-state containment and
 recovery diagnostics, baseline/freshness evidence, read-only `final check`, and
 explicit `finalize`. It also includes the reviewed P0 routing contrasts, required
@@ -13,7 +13,8 @@ conservative unknown routing, Grok user-scope discovery, colloquial RU/EN
 user-voice routing, a skill surface without token counting, and a kernel split
 into persist, contract, evidence, and state. It adds mixed-request diagnostics,
 optional pure Goal context, abandon/archive terminal operations, proportional
-methods, readability safeguards, and an offline pending-review A/B/C protocol.
+methods, readability safeguards, an offline pending-review A/B/C protocol, and
+deterministic selection between Impeccable and UI/UX Pro Max for visual work.
 AEP remains an offline evaluation contract; P2 model/agent adapters are not
 implemented.
 
@@ -46,15 +47,15 @@ only unfinished, measurable work; it is not implementation authority.
 
 ## Now
 
-The `0.10.0` release keeps speech-act routing, a compact `SKILL.md`, and a split
+The `0.10.1` release keeps speech-act routing, a compact `SKILL.md`, and a split
 kernel. AEP, A/B/C experiments, and P2 stay out of chat-time runtime. Remaining
 work is comparable host-run A/B/C evidence, fresh-host activation evidence, and
 independent release-corpus governance, not another workflow controller.
 
-### Remaining boundaries after the 0.10.0 release
+### Remaining boundaries after the 0.10.1 release
 
 - Re-run two fresh implicit and two fresh explicit Codex CLI sessions from the
-  immutable installed `v0.10.0` tag. Record the host version, package tree hash,
+  immutable installed `v0.10.1` tag. Record the host version, package tree hash,
   selected cache path, first route, and whether routing preceded task tools.
 - Directly inspect the Pinmind card and composer entry in a fresh Codex App
   session. The manifest and cache can prove which tracked image is configured;

@@ -551,7 +551,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   const escapedBaseVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(baseVersion, '0.10.0');
+  assert.equal(baseVersion, '0.10.1');
   assert.equal(grokPlugin.name, manifest.name);
   assert.equal(grokPlugin.version, baseVersion);
   assert.match(manifest.description, /^Adaptive RU\/EN task controller/);
@@ -559,7 +559,7 @@ test('public release documentation, license, metadata, evaluation guides, and he
   assert.match(agent, /short_description:\s*"Adaptive verified RU\/EN task controller"/);
   for (const section of ['## Install, configure, and run', '## What Pinmind does', '## Kernel CLI', '## Versioning', '## Limitations']) assert.match(readme, new RegExp(section));
   assert.match(readme, new RegExp(`Current stable version:\\s*\`${escapedBaseVersion}\``));
-  assert.match(readme, /codex plugin marketplace add iammedved\/Pinmind --ref v0\.10\.0/);
+  assert.match(readme, /codex plugin marketplace add iammedved\/Pinmind --ref v0\.10\.1/);
   assert.doesNotMatch(readme, /--ref v0\.9\.1/);
   assert.doesNotMatch(readme, /Current (?:source|stable) version:[^\n]*unreleased/i);
   assert.match(readme, /Universal Plugins Directory:\s*\*\*not listed yet\*\*/);

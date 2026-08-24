@@ -48,6 +48,7 @@ const TEST_FILE_KEYS = new Set(['path', 'topLevelDeclarations']);
 
 export const EXPECTED_FROZEN_INPUTS = Object.freeze([
   ['router', 'skills/pinmind/scripts/lib/route.mjs'],
+  ['design-specialist-router', 'skills/pinmind/scripts/lib/design-skills.mjs'],
   ['mixed-decomposition', 'skills/pinmind/scripts/lib/decomposition.mjs'],
   ['goal-context', 'skills/pinmind/scripts/lib/goal-context.mjs'],
   ['abc-schema-validator', 'scripts/evaluate-abc.mjs'],
@@ -79,6 +80,7 @@ export const EXPECTED_COMMANDS = Object.freeze([
   Object.freeze({ id: 'plugin-skill-validator', argv: Object.freeze(['node', 'scripts/validate-plugin-skill.mjs']) }),
   Object.freeze({ id: 'core-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/core.mjs']) }),
   Object.freeze({ id: 'route-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/route.mjs']) }),
+  Object.freeze({ id: 'design-router-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/design-skills.mjs']) }),
   Object.freeze({ id: 'persist-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/persist.mjs']) }),
   Object.freeze({ id: 'contract-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/contract.mjs']) }),
   Object.freeze({ id: 'evidence-syntax', argv: Object.freeze(['node', '--check', 'skills/pinmind/scripts/lib/evidence.mjs']) }),

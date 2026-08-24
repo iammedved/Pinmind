@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   KernelError, abandonRun, amendContract, archiveRun, captureBaseline, captureEvidence, decomposeTask, finalVerify, finalizeRun, freezeContract, generateRunId, initRun, readBrief, readInputJson, readRouteInputJson, reconcileActiveRuns, recoverTransition,
-  recordEvidence, recordUnavailableBaseline, reportRun, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
+  recordEvidence, recordUnavailableBaseline, reportRun, routeDesignSkills, routeTask, stateResume, stateShow, validateAndSaveExecution, validateContract, validateEvidence,
 } from './lib/core.mjs';
 
 function parse(argv) {
@@ -20,7 +20,7 @@ function parse(argv) {
   return { positionals, flags };
 }
 const COMMAND_FLAGS = new Map([
-  ['init', ['run', 'brief']], ['route', ['file', 'text', 'kind', 'decompose']], ['state show', ['run']], ['state resume', ['run']], ['state reconcile', ['dry-run']],
+  ['init', ['run', 'brief']], ['route', ['file', 'text', 'kind', 'decompose']], ['design route', ['file', 'text']], ['state show', ['run']], ['state resume', ['run']], ['state reconcile', ['dry-run']],
   ['state recover', ['apply', 'expected-sha256', 'expected-lock-sha256']], ['report', ['run', 'format']], ['baseline capture', ['run', 'file', 'cwd', 'timeout-ms']],
   ['baseline unavailable', ['run', 'file']], ['contract validate', ['run', 'file']], ['contract freeze', ['run', 'file']], ['contract amend', ['run', 'file', 'reason', 'affects', 'authority']],
   ['execution validate', ['run', 'file']], ['evidence record', ['run', 'file']], ['evidence capture', ['run', 'file', 'cwd', 'timeout-ms']], ['evidence validate', ['run']],
@@ -42,7 +42,7 @@ function validateInvocation(positionals, flags, commandArgv = []) {
 }
 function requireFlag(flags, name) { if (typeof flags[name] !== 'string') throw new KernelError(`--${name} is required.`, 'MISSING_ARGUMENT'); return flags[name]; }
 function print(value) { process.stdout.write(typeof value === 'string' ? `${value.replace(/\n?$/, '\n')}` : `${JSON.stringify(value, null, 2)}\n`); }
-const usage = 'Usage: pinmind.mjs init|route|contract validate|contract freeze|contract amend|baseline capture --run RUN --file TEMPLATE [--cwd RELATIVE] -- COMMAND [ARGS...]|baseline unavailable --run RUN --file RECEIPT|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|report|state show|state resume|state reconcile --dry-run|state recover --apply --expected-sha256 HASH [--expected-lock-sha256 HASH]|final check|final verify|finalize|abandon --run RUN --reason TEXT|archive --run RUN --reason TEXT';
+const usage = 'Usage: pinmind.mjs init|route|design route|contract validate|contract freeze|contract amend|baseline capture --run RUN --file TEMPLATE [--cwd RELATIVE] -- COMMAND [ARGS...]|baseline unavailable --run RUN --file RECEIPT|execution validate|evidence record|evidence capture --run RUN --file TEMPLATE [--cwd RELATIVE] [--timeout-ms 50..300000] -- COMMAND [ARGS...]|evidence validate|report|state show|state resume|state reconcile --dry-run|state recover --apply --expected-sha256 HASH [--expected-lock-sha256 HASH]|final check|final verify|finalize|abandon --run RUN --reason TEXT|archive --run RUN --reason TEXT';
 function requirePassing(result, code, message) { if (!result.ok) throw new KernelError(message, code, result.errors); return result; }
 
 export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
@@ -57,6 +57,12 @@ export async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     if (Object.hasOwn(flags, 'decompose') && flags.decompose !== true) throw new KernelError('--decompose is a boolean flag.', 'INVALID_ARGUMENT');
     const input = hasFile ? await readRouteInputJson(requireFlag(flags, 'file')) : { text: requireFlag(flags, 'text'), kind: flags.kind };
     return flags.decompose === true ? decomposeTask(input) : routeTask(input);
+  }
+  if (group === 'design' && action === 'route') {
+    const hasFile = Object.hasOwn(flags, 'file'); const hasText = Object.hasOwn(flags, 'text');
+    if (hasFile === hasText) throw new KernelError('design route accepts exactly one input source: --file or --text.', 'CONFLICTING_ROUTE_INPUT');
+    const input = hasFile ? await readRouteInputJson(requireFlag(flags, 'file')) : { text: requireFlag(flags, 'text') };
+    return routeDesignSkills(input);
   }
   if (group === 'state' && action === 'show') return stateShow(cwd, flags.run);
   if (group === 'state' && action === 'resume') return stateResume(cwd, flags.run);

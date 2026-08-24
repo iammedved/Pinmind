@@ -9,6 +9,11 @@
       "sha256": "808643bbb66cf8458a239a7be66bce9ef2f91a2e75901520fcaeae5dcec0b79c"
     },
     {
+      "role": "design-specialist-router",
+      "path": "skills/pinmind/scripts/lib/design-skills.mjs",
+      "sha256": "c62050ea044600b63356f35a2d70c992d3f363ecc938e80966cff288ad34c8d7"
+    },
+    {
       "role": "mixed-decomposition",
       "path": "skills/pinmind/scripts/lib/decomposition.mjs",
       "sha256": "af8e7daa7f0ea3317dd997a477f4e179ae2b8b357a058ec6450f30022fdb90a9"
@@ -197,6 +202,14 @@
       ]
     },
     {
+      "id": "design-router-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "skills/pinmind/scripts/lib/design-skills.mjs"
+      ]
+    },
+    {
       "id": "persist-syntax",
       "argv": [
         "node",
@@ -287,7 +300,7 @@
       },
       {
         "path": "tests/route-phase-regression.test.mjs",
-        "topLevelDeclarations": 2
+        "topLevelDeclarations": 4
       },
       {
         "path": "tests/abc-evaluator.test.mjs",
