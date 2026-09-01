@@ -1,6 +1,6 @@
 # Language routing and activation evaluation
 
-Status: Phase A is included in the stable `0.6` line, following its experimental introduction in `0.5.0-experimental`. The current `0.10.1` source has a **457-case deterministic routing regression corpus**, **64 closed-schema language-evaluation cases** (32 development and 32 frozen release-gate cases), **28 host-activation fixtures**, and a separate phased-transfer regression for `CONTEXT_READY`. The local evaluator and release gate are implemented; fresh-host selection and end-task utility remain separate, unproven layers. The release split is a fixed regression gate, not a statistically independent benchmark. This document does not claim that ChatGPT, Codex, or Grok will activate Pinmind for every possible phrase.
+Status: Phase A is included in the stable `0.6` line, following its experimental introduction in `0.5.0-experimental`. The current `0.11.0` source has a **457-case deterministic routing regression corpus**, **64 closed-schema language-evaluation cases** (32 development and 32 frozen release-gate cases), **28 host-activation fixtures**, and a separate phased-transfer regression for `CONTEXT_READY`. The local evaluator and release gate are implemented; fresh-host selection and end-task utility remain separate, unproven layers. The release split is a fixed regression gate, not a statistically independent benchmark. This document does not claim that ChatGPT, Codex, or Grok will activate Pinmind for every possible phrase.
 
 ## Decision
 

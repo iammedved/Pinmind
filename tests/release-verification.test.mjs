@@ -27,12 +27,12 @@ test('canonical release manifest, workflow, plugin, and skill metadata validate'
   const manifest = await loadReleaseManifest(root);
   const result = await validateReleaseManifest(manifest, root);
   assert.equal(result.ok, true);
-  assert.equal(result.nodeVersion, '24.19.0');
-  assert.equal(result.frozenInputs, 13);
+  assert.equal(result.nodeVersion, '24.20.0');
+  assert.equal(result.frozenInputs, 14);
   assert.equal(result.commands, EXPECTED_COMMANDS.length);
-  assert.equal(result.inventory.testFiles.length, 10);
+  assert.equal(result.inventory.testFiles.length, 11);
   assert.equal(result.inventory.fixtureCases.routes, 457);
-  assert.deepEqual(await validateWorkflow(root), { ok: true, nodeVersion: '24.19.0' });
+  assert.deepEqual(await validateWorkflow(root), { ok: true, nodeVersion: '24.20.0' });
   const plugin = await validatePluginAndSkills(root); assert.equal(plugin.ok, true); assert.deepEqual(plugin.skills, ['pinmind']);
 });
 

@@ -1,6 +1,6 @@
 # Privacy
 
-Pinmind `0.10.1` is a skills-only plugin. It provides local instructions, a bundled kernel, and offline AEP, language-routing, and A/B/C evaluation inputs; it has no account system, connector, MCP server, telemetry service, or project-operated network endpoint.
+Pinmind `0.11.0` is a local skill and prompt-routing hook. It provides local instructions, a bundled kernel, and offline AEP, language-routing, and A/B/C evaluation inputs; it has no account system, connector, MCP server, telemetry service, or project-operated network endpoint. The hook returns routing context only and does not persist the submitted prompt.
 
 Pinmind processes only the task context and files made available by the active ChatGPT or Codex host. Data handling by that host and by any separately enabled tool is governed by the corresponding provider and user configuration.
 
