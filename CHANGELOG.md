@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-01
+
+### Added
+
+- A single `UserPromptSubmit` orchestration hook that keeps Pinmind as the sole
+  controller and selects passive Skillstate checkpoints only for durable work.
+- Regression coverage for short-task exclusion, durable-task admission,
+  confirmation boundaries, and Ponytail's code-only role.
+
+### Changed
+
+- Document the fixed hierarchy: Pinmind controls, Skillstate records bounded
+  checkpoints, and Ponytail simplifies code.
+- Advance the pinned release runtime to Node `24.20.0`.
+
 ## [0.10.1] - 2026-08-24
 
 ### Added

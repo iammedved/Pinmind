@@ -1,12 +1,17 @@
 {
   "schemaVersion": 1,
   "algorithm": "sha256",
-  "nodeVersion": "24.19.0",
+  "nodeVersion": "24.20.0",
   "frozenInputs": [
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/route.mjs",
       "sha256": "808643bbb66cf8458a239a7be66bce9ef2f91a2e75901520fcaeae5dcec0b79c"
+    },
+    {
+      "role": "orchestration-hook",
+      "path": "hooks/pinmind-orchestrator.mjs",
+      "sha256": "c6d0806d6d94d719b41b0e1e923f66670396fa820ac24becdefe16b8d721479a"
     },
     {
       "role": "design-specialist-router",
@@ -70,6 +75,14 @@
     }
   ],
   "commands": [
+    {
+      "id": "orchestration-hook-tests",
+      "argv": [
+        "node",
+        "--test",
+        "tests/orchestration-hook.test.mjs"
+      ]
+    },
     {
       "id": "kernel-tests",
       "argv": [
@@ -282,6 +295,10 @@
   ],
   "inventory": {
     "testFiles": [
+      {
+        "path": "tests/orchestration-hook.test.mjs",
+        "topLevelDeclarations": 3
+      },
       {
         "path": "tests/kernel.test.mjs",
         "topLevelDeclarations": 63

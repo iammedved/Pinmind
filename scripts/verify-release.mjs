@@ -48,6 +48,7 @@ const TEST_FILE_KEYS = new Set(['path', 'topLevelDeclarations']);
 
 export const EXPECTED_FROZEN_INPUTS = Object.freeze([
   ['router', 'skills/pinmind/scripts/lib/route.mjs'],
+  ['orchestration-hook', 'hooks/pinmind-orchestrator.mjs'],
   ['design-specialist-router', 'skills/pinmind/scripts/lib/design-skills.mjs'],
   ['mixed-decomposition', 'skills/pinmind/scripts/lib/decomposition.mjs'],
   ['goal-context', 'skills/pinmind/scripts/lib/goal-context.mjs'],
@@ -63,6 +64,7 @@ export const EXPECTED_FROZEN_INPUTS = Object.freeze([
 ]);
 
 export const EXPECTED_COMMANDS = Object.freeze([
+  Object.freeze({ id: 'orchestration-hook-tests', argv: Object.freeze(['node', '--test', 'tests/orchestration-hook.test.mjs']) }),
   Object.freeze({ id: 'kernel-tests', argv: Object.freeze(['node', '--test', 'tests/kernel.test.mjs']) }),
   Object.freeze({ id: 'terminal-lifecycle-tests', argv: Object.freeze(['node', '--test', 'tests/terminal-lifecycle.test.mjs']) }),
   Object.freeze({ id: 'goal-context-tests', argv: Object.freeze(['node', '--test', 'tests/goal-context.test.mjs']) }),
@@ -93,6 +95,7 @@ export const EXPECTED_COMMANDS = Object.freeze([
 ]);
 
 const EXPECTED_TEST_FILES = Object.freeze([
+  'tests/orchestration-hook.test.mjs',
   'tests/kernel.test.mjs',
   'tests/terminal-lifecycle.test.mjs',
   'tests/goal-context.test.mjs',

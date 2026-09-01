@@ -54,6 +54,19 @@ Check `.pinmind/active.json` before a new persistent run. Reconcile it read-only
 
 Keep specialist skills (PDF, Superpowers, `/design`, `/execute-plan`). Pinmind wraps them; it does not replace them.
 
+## Durable state and code simplicity
+
+Pinmind is the only workflow controller. The bundled `UserPromptSubmit` hook may mark a non-trivial request with `origin=pinmind` and decide whether it is durable enough for Skillstate. Never let Skillstate route the task, choose actions, or start its `run` controller beneath Pinmind.
+
+When the hook selects durable state, keep `.pinmind` as the source of truth. After `init` and at clean contract, execution, verification, and final phase boundaries, run:
+
+```bash
+skillstate doctor --workspace <path>
+skillstate checkpoint --workspace <path> --pinmind-run <run-id>
+```
+
+If either command fails, continue under Pinmind and report that durable checkpoints are unavailable; do not start a second controller. Skip Skillstate for short or one-step work. Ponytail may select the smallest code change and review over-engineering, but it never changes routing, authority, state, or phase order.
+
 ## UI design specialists
 
 After the main route, if the request may design, change, review, or fix a visual interface, run the deterministic specialist router before loading a UI skill:

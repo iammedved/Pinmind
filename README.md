@@ -4,7 +4,7 @@
 
 Pinmind is a Russian-and-English workflow controller packaged as a Grok skill and a Codex App plugin. It classifies non-trivial work, including colloquial and lightly misspelled Russian, applies a process proportional to risk, composes specialist skills, and requires current evidence before calling a task complete.
 
-Current stable version: `0.10.1`.
+Current stable version: `0.11.0`.
 
 - GitHub repository marketplace: included in this repository.
 - Universal Plugins Directory: **not listed yet**. ChatGPT catalog steps apply only after OpenAI approval and a live listing check.
@@ -16,18 +16,18 @@ Current stable version: `0.10.1`.
 1. Add the pinned stable repository marketplace:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.10.1
+   codex plugin marketplace add iammedved/Pinmind --ref v0.11.0
    ```
 
 2. Start Codex, run `/plugins`, select **Pinmind Project**, and install **Pinmind**.
 3. Start a new Codex session.
 4. Run `/skills` and confirm that `pinmind` is available.
 
-The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.10.1` selects this exact stable release; omit `--ref` only when you intentionally want the reviewed latest repository state.
+The repository marketplace is separate from OpenAI's universal Plugins Directory. Pinning `v0.11.0` selects this exact stable release; omit `--ref` only when you intentionally want the reviewed latest repository state.
 
 ### Recommended design-enabled installation order
 
-Pinmind `0.10.1` can deterministically select two maintained external design
+Pinmind `0.11.0` can deterministically select two maintained external design
 skills. They are not bundled with Pinmind and must be installed separately.
 For a fresh project, use this order:
 
@@ -57,7 +57,7 @@ For a fresh project, use this order:
 3. Install the reviewed Pinmind release:
 
    ```bash
-   codex plugin marketplace add iammedved/Pinmind --ref v0.10.1
+   codex plugin marketplace add iammedved/Pinmind --ref v0.11.0
    ```
 
    Open `/plugins`, install **Pinmind** from **Pinmind Project**, and start a
@@ -67,7 +67,7 @@ For a fresh project, use this order:
    `ui-ux-pro-max` are available.
 
 The historical `frontend-skill` is deprecated upstream and is not part of
-Pinmind `0.10.1` design routing. Do not install it for this workflow.
+Pinmind `0.11.0` design routing. Do not install it for this workflow.
 
 ### Codex CLI: upgrade or reinstall a reviewed revision
 
@@ -93,7 +93,7 @@ recovery path; it is not the supported public upgrade path.
 4. If Pinmind does not appear immediately, restart Codex.
 5. Run `/skills` and confirm that `pinmind` is available.
 
-No extra setup is required. Pinmind is currently skills-only: it needs no connector, external account, API key, or MCP server.
+Pinmind needs no connector, external account, API key, or MCP server. The bundled local hook only classifies the submitted prompt and adds routing context; it performs no task action itself.
 
 ### Grok Build CLI: install for every new chat
 
@@ -130,7 +130,7 @@ Pinmind is not currently available in the public Plugins Directory. After the li
 4. Start a new chat.
 5. Send: `@Pinmind Audit this repository without changing files. Determine the route first and report only verified findings.`
 
-No connector, external account, API key, or additional configuration is required for the current skills-only package.
+No connector, external account, API key, or additional configuration is required for the current local skill-and-hook package.
 
 Official OpenAI guidance: [install and use plugins](https://learn.chatgpt.com/docs/plugins), [package plugins and repository marketplaces](https://developers.openai.com/plugins/build/plugins), and [build or install skills](https://learn.chatgpt.com/docs/build-skills).
 
@@ -146,11 +146,11 @@ Official OpenAI guidance: [install and use plugins](https://learn.chatgpt.com/do
 
 Implicit selection is probabilistic. Explicit invocation is the reliable choice for critical work.
 
-### Design-skill routing in 0.10.1
+### Design-skill routing in 0.11.0
 
 Earlier Pinmind releases could compose specialist skills only through general
 instructions. That left the choice between overlapping design skills to the
-host or the current prompt. Version `0.10.1` adds a deterministic post-route
+host or the current prompt. Version `0.11.0` includes a deterministic post-route
 decision:
 
 - **Impeccable only** for an explicit Impeccable command or an end-to-end
@@ -167,10 +167,9 @@ Pinmind makes this choice with `design route` after its main process route.
 The specialist result never grants permission to edit, publish, deploy, use
 network services, or change Figma. Those boundaries still come from the user.
 
-`0.10.1` is a patch release because the existing main route, contracts,
-lifecycle, and authority model remain backward compatible. The release fixes
-ambiguous design-skill composition, documents the external installation
-requirements, and excludes the deprecated `frontend-skill`.
+`0.11.0` is a minor release because Pinmind now owns automatic orchestration.
+It decides whether a task needs passive Skillstate checkpoints while keeping
+Ponytail limited to code simplification.
 
 Pinmind `0.10.0` added journaled `abandon`, non-destructive `archive`, proportional debugging/TDD/architecture/review guidance, and a compact readability profile. Superpowers and dyslex.ai remain research inputs: they are not installed, imported, or made runtime dependencies.
 
@@ -264,7 +263,7 @@ publish or display Codex cachebuster build metadata.
 
 The stable public line starts at `0.6.0`. Backward-compatible fixes use patch
 versions such as `0.6.1`, `0.6.2`, `0.6.3`, `0.8.1`, `0.8.2`, `0.9.1`, and `0.10.1`; backward-compatible feature releases use a
-new minor such as `0.7.0`, `0.8.0`, `0.9.0`, or `0.10.0`. Existing experimental tags are immutable history and
+new minor such as `0.7.0`, `0.8.0`, `0.9.0`, `0.10.0`, or `0.11.0`. Existing experimental tags are immutable history and
 are never moved to newer commits.
 
 ## Validation
@@ -288,8 +287,8 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 121 declarations
-across ten test files, plus fixture-case counts for routes, activation, AEP,
+than quoting Node's runtime summary. The current manifest records 124 declarations
+across eleven test files, plus fixture-case counts for routes, activation, AEP,
 parallel admission, and language evaluation. These are separate dimensions and
 are not presented as one inflated "test count."
 
