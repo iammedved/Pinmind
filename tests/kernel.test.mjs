@@ -331,13 +331,19 @@ test('conservative routing, paraphrases, and safety contrasts drive the shipped 
   assert.equal(vague.route, 'audit');
   assert.equal(vague.clarity, 'uncertain');
   assert.equal(vague.needsHumanConfirmation, true);
+  assert.equal(vague.confirmationReason, 'unclear-outcome');
   assert.match(vague.reason, /unclear|read-only|confirm/i);
 
   const unrecognized = routeTask({ text: 'please handle this' });
   assert.equal(unrecognized.route, 'audit');
   assert.equal(unrecognized.clarity, 'uncertain');
   assert.equal(unrecognized.needsHumanConfirmation, true);
+  assert.equal(unrecognized.confirmationReason, 'unrecognized-intent');
   assert.ok(unrecognized.signals.includes('intent:unrecognized'));
+
+  const unresolvedPush = routeTask({ text: 'Push the changes' });
+  assert.equal(unresolvedPush.needsHumanConfirmation, true);
+  assert.equal(unresolvedPush.confirmationReason, 'unresolved-external-target');
 
   const inspect = routeTask({ text: 'Walk the current tree and tell me what is off. Do not save any edits.' });
   assert.equal(inspect.route, 'audit');

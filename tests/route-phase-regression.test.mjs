@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { decomposeTask } from '../skills/pinmind/scripts/lib/decomposition.mjs';
@@ -40,6 +41,34 @@ test('a future or quoted marker does not discard current no-change authority', (
     assert.equal(routed.route, 'audit');
     assert.equal(routed.signals.includes('phase:context-ready'), false);
   }
+});
+
+test('a current restriction remains authoritative, audit reports stay separate, and diagnostic clarification cannot expand effects', async () => {
+  const currentRestriction = routeTask({
+    text: 'CONTEXT_READY. Проверь репозиторий, ничего не меняй; сохрани отчёт отдельным файлом.',
+  });
+  assert.equal(currentRestriction.route, 'audit');
+  assert.equal(currentRestriction.needsHumanConfirmation, false);
+  assert.ok(currentRestriction.signals.includes('authority:no-change'));
+
+  const cancelled = routeTask({
+    text: 'CONTEXT_READY. Реализуй изменение. Отмена: ничего больше не меняй.',
+  });
+  assert.equal(cancelled.route, 'audit');
+  assert.equal(cancelled.needsHumanConfirmation, true);
+  assert.equal(cancelled.confirmationReason, 'conflicting-instructions');
+  assert.ok(cancelled.signals.includes('authority:conflict'));
+
+  const [routePolicy, skill] = await Promise.all([
+    readFile(new URL('../skills/pinmind/references/route.md', import.meta.url), 'utf8'),
+    readFile(new URL('../skills/pinmind/SKILL.md', import.meta.url), 'utf8'),
+  ]);
+  assert.match(routePolicy, /bounded read-only discovery may establish the concrete outcome already requested/i);
+  assert.match(routePolicy, /do not rewrite the source request, and do not extend its effects/i);
+  assert.match(routePolicy, /Actual contradiction, a new approval, unresolved external target, or unknown authority remains a user decision/i);
+  assert.match(routePolicy, /Only when the user requests routing diagnostics or a material route boundary needs explanation/i);
+  assert.match(skill, /bounded read-only discovery may resolve the already-requested work after recording its basis/i);
+  assert.match(skill, /A contradiction, new approval, unknown authority, or external target remains for the user/i);
 });
 
 test('design specialist routing chooses one owner or a bounded composition', () => {

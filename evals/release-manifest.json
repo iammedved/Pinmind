@@ -6,12 +6,12 @@
     {
       "role": "router",
       "path": "skills/pinmind/scripts/lib/route.mjs",
-      "sha256": "808643bbb66cf8458a239a7be66bce9ef2f91a2e75901520fcaeae5dcec0b79c"
+      "sha256": "aa923dc2982074ac2a0a2422adbbf332162878e1f27714d0edf6d0db5d270c1c"
     },
     {
       "role": "orchestration-hook",
       "path": "hooks/pinmind-orchestrator.mjs",
-      "sha256": "c6d0806d6d94d719b41b0e1e923f66670396fa820ac24becdefe16b8d721479a"
+      "sha256": "a408c439cd8e1993cf4d8937fcb49bc43035b416c868a14cb957e2661baa608c"
     },
     {
       "role": "design-specialist-router",
@@ -317,7 +317,7 @@
       },
       {
         "path": "tests/route-phase-regression.test.mjs",
-        "topLevelDeclarations": 4
+        "topLevelDeclarations": 5
       },
       {
         "path": "tests/abc-evaluator.test.mjs",
@@ -329,7 +329,7 @@
       },
       {
         "path": "tests/parallel-admission.test.mjs",
-        "topLevelDeclarations": 5
+        "topLevelDeclarations": 6
       },
       {
         "path": "tests/language-routing-evaluator.test.mjs",

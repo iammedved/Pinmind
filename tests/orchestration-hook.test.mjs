@@ -4,19 +4,20 @@ import test from 'node:test';
 
 import { hookOutputForPrompt, needsSkillstate } from '../hooks/pinmind-orchestrator.mjs';
 
-test('Pinmind hook is the only controller and selects Skillstate only for durable work', () => {
+test('Pinmind hook offers non-authoritative routing guidance without lifecycle decisions', () => {
   assert.deepEqual(hookOutputForPrompt('Переведи слово hello.'), {});
   const short = hookOutputForPrompt('Проверь этот небольшой модуль и расскажи о найденных ошибках.');
-  assert.match(short.hookSpecificOutput.additionalContext, /Pinmind is the sole workflow controller/);
-  assert.match(short.hookSpecificOutput.additionalContext, /does not need Skillstate/);
+  assert.match(short.hookSpecificOutput.additionalContext, /not user authority/);
+  assert.match(short.hookSpecificOutput.additionalContext, /does not identify, resume, create, or classify lifecycle state/);
   const long = hookOutputForPrompt('Проведи аудит репозитория, исправь корень проблемы, добавь тесты и проверь итог во всех затронутых модулях.');
-  assert.match(long.hookSpecificOutput.additionalContext, /\$skillstate-runtime/);
-  assert.match(long.hookSpecificOutput.additionalContext, /passive `skillstate checkpoint`/);
-  assert.doesNotMatch(long.hookSpecificOutput.additionalContext, /automatically use.*skillstate run/i);
+  assert.doesNotMatch(long.hookSpecificOutput.additionalContext, /skillstate/i);
   assert.match(long.hookSpecificOutput.additionalContext, /Ponytail may simplify code/);
+  assert.doesNotMatch(long.hookSpecificOutput.additionalContext, /origin=pinmind/);
+  const continuation = hookOutputForPrompt('Продолжай задачу.');
+  assert.match(continuation.hookSpecificOutput.additionalContext, /does not identify.*lifecycle state/i);
 });
 
-test('Skillstate admission preserves confirmation and route boundaries', () => {
+test('Skillstate advisory classifier preserves confirmation and route boundaries without hook activation', () => {
   assert.equal(needsSkillstate('long '.repeat(200), { route: 'software-change', executionSpan: 'multi-system', risk: 'high', needsHumanConfirmation: true }), false);
   assert.equal(needsSkillstate('long '.repeat(200), { route: 'simple', executionSpan: 'multi-system', risk: 'high', needsHumanConfirmation: false }), false);
   assert.equal(needsSkillstate('аудит '.repeat(200), { route: 'audit', executionSpan: 'cross-cutting', risk: 'high', needsHumanConfirmation: false }), false);

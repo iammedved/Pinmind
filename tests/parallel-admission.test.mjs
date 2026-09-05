@@ -59,6 +59,31 @@ test('large coupled work and review fan-out never admit spawn', async () => {
   assert.equal(admitParallelism(review).maxConcurrency, 1);
 });
 
+test('suitable independent reads admit native fan-out without a frozen write contract', () => {
+  const result = admitParallelism({
+    kind: 'read', decomposition: 'independent', zonesOverlap: true,
+    worktreeIsolation: false, specifiedWithoutPeerOutput: true,
+    setupCheaperThanWork: true, parentCanIntegrateFaster: true,
+    hostSubagents: true, frozenContract: false, independentIntegrationOracle: false,
+    sizeIsLarge: false, reviewFanout: false,
+  });
+  assert.deepEqual(result, { decision: 'read-only-fanout', maxConcurrency: 7 });
+  assert.deepEqual(admitParallelism({
+    kind: 'read', decomposition: 'independent', zonesOverlap: true,
+    worktreeIsolation: false, specifiedWithoutPeerOutput: true,
+    setupCheaperThanWork: true, parentCanIntegrateFaster: false,
+    hostSubagents: true, frozenContract: false, independentIntegrationOracle: false,
+    sizeIsLarge: false, reviewFanout: false,
+  }), { decision: 'read-only-fanout', maxConcurrency: 7 });
+  assert.equal(admitParallelism({
+    kind: 'read', decomposition: 'independent', zonesOverlap: true,
+    worktreeIsolation: false, specifiedWithoutPeerOutput: true,
+    setupCheaperThanWork: false, parentCanIntegrateFaster: true,
+    hostSubagents: true, frozenContract: false, independentIntegrationOracle: false,
+    sizeIsLarge: false, reviewFanout: false,
+  }).decision, 'single-agent');
+});
+
 test('parallel-admission validator rejects schema drift and expected/policy mismatch', async () => {
   const corpus = await loadCanonicalParallelAdmission(root);
 
@@ -94,18 +119,19 @@ test('parallel-admission validator is read-only and does not launch agents', asy
   assert.doesNotMatch(source, /langgraph|temporal/i);
 });
 
-test('execution admission text forbids large-equals-seven and keeps host launch out of Pinmind', async () => {
+test('execution admission requires useful native delegation and keeps host launch out of Pinmind', async () => {
   const execution = await readFile(path.join(root, 'skills/pinmind/references/execution.md'), 'utf8');
   const skill = await readFile(path.join(root, 'skills/pinmind/SKILL.md'), 'utf8');
   const aep = await readFile(path.join(root, 'ADAPTIVE_EXECUTION_POLICY.md'), 'utf8');
 
-  assert.match(execution, /five-yes|Five-yes/i);
+  assert.match(execution, /native delegation/i);
+  assert.match(execution, /delegate them without waiting/i);
   assert.match(execution, /task is large|large coupled/i);
   assert.match(execution, /read-only/i);
   assert.match(execution, /worktree/i);
-  assert.match(execution, /sequential units/i);
+  assert.match(execution, /sequential-units/i);
   assert.doesNotMatch(execution, /spawn 7 because|because the task is large/i);
-  assert.match(skill, /five-yes|execution\.md/i);
+  assert.match(skill, /native delegation|execution\.md/i);
   assert.match(aep, /do(?:es)? not change Pinmind runtime behavior/i);
   assert.doesNotMatch(aep, /exactly 17 cases|exactly 24 cases/i);
 });

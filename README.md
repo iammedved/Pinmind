@@ -114,7 +114,7 @@ Send:
 $pinmind Audit this repository without changing files. Determine the route first and report only verified findings.
 ```
 
-The first substantive status line should begin with:
+When routing is requested for diagnostics or explains a material boundary, the response may include:
 
 ```text
 Route: audit |
@@ -287,7 +287,7 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 124 declarations
+than quoting Node's runtime summary. The current manifest records 126 declarations
 across eleven test files, plus fixture-case counts for routes, activation, AEP,
 parallel admission, and language evaluation. These are separate dimensions and
 are not presented as one inflated "test count."

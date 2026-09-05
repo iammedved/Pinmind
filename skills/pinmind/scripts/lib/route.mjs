@@ -248,6 +248,11 @@ export function routeTask(input = {}) {
   const blockedExplicit = Boolean(explicitRoute && selectedExplicit !== explicitRoute);
   const confidence = conflict || vague || unresolvedExternalTarget || !text.trim() || unrecognized ? 'low' : (blockedExplicit || signalSet.has('intent:default-change') ? 'medium' : 'high');
   const needsHumanConfirmation = conflict || vague || unresolvedExternalTarget || !text.trim() || unrecognized;
+  const confirmationReason = conflict ? 'conflicting-instructions'
+    : unresolvedExternalTarget ? 'unresolved-external-target'
+      : vague || !text.trim() ? 'unclear-outcome'
+        : unrecognized ? 'unrecognized-intent'
+          : null;
   const reasons = {
     simple: translation ? 'A bounded translation request needs no tools or persistent workflow.' : (boundedRewrite || boundedFormat ? 'A bounded text request needs no tools or persistent workflow.' : (stableFact ? 'A single stable fact stays lightweight.' : 'An obvious trivial or explicit simple request stays lightweight.')),
     operational: 'A bounded operational action does not change software behavior.',
@@ -256,5 +261,5 @@ export function routeTask(input = {}) {
     investigation: 'The request needs a failing feedback loop and root-cause evidence first.',
     'software-change': highRisk ? 'A software change affects a high-risk behavior.' : 'A software behavior change requires a contract and evidence.',
   };
-  return { route, clarity, executionSpan, risk, reason: reasons[route], signals: [...signalSet], confidence, needsHumanConfirmation };
+  return { route, clarity, executionSpan, risk, reason: reasons[route], signals: [...signalSet], confidence, needsHumanConfirmation, confirmationReason };
 }

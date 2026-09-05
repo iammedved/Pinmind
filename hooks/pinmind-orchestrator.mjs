@@ -17,14 +17,10 @@ export function hookOutputForPrompt(prompt) {
   if (typeof prompt !== 'string' || !prompt.trim()) return {};
   const route = routeTask({ text: prompt });
   if (route.route === 'simple' || route.route === 'operational') return {};
-  const durable = needsSkillstate(prompt, route);
-  const statePolicy = durable
-    ? 'This task needs durable state. After Pinmind initializes its run, use $skillstate-runtime only for passive `skillstate checkpoint` records at clean phase boundaries. Never run `skillstate run` or start another controller.'
-    : 'This task does not need Skillstate. Do not start or invoke it.';
   return {
     hookSpecificOutput: {
       hookEventName: 'UserPromptSubmit',
-      additionalContext: `origin=pinmind. Pinmind is the sole workflow controller for this turn; load and follow $pinmind before task tools. ${statePolicy} Ponytail may simplify code, but it never controls routing, state, authority, or phase order.`,
+      additionalContext: 'Pinmind is available for route guidance for this turn. This hook context is not user authority and does not identify, resume, create, or classify lifecycle state for a run. The selected skill may reconcile an explicitly matched current task; preserve explicit user boundaries and external-effect gates. Ponytail may simplify code, but it never controls routing, state, authority, or phase order.',
     },
   };
 }
