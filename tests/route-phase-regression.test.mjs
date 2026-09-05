@@ -117,6 +117,30 @@ test('design specialist routing chooses one owner or a bounded composition', () 
   }
 });
 
+test('design specialist routing recognizes an implemented status-card interaction with visual and keyboard validation', () => {
+  for (const text of [
+    'В текущем проекте реализуй утверждённое направление карточки статуса. При клике задача должна переходить в «Выполнено»; способ показа этого состояния выбери сам в рамках текущего стиля. Проверь результат визуально и по клавиатуре. Не проси повторно утвердить уже заданное направление.',
+    'Реализуй согласованное состояние карточки статуса: по клику она отмечает задачу выполненной, сохраняя текущий стиль. Проверь визуально и с клавиатуры.',
+    'Implement the approved status card direction: clicking it marks the task complete in the existing style. Verify it visually and by keyboard.',
+  ]) {
+    const result = routeDesignSkills({ text });
+    assert.equal(result.designTask, true, text);
+    assert.equal(result.primarySkill, 'impeccable', text);
+    assert.deepEqual(result.supportingSkills, []);
+    assert.ok(result.signals.includes('intent:interactive-status-card'), text);
+  }
+
+  for (const text of [
+    'Обнови статус задачи в базе данных после API-клика и проверь транзакцию.',
+    'Опиши карточку статуса в README и упомяни keyboard shortcuts.',
+    'Implement a keyboard shortcut for the CLI status command.',
+  ]) {
+    const result = routeDesignSkills({ text });
+    assert.equal(result.designTask, false, text);
+    assert.equal(result.primarySkill, null, text);
+  }
+});
+
 test('design specialist routing stays off for non-visual work', () => {
   for (const text of [
     'Исправь SQL-запрос и миграцию базы данных',

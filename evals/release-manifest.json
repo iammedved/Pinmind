@@ -16,7 +16,7 @@
     {
       "role": "design-specialist-router",
       "path": "skills/pinmind/scripts/lib/design-skills.mjs",
-      "sha256": "c62050ea044600b63356f35a2d70c992d3f363ecc938e80966cff288ad34c8d7"
+      "sha256": "a972cbbe69b539bdc905aef4fce7a8f2be40641a38233db521e2138a6997967a"
     },
     {
       "role": "mixed-decomposition",
@@ -317,7 +317,7 @@
       },
       {
         "path": "tests/route-phase-regression.test.mjs",
-        "topLevelDeclarations": 5
+        "topLevelDeclarations": 6
       },
       {
         "path": "tests/abc-evaluator.test.mjs",

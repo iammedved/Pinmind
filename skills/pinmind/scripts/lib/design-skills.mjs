@@ -46,7 +46,7 @@ export function routeDesignSkills(input = {}) {
     /\b(?:ui|ux|frontend|interface|screen|page|website|landing|dashboard|component|modal|dialog|drawer|form|navigation|hero|layout|responsive|mobile|tablet|desktop|design system|figma|mockup|prototype)\b|(?:интерфейс|экран|страниц|сайт|лендинг|дашборд|компонент|модал|диалог|форма|навигац|перв(?:ый|ого) экран|адаптив|мобильн|планшет|десктоп|дизайн-систем|фигм|макет|прототип)/u.test(text),
     'domain:interface',
   );
-  const visualActionDetected = /\b(?:design|redesign|build|implement|create|fix|improve|polish|audit|review|adapt|animate|typeset|colorize|update|move|add|remove|delete|replace)\b|(?:спроектир|разработ|переработ|созда|сдела|исправ|улучш|доработ|обнов|перенес|добав|удал|замен|отполир|проверь|аудит|адаптир|анимир|типограф|цвет)/u.test(text);
+  const visualActionDetected = /\b(?:design|redesign|build|implement|create|fix|improve|polish|audit|review|adapt|animate|typeset|colorize|update|move|add|remove|delete|replace)\b|(?:спроектир|разработ|переработ|созда|сдела|исправ|улучш|доработ|обнов|перенес|добав|удал|замен|отполир|проверь|аудит|адаптир|анимир|типограф|цвет|реализ)/u.test(text);
   const visualAction = mark(
     visualActionDetected && (visualObject || impeccableExplicit || proMaxExplicit),
     'intent:design-action',
@@ -56,6 +56,13 @@ export function routeDesignSkills(input = {}) {
   const intelligenceNeed = mark(
     designKnowledge && (inquiryAction || visualActionDetected || proMaxExplicit),
     'need:design-intelligence',
+  );
+  const interactiveStatusCard = mark(
+    /\b(?:status\s+card|card\s+status)\b|карточк\S*\s+статус\S*/u.test(text)
+      && /\b(?:click|tap|keyboard|focus)\b|(?:клик|нажат|клавиатур|фокус)/u.test(text)
+      && /\b(?:visual(?:ly)?|current style|existing style)\b|(?:визуаль|текущ\S*\s+стил)/u.test(text)
+      && visualActionDetected,
+    'intent:interactive-status-card',
   );
 
   const breadth = countMatches(text, [
@@ -67,7 +74,7 @@ export function routeDesignSkills(input = {}) {
   ]);
   if (breadth >= 2) signals.push('scope:multi-concern-ui');
 
-  const designTask = impeccableExplicit || proMaxExplicit || intelligenceNeed || (visualObject && visualAction);
+  const designTask = impeccableExplicit || proMaxExplicit || intelligenceNeed || (visualObject && visualAction) || interactiveStatusCard;
   if (!designTask) {
     return {
       designTask: false,
@@ -88,7 +95,7 @@ export function routeDesignSkills(input = {}) {
     };
   }
 
-  const substantiveWork = visualObject && visualAction;
+  const substantiveWork = (visualObject && visualAction) || interactiveStatusCard;
   const compose = (impeccableExplicit && proMaxExplicit)
     || (substantiveWork && (intelligenceNeed || breadth >= 2));
   if (compose) {

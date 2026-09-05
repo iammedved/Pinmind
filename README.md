@@ -287,7 +287,7 @@ this is a review-visible tamper-evidence boundary, not a cryptographically
 independent benchmark.
 
 For an auditable inventory, Pinmind counts top-level `test(` declarations rather
-than quoting Node's runtime summary. The current manifest records 126 declarations
+than quoting Node's runtime summary. The current manifest records 127 declarations
 across eleven test files, plus fixture-case counts for routes, activation, AEP,
 parallel admission, and language evaluation. These are separate dimensions and
 are not presented as one inflated "test count."
