@@ -46,12 +46,13 @@ Make each unit a vertical contract slice across data, logic, interface, and evid
 
 ## Phase boundaries and handoff
 
-- `continue` while the same owner, workspace, seam, and feedback loop remain healthy;
+- `continue` while the same owner, workspace, seam, feedback loop, and user boundaries remain healthy;
 - `compact` at a clean phase boundary when canonical artifacts hold the durable state and conversational context is the only excess;
 - `handoff` when a new session, workspace, harness, or owner is required;
-- `subagent` only for an independent goal with concrete payoff and a non-overlapping write zone.
+- `subagent` for an independent goal with concrete payoff; writers also need a non-overlapping write zone.
 
-A handoff is a pointer, not a copied transcript:
+A handoff is a pointer, not a copied transcript. It is a bounded instruction from
+the parent, not independent proof of identity or authority:
 
 ```text
 goal; route + axes; canonical artifact paths + contract version;
@@ -63,11 +64,16 @@ Never copy the full chat, frozen contract, long logs, rejected reasoning, or sec
 
 ## Parallelism and context bundles
 
-Parallelize only after dependencies and public contracts are stable. Require disjoint write zones, one owner for shared files, an explicit integration strategy, and acceptance of a parent interface before dependent work begins.
+Parallelize writers only after dependencies and public contracts are stable. Writers require disjoint write zones, one owner for shared files, an explicit integration strategy, and acceptance of a parent interface before dependent work begins. Independent read-only work does not need a frozen contract or a write zone; it needs bounded inputs, a separate useful result, and a host worker.
 
-### Spawn admission (five-yes)
+### Native delegation admission
 
-Spawn is exceptional. Admit it only when almost all of the following are true:
+When native delegation is available and there are two or more useful,
+independent directions, delegate them without waiting for another user reminder.
+Use the smallest useful fan-out. A coupled writer may remain sequential while an
+independent read-only check is delegated.
+
+Admit a write worker only when all of the following are true:
 
 1. Pieces do not wait for each other (`decomposition: independent`).
 2. Write files do not overlap, or each writer has a worktree. Shared reads may overlap.
@@ -75,20 +81,28 @@ Spawn is exceptional. Admit it only when almost all of the following are true:
 4. Setup is cheaper than the piece itself.
 5. The parent can merge and verify faster than children generate.
 
-If any of those fail, stay `single-agent` or cut the work into sequential units. A large coupled task is not a reason to spawn. The forbidden error is "the task is large → spawn 7".
+For read-only investigation, require independent questions, bounded inputs, and
+an available host worker; overlapping reads are safe. If admission fails, record
+the concrete exception: unavailable host capability, dependency, overlapping
+write ownership, or work smaller than coordination. A large task by itself is
+not an exception and must not become "spawn 7".
 
 | Decision | When |
 |---|---|
-| `single-agent` | Default. Coupled state, missing host subagents, review fan-out, or fewer than five yes answers. |
+| `single-agent` | One bounded step, coupled state, unavailable host worker, or a recorded admission exception. |
 | `sequential-units` | Large coupled write that still has to move; one owner, serial slices. |
 | `read-only-fanout` | Independent reconnaissance, audit, or research. Shared reads are allowed. Cap 7. |
 | `isolated-write-fanout` | Frozen contract, independent write DAG, worktree or disjoint zones, and an independent integration oracle. Cap 4. Parent owns shared files and the merge. |
 
-Pinmind does not launch agents. Hosts that already have `spawn_subagent`, `workflow parallel()`, or `/execute-plan` may use those primitives only after this admission. Codex or ChatGPT without subagents stays `single-agent`. One integrated fresh-eyes review; never a review fan-out per file.
+Pinmind does not emulate or impersonate a host agent. Hosts with native
+delegation use their supported primitive after this admission. A host without it
+records that limitation and continues in a limited single-agent mode. One
+integrated fresh-eyes review is useful after substantial integration; never use
+a review fan-out per file.
 
 The machine-checked contrasts live in `evals/fixtures/parallel-admission-v0.json`. AEP Phase 0 still does not start an agent and still owns only `workShape`, not host spawn.
 
-Provide a subagent only:
+Provide a worker only:
 
 - unit goal and IDs;
 - relevant contract excerpts;
@@ -99,6 +113,12 @@ Provide a subagent only:
 - return format and owned write zone.
 
 Exclude rejected brainstorming, full chat history, unrelated units, long logs, secrets, and whole-repository summaries.
+
+The parent owns canonical `.pinmind` state. A worker must not create a root run,
+call resume, update `active.json`, or coordinate other plugins. It returns its
+bounded result and evidence; the parent decides whether current user authority
+and requirements still permit integration. A cancellation, new task, or later
+restriction invalidates a stale worker result until the parent checks it again.
 
 ## Discoveries
 

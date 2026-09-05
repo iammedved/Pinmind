@@ -36,4 +36,4 @@ Goal is never proof that work is complete. Pinmind evidence and the real public 
 
 ## Re-entry boundary
 
-An existing `.pinmind/active.json` is not automatically the current task. First reconcile it read-only. Resume only when the caller explicitly identifies the run and, when Goal context is present, the host binding matches. Without Goal, explicit standalone resume remains available for a known current run; do not infer ownership from a stale pointer alone.
+An existing `.pinmind/active.json` is not automatically the current task. First reconcile it read-only. Resume only when the caller explicitly identifies the run and, when Goal context is present, the host binding matches. Without Goal, explicit standalone resume remains available for a known current run; do not infer ownership from a stale pointer alone. A short continuation is not a durable-state lookup: it must match the identified current run, and a new cancellation or restriction applies before further work. A worker receives only its parent mandate and never resumes or creates canonical state.

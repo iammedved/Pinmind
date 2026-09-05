@@ -23,7 +23,7 @@ Apply the lightest route that still protects the outcome.
 
 Do not equate short wording with a simple task. Treat "fix the race," "deploy this," and "delete duplicates" as high-risk or substantive even when phrased in one sentence.
 
-Never dump unrecognized, vague, or contradictory wording into `software-change`. Those cases stay `clarity: uncertain`, `needsHumanConfirmation: true`, and a read-only `audit` route until the user confirms the outcome. Classify paraphrases by intended outcome, not by the old fixture keywords.
+Never dump unrecognized, vague, or contradictory wording into `software-change`. Those cases initially stay `clarity: uncertain`, `needsHumanConfirmation: true`, and a read-only `audit` route. For `unrecognized-intent` or `unclear-outcome`, bounded read-only discovery may establish the concrete outcome already requested; record the basis, do not rewrite the source request, and do not extend its effects. A real contradiction, a new approval, or unknown authority still needs the user. Classify paraphrases by intended outcome, not by the old fixture keywords.
 
 Speech act beats nouns. Inspect, critique, review, and think-about stay `audit` even when the sentence mentions code, APIs, or optimization. `продумай` / `подумай` / `think about` is not an implement directive. A quality clause such as `чтобы он был более человечный` is not product-desire by itself. A plan followed by an explicit implement clause (`продумай план и начинай исправлять`) remains `software-change`.
 
@@ -47,9 +47,12 @@ The kernel also returns:
 
 - `signals`: stable names for observed intent, authority, impact, span, risk, and ambiguity cues;
 - `confidence`: confidence in the route (`high`, `medium`, or `low`), not confidence that the work will succeed;
-- `needsHumanConfirmation`: `true` only when a material contradiction or unresolved target cannot be settled by safe read-only discovery.
+- `needsHumanConfirmation`: `true` while a material contradiction, unresolved target, or still-unresolved intent blocks the requested effect; only the non-contradictory intent cases may be narrowed by safe read-only discovery.
+- `confirmationReason`: `conflicting-instructions`, `unclear-outcome`, `unrecognized-intent`, or `unresolved-external-target` when confirmation is needed; otherwise `null`.
 
 These fields explain a decision; they never authorize side effects. A conflicting request such as “улучши код, но ничего не меняй” stays read-only and requests confirmation. Architectural clarity takes precedence when public boundaries or system shape change, even if the design also contains uncertainty.
+
+An unknown phrase is not the same as missing task context, and neither is a human decision. The first two produce their own `confirmationReason`. Bounded read-only discovery may remove `unrecognized-intent` or `unclear-outcome` only after recording a basis for the already-requested concrete outcome; it must not substitute a different request or expand external effects. Actual contradiction, a new approval, unresolved external target, or unknown authority remains a user decision.
 
 For repository collaboration, derive speech act, action, source/destination
 target, authority, and external effect independently. A read-only PR review,
@@ -126,7 +129,7 @@ Classify Russian, English, mixed-language, colloquial, and mildly misspelled req
 
 Honor an explicit `audit` or `investigation` kind because both are non-mutating routes, while still deriving risk and span from the text. Never let explicit `simple` or `operational` downgrade high-risk or software-impacting work.
 
-Use one-line progress wording such as:
+Only when the user requests routing diagnostics or a material route boundary needs explanation, use one-line progress wording such as:
 
 ```text
 Route: software-change | clear/local/medium — user-visible validation behavior changes.

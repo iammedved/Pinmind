@@ -97,17 +97,27 @@ export function fiveYes(inputs) {
     && inputs.parentCanIntegrateFaster === true;
 }
 
+export function readFanoutEligible(inputs) {
+  return inputs.kind === 'read'
+    && inputs.decomposition === 'independent'
+    && inputs.hostSubagents === true
+    && inputs.specifiedWithoutPeerOutput === true
+    && inputs.setupCheaperThanWork === true
+    && inputs.reviewFanout !== true;
+}
+
 export function admitParallelism(inputs) {
   if (!inputs || typeof inputs !== 'object') {
     return { decision: 'single-agent', maxConcurrency: 1 };
+  }
+  if (inputs.kind === 'read') {
+    const decision = readFanoutEligible(inputs) ? 'read-only-fanout' : 'single-agent';
+    return { decision, maxConcurrency: CONCURRENCY[decision] };
   }
   if (inputs.reviewFanout === true || inputs.hostSubagents !== true || fiveYes(inputs) !== true) {
     const sequential = inputs.sizeIsLarge === true && inputs.decomposition === 'coupled' && inputs.reviewFanout !== true;
     const decision = sequential ? 'sequential-units' : 'single-agent';
     return { decision, maxConcurrency: CONCURRENCY[decision] };
-  }
-  if (inputs.kind === 'read') {
-    return { decision: 'read-only-fanout', maxConcurrency: CONCURRENCY['read-only-fanout'] };
   }
   if (inputs.kind === 'write' && inputs.frozenContract === true && inputs.independentIntegrationOracle === true) {
     return { decision: 'isolated-write-fanout', maxConcurrency: CONCURRENCY['isolated-write-fanout'] };

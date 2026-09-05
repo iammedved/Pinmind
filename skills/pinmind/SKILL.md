@@ -17,13 +17,13 @@ node <skill-dir>/scripts/pinmind.mjs route --file <sanitized-request.json>
 
 The file is `{"text":"<full sanitized user request>"}`. Prefer a private temp file. On a read-only filesystem: `printf '%s' '<json>' | node <skill-dir>/scripts/pinmind.mjs route --file -`. Do not pass the request on `--text` for this bootstrap. Never combine `--file` with `--text` or `--kind`.
 
-Start the first progress update with the kernel record:
+Keep the kernel record in task evidence. Show it to the user only for a requested diagnostic, a material boundary, or a blocked action:
 
 ```text
 Route: <route> | <clarity>/<executionSpan>/<risk> — <reason>.
 ```
 
-If Node or the kernel is missing, start with `Route: non-deterministic fallback | ...` and classify conservatively from [route.md](references/route.md). Re-run only after a material user amendment or a discovered risk/span escalation.
+If Node or the kernel is missing, classify conservatively from [route.md](references/route.md) and label a diagnostic route as non-deterministic only when one is requested. Re-run only after a material user amendment or a discovered risk/span escalation.
 
 ## Route proportionally
 
@@ -48,15 +48,15 @@ Ask only when an unresolved choice changes outcome, safety, authority, or a hard
 
 ## Stop
 
-Remain read-only when `needsHumanConfirmation` is true, or when `effect:external-side-effect` is present until the user names the concrete target and effect. Operational routing never authorizes a shared push, deploy, message, deletion, production migration, payment, or credential change.
+Remain read-only when `needsHumanConfirmation` is true. State whether the reason is contradictory instructions, an unclear outcome, unrecognized intent, unresolved authority, or an unresolved external target; lack of context is not confirmation. For an unclear outcome or unrecognized intent, bounded read-only discovery may resolve the already-requested work after recording its basis, without replacing the request or expanding effects. A contradiction, new approval, unknown authority, or external target remains for the user. The `effect:external-side-effect` signal remains separately gated until the user names its concrete target and effect. Operational routing never authorizes a shared push, deploy, message, deletion, production migration, payment, or credential change.
 
-Check `.pinmind/active.json` before a new persistent run. Reconcile it read-only and resume only an explicitly identified matching unfinished run; never infer that an old pointer belongs to a new task. Optional Goal handling is defined in [goal-context.md](references/goal-context.md). The MVP allows one active run per workspace. See [safety.md](references/safety.md) for secrets, dirty trees, and production.
+Check `.pinmind/active.json` before a new persistent run. Reconcile it read-only and resume only an explicitly identified matching unfinished run; never infer that an old pointer belongs to a new task. A later cancellation or restriction applies to remaining work immediately. A delegated worker does not initialize or resume a Pinmind run, write the parent's `active.json`, or start other plugins; it returns evidence to the parent. Optional Goal handling is defined in [goal-context.md](references/goal-context.md). The MVP allows one active run per workspace. See [safety.md](references/safety.md) for secrets, dirty trees, and production.
 
-Keep specialist skills (PDF, Superpowers, `/design`, `/execute-plan`). Pinmind wraps them; it does not replace them.
+Use an available specialist only when it matches the task. Pinmind wraps specialists; it does not make an unavailable skill or command a runtime dependency.
 
 ## Durable state and code simplicity
 
-Pinmind is the only workflow controller. The bundled `UserPromptSubmit` hook may mark a non-trivial request with `origin=pinmind` and decide whether it is durable enough for Skillstate. Never let Skillstate route the task, choose actions, or start its `run` controller beneath Pinmind.
+Pinmind is the workflow controller when selected. The bundled `UserPromptSubmit` hook may assess whether a non-trivial request merits passive Skillstate storage, but hook context grants no authority and does not identify a task. Never let Skillstate route the task, choose actions, or start its `run` controller beneath Pinmind.
 
 When the hook selects durable state, keep `.pinmind` as the source of truth. After `init` and at clean contract, execution, verification, and final phase boundaries, run:
 
@@ -65,7 +65,7 @@ skillstate doctor --workspace <path>
 skillstate checkpoint --workspace <path> --pinmind-run <run-id>
 ```
 
-If either command fails, continue under Pinmind and report that durable checkpoints are unavailable; do not start a second controller. Skip Skillstate for short or one-step work. Ponytail may select the smallest code change and review over-engineering, but it never changes routing, authority, state, or phase order.
+If either command fails, continue under Pinmind and report that durable checkpoints are unavailable; do not start a second controller. The normal doctor path does not require a Codex controller; any explicit controller diagnostic is a separate requested operation. Skip Skillstate for short or one-step work. Ponytail may select the smallest code change and review over-engineering, but it never changes routing, authority, state, or phase order.
 
 ## UI design specialists
 
@@ -79,7 +79,7 @@ Follow its `primarySkill` and `supportingSkills` exactly. It selects only betwee
 
 ## Loop
 
-For `software-change` and `investigation`, follow [loop.md](references/loop.md): design or name 2–3 alternatives, observe a failing public-seam check, collect root-cause evidence before a fix, and run fresh verification before any "done" claim. Select debugging, TDD, architecture, verification, and review proportionally from [methods.md](references/methods.md); Pinmind stays the controller. Search the web or primary sources when the repo cannot settle the blocker. Parallelism only by the five-yes rule in [execution.md](references/execution.md).
+For `software-change` and `investigation`, follow [loop.md](references/loop.md): design or name 2–3 alternatives, observe a failing public-seam check, collect root-cause evidence before a fix, and run fresh verification before any "done" claim. Select debugging, TDD, architecture, verification, and review proportionally from [methods.md](references/methods.md); Pinmind stays the controller. Search the web or primary sources when the repo cannot settle the blocker. Use native delegation for suitable independent work where the host supports it; the admission and exception record are in [execution.md](references/execution.md).
 
 ## Finish
 
